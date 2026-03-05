@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 2 of 3
-status: executing
-last_updated: "2026-03-05T22:52:43.908Z"
+current_plan: 2 of 2
+status: complete
+last_updated: "2026-03-06T00:00:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 1
@@ -19,19 +19,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 1 — Project Scaffold & Configuration
+**Current focus:** Phase 2 — Data Layer (Phase 1 complete)
 
 ## Current Position
 
 **Phase:** 01-project-scaffold-configuration
-**Current Plan:** 2 of 3
-**Status:** In Progress
+**Current Plan:** 2 of 2
+**Status:** Complete
 
 ## Progress
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Project Scaffold & Configuration | In Progress |
+| 1 | Project Scaffold & Configuration | Complete |
 | 2 | Data Layer | Pending |
 | 3 | Indexer | Pending |
 | 4 | Search Engine | Pending |
@@ -53,14 +53,15 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 01-project-scaffold-configuration]: All seven stub module files created in Phase 1 to prevent import conflicts in later phases
 - [Phase 01-project-scaffold-configuration]: Bundle identifier changed from com.balazs.bohonyi.riftle to com.riftle.launcher; both windows start hidden (visible:false)
 - [Phase 01-project-scaffold-configuration]: capabilities/default.json windows array must match tauri.conf.json labels exactly; Vue body transparent required for transparent Tauri window
+- [Phase 01-project-scaffold-configuration]: body background color matched to app background to eliminate white webview corner bleed-through on transparent windows
+- [Phase 01-project-scaffold-configuration]: App.vue height chain: html, body, and #app must all have height:100% for transparent window to fill viewport correctly
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 01-project-scaffold-configuration | 01 | 3min | 2 | 10 |
-| Phase 01-project-scaffold-configuration P01 | 3 | 2 tasks | 10 files |
-| Phase 01-project-scaffold-configuration P02 | 5min | 2 tasks | 5 files |
+| 01-project-scaffold-configuration | 02 | 25min | 3 | 5 |
 
 ## Session Log
 
@@ -72,4 +73,6 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ### 2026-03-06
 - Executed plan 01-01: Rust dependency graph and plugin scaffold
-- Stopped at: Completed 01-01-PLAN.md
+- Executed plan 01-02: Tauri two-window configuration and JS plugin packages
+- Phase 1 complete — smoke test approved by user
+- Stopped at: Completed 01-02-PLAN.md
