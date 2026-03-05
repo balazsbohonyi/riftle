@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Claude
+.claude/settings.local.json
+.claude/worktrees/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+.vite/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
