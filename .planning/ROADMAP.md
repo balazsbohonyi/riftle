@@ -12,6 +12,12 @@
 
 **Requirements**: SCAF-02, SCAF-03, SCAF-04
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Expand Cargo.toml with all domain/plugin crates; replace lib.rs with plugin registration scaffold; create seven Rust module stubs
+- [ ] 01-02-PLAN.md — Rewrite tauri.conf.json (two windows, correct flags); update capabilities; replace App.vue with transparent shell; install JS plugin packages; smoke-test `pnpm tauri dev`
+
 **Success Criteria:**
 1. `tauri.conf.json` declares two windows: launcher (frameless, skip_taskbar, always_on_top) and settings (normal, hidden by default)
 2. `Cargo.toml` includes rusqlite (bundled), windows-sys with all required features, and all plugin crates
