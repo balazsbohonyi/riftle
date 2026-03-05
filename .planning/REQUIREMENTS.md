@@ -9,7 +9,7 @@
 
 - [x] **SCAF-01**: Tauri v2 project initialised with Vue 3 + TypeScript + Vite (existing scaffold)
 - [ ] **SCAF-02**: Both windows declared in tauri.conf.json (launcher: frameless, skip_taskbar, always_on_top; settings: normal, hidden by default)
-- [ ] **SCAF-03**: All required Rust crates added to Cargo.toml (rusqlite bundled, windows-sys with required features)
+- [x] **SCAF-03**: All required Rust crates added to Cargo.toml (rusqlite bundled, windows-sys with required features)
 - [ ] **SCAF-04**: `pnpm tauri dev` starts without errors
 
 ### Data Layer
@@ -126,7 +126,7 @@
 |-------------|-------|--------|
 | SCAF-01 | Phase 1 | Complete |
 | SCAF-02 | Phase 1 | Pending |
-| SCAF-03 | Phase 1 | Pending |
+| SCAF-03 | Phase 1 | Complete |
 | SCAF-04 | Phase 1 | Pending |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |

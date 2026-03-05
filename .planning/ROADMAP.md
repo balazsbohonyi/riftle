@@ -12,7 +12,7 @@
 
 **Requirements**: SCAF-02, SCAF-03, SCAF-04
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md — Expand Cargo.toml with all domain/plugin crates; replace lib.rs with plugin registration scaffold; create seven Rust module stubs
@@ -168,7 +168,7 @@ Plans:
 
 | # | Phase | Requirements | Status |
 |---|-------|--------------|--------|
-| 1 | Project Scaffold & Configuration | SCAF-02–04 | Pending |
+| 1 | 1/2 | In Progress|  |
 | 2 | Data Layer | DATA-01–07 | Pending |
 | 3 | Indexer | INDX-01–08 | Pending |
 | 4 | Search Engine | SRCH-01–05 | Pending |
