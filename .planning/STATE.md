@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 2 of 3
 status: executing
-last_updated: "2026-03-05T22:46:31.995Z"
+last_updated: "2026-03-05T22:52:43.908Z"
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -51,6 +51,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 01-project-scaffold-configuration]: Tauri plugins pinned to exact versions; domain crates use caret ranges per project spec
 - [Phase 01-project-scaffold-configuration]: global-shortcut and autostart use #[cfg(desktop)] setup callback pattern in lib.rs
 - [Phase 01-project-scaffold-configuration]: All seven stub module files created in Phase 1 to prevent import conflicts in later phases
+- [Phase 01-project-scaffold-configuration]: Bundle identifier changed from com.balazs.bohonyi.riftle to com.riftle.launcher; both windows start hidden (visible:false)
+- [Phase 01-project-scaffold-configuration]: capabilities/default.json windows array must match tauri.conf.json labels exactly; Vue body transparent required for transparent Tauri window
 
 ## Performance Metrics
 
@@ -58,6 +60,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 |-------|------|----------|-------|-------|
 | 01-project-scaffold-configuration | 01 | 3min | 2 | 10 |
 | Phase 01-project-scaffold-configuration P01 | 3 | 2 tasks | 10 files |
+| Phase 01-project-scaffold-configuration P02 | 5min | 2 tasks | 5 files |
 
 ## Session Log
 
