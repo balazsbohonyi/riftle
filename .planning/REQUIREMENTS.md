@@ -31,6 +31,7 @@
 - [ ] **INDX-05**: Icon extraction runs asynchronously; launcher shows placeholder until icon is ready
 - [ ] **INDX-06**: Background re-index on configurable interval (default 15 min)
 - [ ] **INDX-07**: notify crate watches Start Menu directories; incremental re-index on change, debounced 500ms
+- [ ] **INDX-08**: reindex() Tauri command triggers a full manual re-index on demand (exposed to frontend for Settings "Re-index now" button)
 
 ### Search
 
@@ -114,7 +115,6 @@
 
 | Feature | Reason |
 |---------|--------|
-| Real-time filesystem watcher (v1) | Deferred to v2 — manual reindex sufficient for v1 |
 | Non-Windows platforms | Windows-only by design |
 | Plugin/extension system | Future milestone |
 | Web search / external queries | Out of scope for a local app launcher |
@@ -142,6 +142,7 @@
 | INDX-05 | Phase 3 | Pending |
 | INDX-06 | Phase 3 | Pending |
 | INDX-07 | Phase 3 | Pending |
+| INDX-08 | Phase 3 | Pending |
 | SRCH-01 | Phase 4 | Pending |
 | SRCH-02 | Phase 4 | Pending |
 | SRCH-03 | Phase 4 | Pending |

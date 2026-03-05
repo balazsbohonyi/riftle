@@ -29,7 +29,7 @@ Sub-100ms hotkey-to-visible response time with zero mouse required — if the sh
 
 ### Out of Scope
 
-- Real-time file indexing with filesystem watcher — complexity vs. value; manual reindex sufficient for v1
+- Plugin/extension system — future milestone (listed separately below)
 - Plugin/extension system — future milestone
 - Non-Windows platforms — Windows-only by design
 - Web search or external queries — intentional scope limit

@@ -40,7 +40,7 @@
 
 **Goal:** Build the Windows application indexer: crawl all configured paths, resolve .lnk shortcuts, extract icons asynchronously, persist to SQLite, and keep the index fresh via background timer and filesystem watcher.
 
-**Requirements:** INDX-01, INDX-02, INDX-03, INDX-04, INDX-05, INDX-06, INDX-07
+**Requirements:** INDX-01, INDX-02, INDX-03, INDX-04, INDX-05, INDX-06, INDX-07, INDX-08
 
 **Success Criteria:**
 1. Full index on startup populates the apps table with apps from Start Menu, Desktop, PATH, and user-defined paths
@@ -164,7 +164,7 @@
 |---|-------|--------------|--------|
 | 1 | Project Scaffold & Configuration | SCAF-02–04 | Pending |
 | 2 | Data Layer | DATA-01–07 | Pending |
-| 3 | Indexer | INDX-01–07 | Pending |
+| 3 | Indexer | INDX-01–08 | Pending |
 | 4 | Search Engine | SRCH-01–05 | Pending |
 | 5 | Launcher Window UI | LWND-01–12 | Pending |
 | 6 | Launch Actions | LAUN-01–04 | Pending |
