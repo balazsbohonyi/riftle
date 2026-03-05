@@ -16,7 +16,10 @@
   box-sizing: border-box;
 }
 
+html,
 body {
+  width: 100%;
+  height: 100%;
   /* Required for transparent window: without this, the launcher shows a white rectangle */
   background: transparent;
   overflow: hidden;
