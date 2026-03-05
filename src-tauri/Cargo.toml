@@ -19,7 +19,23 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 
+# Official Tauri plugins — exact version pins (must match Tauri 2.10.3 minor series)
+tauri-plugin-opener = "2"
+tauri-plugin-store = "2.4.2"
+tauri-plugin-global-shortcut = "2.3.0"
+tauri-plugin-autostart = "2.5.1"
+
+# Domain crates — caret ranges (stable semver, benefits from patch updates)
+rusqlite = { version = "^0.31", features = ["bundled"] }
+walkdir = "^2"
+notify = "^6"
+nucleo = "^0.5"
+windows-sys = { version = "^0.52", features = [
+  "Win32_UI_Shell",
+  "Win32_System_Shutdown",
+  "Win32_System_Power",
+  "Win32_System_RemoteDesktop"
+] }
+serde = { version = "^1", features = ["derive"] }
+serde_json = "^1"
