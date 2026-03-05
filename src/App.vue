@@ -25,5 +25,7 @@ body {
 #app {
   width: 100%;
   height: 100%;
+  background: #1c1c1e;
+  border-radius: 12px;
 }
 </style>
