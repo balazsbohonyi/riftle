@@ -6,11 +6,11 @@
 
 ---
 
-## Phase 1 · Project Scaffold & Configuration
+## Phase 1: Project Scaffold & Configuration
 
 **Goal:** Configure the Tauri v2 project skeleton so both windows (launcher and settings) are declared with correct flags, all required Rust crates are present, and `pnpm tauri dev` starts cleanly.
 
-**Requirements:** SCAF-02, SCAF-03, SCAF-04
+**Requirements**: SCAF-02, SCAF-03, SCAF-04
 
 **Success Criteria:**
 1. `tauri.conf.json` declares two windows: launcher (frameless, skip_taskbar, always_on_top) and settings (normal, hidden by default)
@@ -20,11 +20,11 @@
 
 ---
 
-## Phase 2 · Data Layer
+## Phase 2: Data Layer
 
 **Goal:** Implement SQLite schema, settings persistence via tauri-plugin-store, and portable-mode path detection — the foundation every other module depends on.
 
-**Requirements:** DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, DATA-06, DATA-07
+**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, DATA-06, DATA-07
 
 **Success Criteria:**
 1. On launch, SQLite database is created at the correct path (portable: ./data/, installed: %APPDATA%\launcher\)
@@ -36,11 +36,11 @@
 
 ---
 
-## Phase 3 · Indexer
+## Phase 3: Indexer
 
 **Goal:** Build the Windows application indexer: crawl all configured paths, resolve .lnk shortcuts, extract icons asynchronously, persist to SQLite, and keep the index fresh via background timer and filesystem watcher.
 
-**Requirements:** INDX-01, INDX-02, INDX-03, INDX-04, INDX-05, INDX-06, INDX-07, INDX-08
+**Requirements**: INDX-01, INDX-02, INDX-03, INDX-04, INDX-05, INDX-06, INDX-07, INDX-08
 
 **Success Criteria:**
 1. Full index on startup populates the apps table with apps from Start Menu, Desktop, PATH, and user-defined paths
@@ -52,11 +52,11 @@
 
 ---
 
-## Phase 4 · Search Engine
+## Phase 4: Search Engine
 
 **Goal:** Implement the search Tauri command using nucleo with MRU-weighted ranking and the > prefix for system commands.
 
-**Requirements:** SRCH-01, SRCH-02, SRCH-03, SRCH-04, SRCH-05
+**Requirements**: SRCH-01, SRCH-02, SRCH-03, SRCH-04, SRCH-05
 
 **Success Criteria:**
 1. search("") returns empty (or top MRU apps); search("ch") returns Chrome above other matches if launched most often
@@ -67,11 +67,11 @@
 
 ---
 
-## Phase 5 · Launcher Window UI
+## Phase 5: Launcher Window UI
 
 **Goal:** Build the complete Vue 3 launcher window: frameless layout, search input, virtualised result list, full keyboard navigation, conditional path display, admin badge, and auto-hide on focus loss.
 
-**Requirements:** LWND-01 through LWND-12
+**Requirements**: LWND-01, LWND-02, LWND-03, LWND-04, LWND-05, LWND-06, LWND-07, LWND-08, LWND-09, LWND-10, LWND-11, LWND-12
 
 **Success Criteria:**
 1. Window is 640px wide, frameless, always-on-top, not in taskbar; height grows up to 8 result rows
@@ -85,11 +85,11 @@
 
 ---
 
-## Phase 6 · Launch Actions
+## Phase 6: Launch Actions
 
 **Goal:** Implement all Tauri launch commands in Rust — normal, elevated, and system commands — using windows-sys APIs.
 
-**Requirements:** LAUN-01, LAUN-02, LAUN-03, LAUN-04
+**Requirements**: LAUN-01, LAUN-02, LAUN-03, LAUN-04
 
 **Success Criteria:**
 1. launch(id) opens the target application via ShellExecuteW
@@ -99,11 +99,11 @@
 
 ---
 
-## Phase 7 · Context Menu
+## Phase 7: Context Menu
 
 **Goal:** Add a right-click context menu as a custom Vue HTML overlay with Settings and Quit actions.
 
-**Requirements:** MENU-01, MENU-02, MENU-03
+**Requirements**: MENU-01, MENU-02, MENU-03
 
 **Success Criteria:**
 1. Right-clicking anywhere on the launcher window shows the custom overlay positioned at cursor coordinates
@@ -113,11 +113,11 @@
 
 ---
 
-## Phase 8 · Settings Window
+## Phase 8: Settings Window
 
 **Goal:** Build the full Settings window as a separate single-instance Tauri window with all four sections — General, Hotkey, Search, Appearance — with reactive updates to the open launcher.
 
-**Requirements:** SETT-01 through SETT-07
+**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04, SETT-05, SETT-06, SETT-07
 
 **Success Criteria:**
 1. Settings window opens from context menu → Settings and from Ctrl+, in the launcher
@@ -129,11 +129,11 @@
 
 ---
 
-## Phase 9 · Global Hotkey
+## Phase 9: Global Hotkey
 
 **Goal:** Register the configurable global hotkey and implement toggle show/hide behaviour with input clear-and-focus on show.
 
-**Requirements:** HKEY-01, HKEY-02, HKEY-03
+**Requirements**: HKEY-01, HKEY-02, HKEY-03
 
 **Success Criteria:**
 1. Alt+Space (default) toggles launcher visibility from any foreground window
@@ -143,11 +143,11 @@
 
 ---
 
-## Phase 10 · Packaging & Distribution
+## Phase 10: Packaging & Distribution
 
 **Goal:** Configure tauri build to produce NSIS and MSI installers. Document and verify the portable build. Confirm installers work on a clean Windows machine.
 
-**Requirements:** PACK-01, PACK-02, PACK-03, PACK-04, PACK-05
+**Requirements**: PACK-01, PACK-02, PACK-03, PACK-04, PACK-05
 
 **Success Criteria:**
 1. `pnpm tauri build` produces both .exe (NSIS) and .msi artifacts without errors
