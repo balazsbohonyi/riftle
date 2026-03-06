@@ -144,6 +144,7 @@ mod tests {
         assert!(s.additional_paths.is_empty());
         assert!(s.excluded_paths.is_empty());
         assert_eq!(s.reindex_interval, 15);
+        assert_eq!(s.animation, "slide");
     }
 
     #[test]
@@ -157,6 +158,7 @@ mod tests {
         assert_eq!(deserialized.show_path, original.show_path);
         assert_eq!(deserialized.autostart, original.autostart);
         assert_eq!(deserialized.reindex_interval, original.reindex_interval);
+        assert_eq!(deserialized.animation, original.animation);
     }
 
     #[test]
@@ -168,6 +170,7 @@ mod tests {
         assert_eq!(s.theme, "system");          // from serde default
         assert_eq!(s.reindex_interval, 15);     // from serde default
         assert!(!s.show_path);                  // bool default
+        assert_eq!(s.animation, "slide");       // from serde default
     }
 
     #[test]
