@@ -2,28 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-05T23:27:35.493Z"
+current_plan: 1 of 3
+status: in_progress
+last_updated: "2026-03-06T01:05:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: 2 of 2
-status: complete
-last_updated: "2026-03-06T00:00:00.000Z"
-progress:
-  total_phases: 10
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -33,20 +20,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 2 — Data Layer (Phase 1 complete)
+**Current focus:** Phase 2 — Data Layer (Plan 01 complete, Plans 02-03 remaining)
 
 ## Current Position
 
-**Phase:** 01-project-scaffold-configuration
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 02-data-layer
+**Current Plan:** 1 of 3 complete
+**Status:** In progress
 
 ## Progress
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
-| 2 | Data Layer | Pending |
+| 2 | Data Layer | In Progress |
 | 3 | Indexer | Pending |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
@@ -69,6 +56,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 01-project-scaffold-configuration]: capabilities/default.json windows array must match tauri.conf.json labels exactly; Vue body transparent required for transparent Tauri window
 - [Phase 01-project-scaffold-configuration]: body background color matched to app background to eliminate white webview corner bleed-through on transparent windows
 - [Phase 01-project-scaffold-configuration]: App.vue height chain: html, body, and #app must all have height:100% for transparent window to fill viewport correctly
+- [Phase 02-data-layer]: paths::data_dir() uses current_exe() for portable detection, data_dir_from_exe_dir() helper for testability without AppHandle
+- [Phase 02-data-layer]: paths module separated from db/store to avoid duplication; create_dir_all called before returning to guarantee directory exists
 
 ## Performance Metrics
 
@@ -76,6 +65,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 |-------|------|----------|-------|-------|
 | 01-project-scaffold-configuration | 01 | 3min | 2 | 10 |
 | 01-project-scaffold-configuration | 02 | 25min | 3 | 5 |
+| 02-data-layer | 01 | 5min | 2 | 2 |
 
 ## Session Log
 
@@ -89,4 +79,5 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 01-01: Rust dependency graph and plugin scaffold
 - Executed plan 01-02: Tauri two-window configuration and JS plugin packages
 - Phase 1 complete — smoke test approved by user
-- Stopped at: Completed 01-02-PLAN.md
+- Executed plan 02-01: paths.rs portable-aware data directory resolution
+- Stopped at: Completed 02-01-PLAN.md
