@@ -49,35 +49,169 @@ pub fn reindex(
 
 /// Get all directories to index, with their source labels.
 pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str)> {
-    todo!("Phase 3 Plan 02: implement path discovery")
+    let mut paths: Vec<(PathBuf, &'static str)> = vec![];
+
+    // Start Menu user
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let p = PathBuf::from(appdata).join("Microsoft\\Windows\\Start Menu\\Programs");
+        if p.exists() {
+            paths.push((p, "start_menu"));
+        }
+    }
+
+    // Start Menu all-users
+    if let Ok(programdata) = std::env::var("PROGRAMDATA") {
+        let p = PathBuf::from(programdata).join("Microsoft\\Windows\\Start Menu\\Programs");
+        if p.exists() {
+            paths.push((p, "start_menu"));
+        }
+    }
+
+    // Desktop user
+    if let Ok(userprofile) = std::env::var("USERPROFILE") {
+        let p = PathBuf::from(userprofile).join("Desktop");
+        if p.exists() {
+            paths.push((p, "desktop"));
+        }
+    }
+
+    // Desktop public
+    let public_desktop = PathBuf::from("C:\\Users\\Public\\Desktop");
+    if public_desktop.exists() {
+        paths.push((public_desktop, "desktop"));
+    }
+
+    // PATH entries
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in std::env::split_paths(&path_var) {
+            if dir.exists() {
+                paths.push((dir, "path"));
+            }
+        }
+    }
+
+    // Additional paths from settings
+    for additional in &settings.additional_paths {
+        let p = PathBuf::from(additional);
+        if p.exists() {
+            paths.push((p, "additional"));
+        }
+    }
+
+    paths
 }
 
 /// Walk a directory, resolve .lnk shortcuts, return AppRecords.
 /// source: "start_menu" | "desktop" | "path" | "additional"
 /// PATH source: .exe only, no .lnk resolution, max_depth 1.
 pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String]) -> Vec<AppRecord> {
-    todo!("Phase 3 Plan 02: implement crawl")
+    let mut apps = vec![];
+    let walker = if source == "path" {
+        // PATH directories: only top-level .exe files (not recursive)
+        walkdir::WalkDir::new(root).max_depth(1)
+    } else {
+        walkdir::WalkDir::new(root).follow_links(true)
+    };
+
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Skip if under any excluded path
+        if excluded.iter().any(|ex| path.starts_with(ex)) {
+            continue;
+        }
+
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        match ext {
+            "lnk" if source != "path" => {
+                if let Some(target) = resolve_lnk(path) {
+                    apps.push(make_app_record(&target, source));
+                }
+            }
+            "exe" => {
+                apps.push(make_app_record(path, source));
+            }
+            _ => {}
+        }
+    }
+    apps
 }
 
 /// Resolve a .lnk file to its target executable path.
 /// Returns None if: unresolvable, target is another .lnk, target doesn't exist, target isn't .exe.
 pub(crate) fn resolve_lnk(lnk_path: &Path) -> Option<PathBuf> {
-    todo!("Phase 3 Plan 02: implement LNK resolution")
+    use lnk::ShellLink;
+
+    // Open the shell link — returns None if file missing or not a valid .lnk
+    let shortcut = ShellLink::open(lnk_path).ok()?;
+
+    // Reconstruct target path from working_dir + filename from relative_path.
+    // Real Windows shortcuts store: working_dir = parent dir, relative_path = "./filename.exe"
+    // Fallback: try working_dir alone if no relative_path.
+    let target = {
+        let working_dir = shortcut.working_dir().as_ref()?;
+        let relative = shortcut.relative_path().clone();
+
+        if let Some(rel) = relative {
+            // Strip leading "./" or ".\" prefix from relative path
+            let rel_stripped = rel
+                .trim_start_matches("./")
+                .trim_start_matches(".\\");
+            PathBuf::from(working_dir).join(rel_stripped)
+        } else {
+            PathBuf::from(working_dir)
+        }
+    };
+
+    // One level only: skip if target is also a .lnk
+    if target.extension().and_then(|e| e.to_str()) == Some("lnk") {
+        return None;
+    }
+
+    // Must exist and be an .exe
+    if target.exists() && target.extension().and_then(|e| e.to_str()) == Some("exe") {
+        Some(target)
+    } else {
+        None
+    }
 }
 
 /// Build a canonical AppRecord from an exe path.
 pub(crate) fn make_app_record(exe_path: &Path, source: &'static str) -> AppRecord {
-    todo!("Phase 3 Plan 02: implement make_app_record")
+    AppRecord {
+        id: exe_path.to_string_lossy().to_lowercase(),
+        name: exe_path.file_stem().unwrap_or_default().to_string_lossy().to_string(),
+        path: exe_path.to_string_lossy().to_string(),
+        icon_path: Some("generic.png".to_string()),
+        source: source.to_string(),
+        last_launched: None,
+        launch_count: 0,
+    }
 }
 
 /// FNV-1a 64-bit hash of the normalized exe path → "{:016x}.png" icon filename.
 pub(crate) fn icon_filename(exe_path: &str) -> String {
-    todo!("Phase 3 Plan 02: implement icon_filename")
+    let mut hash: u64 = 14695981039346656037u64;
+    for byte in exe_path.to_lowercase().bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(1099511628211u64);
+    }
+    format!("{:016x}.png", hash)
 }
 
 /// Delete all apps from DB whose id is not in discovered_ids.
 pub(crate) fn prune_stale(conn: &Connection, discovered_ids: &HashSet<String>) -> rusqlite::Result<()> {
-    todo!("Phase 3 Plan 02: implement prune_stale")
+    let existing: Vec<String> = conn
+        .prepare("SELECT id FROM apps")?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .filter_map(|r| r.ok())
+        .collect();
+    for id in existing {
+        if !discovered_ids.contains(&id) {
+            conn.execute("DELETE FROM apps WHERE id = ?1", rusqlite::params![id])?;
+        }
+    }
+    Ok(())
 }
 
 /// Copy bundled GENERIC_ICON to {data_dir}/icons/generic.png if missing.
@@ -127,7 +261,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_crawl_discovers_exe() {
         let (dir, _exe) = temp_dir_with_exe("foo.exe");
         let apps = crawl_dir(dir.path(), "additional", &[]);
@@ -148,7 +281,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_resolve_lnk_broken() {
         let result = resolve_lnk(Path::new("C:\\nonexistent\\fake.lnk"));
         assert!(result.is_none());
@@ -196,7 +328,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_icon_filename_stable() {
         let path = "C:\\Windows\\notepad.exe";
         let a = icon_filename(path);
