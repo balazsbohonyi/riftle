@@ -102,13 +102,20 @@ Plans:
 
 **Requirements**: LWND-01, LWND-02, LWND-03, LWND-04, LWND-05, LWND-06, LWND-07, LWND-08, LWND-09, LWND-10, LWND-11, LWND-12
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Rust prep: add animation field to Settings struct, add get_settings_cmd Tauri command, enable asset protocol in tauri.conf.json
+- [ ] 05-02-PLAN.md — Frontend scaffold: install vue-virtual-scroller + @fontsource packages, create magnifier SVG, build complete App.vue with layout, search input, RecycleScroller result list, and window resize
+- [ ] 05-03-PLAN.md — Smoke test checkpoint: center window config + human verify all 12 LWND requirements
+
 **Success Criteria:**
 1. Window is 640px wide, frameless, always-on-top, not in taskbar; height grows up to 8 result rows
 2. Search input is autofocused and cleared when window appears
 3. ↑/↓ navigate the list; Enter launches selected; Escape hides window; list wraps at boundaries
 4. Ctrl+Shift+Enter triggers elevated launch (visual [Admin] badge appears while Ctrl+Shift held)
 5. Path line for selected row appears only when show_path setting is true
-6. Typing > in the input shows system command results with ⚙️ icon; no path line shown
+6. Typing > in the input shows system command results with gear icon; no path line shown
 7. Window hides automatically when it loses focus
 8. Result list renders without lag for 50 items (virtualised)
 
@@ -195,7 +202,7 @@ Plans:
 | 2 | 3/3 | Complete   | 2026-03-06 |
 | 3 | 5/5 | Complete    | 2026-03-06 |
 | 4 | 3/3 | Complete   | 2026-03-06 |
-| 5 | Launcher Window UI | LWND-01–12 | Pending |
+| 5 | Launcher Window UI | LWND-01–12 | Planning |
 | 6 | Launch Actions | LAUN-01–04 | Pending |
 | 7 | Context Menu | MENU-01–03 | Pending |
 | 8 | Settings Window | SETT-01–07 | Pending |
