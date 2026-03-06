@@ -17,9 +17,9 @@
 - [x] **DATA-01**: SQLite database initialised at startup with portable-aware path detection
 - [x] **DATA-02**: Schema: apps table (id, name, path, icon_path, source, last_launched, launch_count)
 - [x] **DATA-03**: db.rs exposes init_db(), upsert_app(), get_all_apps(), increment_launch_count()
-- [ ] **DATA-04**: Settings persisted via tauri-plugin-store to settings.json (portable-aware path)
-- [ ] **DATA-05**: Default settings: hotkey Alt+Space, theme system, opacity 1.0, show_path false, autostart false, additional_paths [], excluded_paths [], reindex_interval 15
-- [ ] **DATA-06**: store.rs exposes get_settings() and set_settings(patch) with typed Settings struct
+- [x] **DATA-04**: Settings persisted via tauri-plugin-store to settings.json (portable-aware path)
+- [x] **DATA-05**: Default settings: hotkey Alt+Space, theme system, opacity 1.0, show_path false, autostart false, additional_paths [], excluded_paths [], reindex_interval 15
+- [x] **DATA-06**: store.rs exposes get_settings() and set_settings(patch) with typed Settings struct
 - [x] **DATA-07**: Portable mode detection — launcher.portable file adjacent to exe triggers data path switch to ./data/
 
 ### Indexer
@@ -131,9 +131,9 @@
 | DATA-01 | Phase 2 | Complete |
 | DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Complete |
-| DATA-04 | Phase 2 | Pending |
-| DATA-05 | Phase 2 | Pending |
-| DATA-06 | Phase 2 | Pending |
+| DATA-04 | Phase 2 | Complete |
+| DATA-05 | Phase 2 | Complete |
+| DATA-06 | Phase 2 | Complete |
 | DATA-07 | Phase 2 | Complete |
 | INDX-01 | Phase 3 | Pending |
 | INDX-02 | Phase 3 | Pending |

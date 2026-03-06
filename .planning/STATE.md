@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 2 of 3 complete
+current_plan: 3 of 3 complete
 status: in_progress
-last_updated: "2026-03-06T01:09:00.000Z"
+last_updated: "2026-03-06T01:18:24.000Z"
 progress:
   total_phases: 10
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -20,22 +20,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 2 — Data Layer (Plans 01-02 complete, Plan 03 remaining)
+**Current focus:** Phase 2 complete — Data Layer (all 3 plans done). Phase 3 (Indexer) is next.
 
 ## Current Position
 
 **Phase:** 02-data-layer
-**Current Plan:** 2 of 3 complete
-**Status:** In progress
+**Current Plan:** 3 of 3 complete
+**Status:** In progress (Phase 2 complete, Phase 3 pending)
 
 ## Progress
 
-[████████░░] 80%
+[██████████] 100%
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
-| 2 | Data Layer | In Progress |
+| 2 | Data Layer | Complete |
 | 3 | Indexer | Pending |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
@@ -63,6 +63,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 02-data-layer]: ON CONFLICT DO UPDATE SET (not INSERT OR REPLACE) preserves launch_count on re-index
 - [Phase 02-data-layer]: init_db_connection() separated from init_db() to enable in-memory testing without AppHandle
 - [Phase 02-data-layer]: tauri::Manager trait import required for app.manage() in Tauri v2 setup callback
+- [Phase 02-data-layer]: Settings uses full-struct replace (not partial patch) for simplicity — Phase 8 reads current, updates fields, writes full struct back
+- [Phase 02-data-layer]: Silent reset on malformed settings.json via unwrap_or_default — avoids startup failure if user corrupts file
+- [Phase 02-data-layer]: get_settings() called in lib.rs setup to trigger first-run settings.json creation before any other subsystem needs it
 
 ## Performance Metrics
 
@@ -72,6 +75,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 01-project-scaffold-configuration | 02 | 25min | 3 | 5 |
 | 02-data-layer | 01 | 5min | 2 | 2 |
 | 02-data-layer | 02 | 4min | 2 | 2 |
+| 02-data-layer | 03 | 3min | 2 | 2 |
 
 ## Session Log
 
@@ -87,4 +91,5 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Phase 1 complete — smoke test approved by user
 - Executed plan 02-01: paths.rs portable-aware data directory resolution
 - Executed plan 02-02: SQLite data layer — db.rs + DbState wired into lib.rs
-- Stopped at: Completed 02-02-PLAN.md
+- Executed plan 02-03: Settings persistence — store.rs + lib.rs first-run init
+- Stopped at: Completed 02-03-PLAN.md
