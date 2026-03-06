@@ -40,8 +40,10 @@ watch(query, async (q) => {
   results.value = q.trim()
     ? await invoke<SearchResult[]>('search', { query: q }).catch(() => [])
     : []
+  console.log('[App] search results:', results.value.length, 'items')
   selectedIndex.value = 0
   await updateWindowHeight()
+  console.log('[App] window height updated')
 })
 
 watch(results, () => {
@@ -62,7 +64,9 @@ function getIconUrl(iconPath: string): string {
   // icon_path is a filename (e.g. "notepad.png"); construct absolute path
   const sep = dataDir.value.includes('\\') ? '\\' : '/'
   const fullPath = dataDir.value + sep + 'icons' + sep + iconPath
-  return convertFileSrc(fullPath)
+  const url = convertFileSrc(fullPath)
+  console.log('[App] icon URL:', { iconPath, dataDir: dataDir.value, fullPath, url })
+  return url
 }
 
 // ---- Launch stubs (Phase 6 implements commands) ----
