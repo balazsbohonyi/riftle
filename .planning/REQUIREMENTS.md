@@ -24,14 +24,14 @@
 
 ### Indexer
 
-- [ ] **INDX-01**: On startup and on manual reindex, crawl Start Menu (both AppData and ProgramData), Desktop (user + public), PATH directories (.exe only), and user-defined additional paths
-- [ ] **INDX-02**: .lnk shortcut targets resolved to actual executable paths
-- [ ] **INDX-03**: Excluded paths from settings are skipped; stale entries removed on each full index
-- [ ] **INDX-04**: App icons extracted via ExtractIconEx, saved as .png to {data_dir}/icons/{app_id}.png; falls back to generic icon
-- [ ] **INDX-05**: Icon extraction runs asynchronously; launcher shows placeholder until icon is ready
-- [ ] **INDX-06**: Background re-index on configurable interval (default 15 min)
-- [ ] **INDX-07**: notify crate watches Start Menu directories; incremental re-index on change, debounced 500ms
-- [ ] **INDX-08**: reindex() Tauri command triggers a full manual re-index on demand (exposed to frontend for Settings "Re-index now" button)
+- [x] **INDX-01**: On startup and on manual reindex, crawl Start Menu (both AppData and ProgramData), Desktop (user + public), PATH directories (.exe only), and user-defined additional paths
+- [x] **INDX-02**: .lnk shortcut targets resolved to actual executable paths
+- [x] **INDX-03**: Excluded paths from settings are skipped; stale entries removed on each full index
+- [x] **INDX-04**: App icons extracted via ExtractIconEx, saved as .png to {data_dir}/icons/{app_id}.png; falls back to generic icon
+- [x] **INDX-05**: Icon extraction runs asynchronously; launcher shows placeholder until icon is ready
+- [x] **INDX-06**: Background re-index on configurable interval (default 15 min)
+- [x] **INDX-07**: notify crate watches Start Menu directories; incremental re-index on change, debounced 500ms
+- [x] **INDX-08**: reindex() Tauri command triggers a full manual re-index on demand (exposed to frontend for Settings "Re-index now" button)
 
 ### Search
 
@@ -135,14 +135,14 @@
 | DATA-05 | Phase 2 | Complete |
 | DATA-06 | Phase 2 | Complete |
 | DATA-07 | Phase 2 | Complete |
-| INDX-01 | Phase 3 | Pending |
-| INDX-02 | Phase 3 | Pending |
-| INDX-03 | Phase 3 | Pending |
-| INDX-04 | Phase 3 | Pending |
-| INDX-05 | Phase 3 | Pending |
-| INDX-06 | Phase 3 | Pending |
-| INDX-07 | Phase 3 | Pending |
-| INDX-08 | Phase 3 | Pending |
+| INDX-01 | Phase 3 | Complete |
+| INDX-02 | Phase 3 | Complete |
+| INDX-03 | Phase 3 | Complete |
+| INDX-04 | Phase 3 | Complete |
+| INDX-05 | Phase 3 | Complete |
+| INDX-06 | Phase 3 | Complete |
+| INDX-07 | Phase 3 | Complete |
+| INDX-08 | Phase 3 | Complete |
 | SRCH-01 | Phase 4 | Pending |
 | SRCH-02 | Phase 4 | Pending |
 | SRCH-03 | Phase 4 | Pending |
