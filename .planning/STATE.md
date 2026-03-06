@@ -2,28 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-05T23:27:35.493Z"
+current_plan: 3 of 3 complete
+status: in_progress
+last_updated: "2026-03-06T01:18:24.000Z"
 progress:
   total_phases: 10
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: 2 of 2
-status: complete
-last_updated: "2026-03-06T00:00:00.000Z"
-progress:
-  total_phases: 10
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -33,20 +20,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 2 — Data Layer (Phase 1 complete)
+**Current focus:** Phase 2 complete — Data Layer (all 3 plans done). Phase 3 (Indexer) is next.
 
 ## Current Position
 
-**Phase:** 01-project-scaffold-configuration
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 02-data-layer
+**Current Plan:** 3 of 3 complete
+**Status:** In progress (Phase 2 complete, Phase 3 pending)
 
 ## Progress
+
+[██████████] 100%
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
-| 2 | Data Layer | Pending |
+| 2 | Data Layer | Complete |
 | 3 | Indexer | Pending |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
@@ -69,6 +58,14 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 01-project-scaffold-configuration]: capabilities/default.json windows array must match tauri.conf.json labels exactly; Vue body transparent required for transparent Tauri window
 - [Phase 01-project-scaffold-configuration]: body background color matched to app background to eliminate white webview corner bleed-through on transparent windows
 - [Phase 01-project-scaffold-configuration]: App.vue height chain: html, body, and #app must all have height:100% for transparent window to fill viewport correctly
+- [Phase 02-data-layer]: paths::data_dir() uses current_exe() for portable detection, data_dir_from_exe_dir() helper for testability without AppHandle
+- [Phase 02-data-layer]: paths module separated from db/store to avoid duplication; create_dir_all called before returning to guarantee directory exists
+- [Phase 02-data-layer]: ON CONFLICT DO UPDATE SET (not INSERT OR REPLACE) preserves launch_count on re-index
+- [Phase 02-data-layer]: init_db_connection() separated from init_db() to enable in-memory testing without AppHandle
+- [Phase 02-data-layer]: tauri::Manager trait import required for app.manage() in Tauri v2 setup callback
+- [Phase 02-data-layer]: Settings uses full-struct replace (not partial patch) for simplicity — Phase 8 reads current, updates fields, writes full struct back
+- [Phase 02-data-layer]: Silent reset on malformed settings.json via unwrap_or_default — avoids startup failure if user corrupts file
+- [Phase 02-data-layer]: get_settings() called in lib.rs setup to trigger first-run settings.json creation before any other subsystem needs it
 
 ## Performance Metrics
 
@@ -76,6 +73,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 |-------|------|----------|-------|-------|
 | 01-project-scaffold-configuration | 01 | 3min | 2 | 10 |
 | 01-project-scaffold-configuration | 02 | 25min | 3 | 5 |
+| 02-data-layer | 01 | 5min | 2 | 2 |
+| 02-data-layer | 02 | 4min | 2 | 2 |
+| 02-data-layer | 03 | 3min | 2 | 2 |
 
 ## Session Log
 
@@ -89,4 +89,10 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 01-01: Rust dependency graph and plugin scaffold
 - Executed plan 01-02: Tauri two-window configuration and JS plugin packages
 - Phase 1 complete — smoke test approved by user
-- Stopped at: Completed 01-02-PLAN.md
+- Executed plan 02-01: paths.rs portable-aware data directory resolution
+- Executed plan 02-02: SQLite data layer — db.rs + DbState wired into lib.rs
+- Executed plan 02-03: Settings persistence — store.rs + lib.rs first-run init
+- Fix: get_settings() is read-only; added set_settings() call in lib.rs setup to write defaults on first run (DATA-04)
+- Runtime verified: installed mode (launcher.db + settings.json in %APPDATA%), portable mode (both in target/debug/data/, %APPDATA% absent)
+- LOW-confidence item resolved: app.store(absolute_PathBuf) correctly bypasses BaseDirectory::AppData in portable mode
+- Phase 2 fully verified and closed. Phase 3 (Indexer) is next.
