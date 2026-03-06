@@ -55,6 +55,15 @@ Plans:
 
 **Requirements**: INDX-01, INDX-02, INDX-03, INDX-04, INDX-05, INDX-06, INDX-07, INDX-08
 
+**Plans:** 5 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0 scaffold: add lnk/notify-debouncer-mini/image crates, create generic.png, write all indexer.rs function stubs + 12 failing test stubs
+- [ ] 03-02-PLAN.md — Implement path discovery, crawl_dir, resolve_lnk, make_app_record, icon_filename, prune_stale (INDX-01, INDX-02, INDX-03)
+- [ ] 03-03-PLAN.md — Implement ensure_generic_icon and extract_icon_png GDI pipeline (INDX-04, INDX-05)
+- [ ] 03-04-PLAN.md — Implement run_full_index assembling all primitives (INDX-01, INDX-03, INDX-04, INDX-05)
+- [ ] 03-05-PLAN.md — Implement try_start_index, start_background_tasks, reindex command; wire into lib.rs (INDX-06, INDX-07, INDX-08)
+
 **Success Criteria:**
 1. Full index on startup populates the apps table with apps from Start Menu, Desktop, PATH, and user-defined paths
 2. .lnk shortcuts resolve to their target executable paths
