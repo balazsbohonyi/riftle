@@ -133,3 +133,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 03-03: ensure_generic_icon + extract_icon_png GDI pipeline; 18 lib tests GREEN
 - Executed plan 03-04: run_full_index implemented — wires crawl, upsert, per-app icon threads, prune_stale; 7 indexer tests GREEN
 - Executed plan 03-05: Background coordination layer — try_start_index, start_background_tasks, reindex Tauri command, lib.rs wired; 20 tests GREEN (2 ignored); Phase 3 complete
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename | 2026-03-06 | 9fc9f98 | [1-in-recent-commits-we-changed-some-paths-](./quick/1-in-recent-commits-we-changed-some-paths-/) |
+
+Last activity: 2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename

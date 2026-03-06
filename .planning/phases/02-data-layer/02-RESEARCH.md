@@ -27,7 +27,7 @@
 - Settings struct uses `#[serde(default)]` on every field for forward compatibility. Missing fields in settings.json auto-fill with defaults — old settings files survive schema additions without triggering a reset.
 
 **Portable Path Detection:**
-- Always use `std::env::current_exe()` to locate the `launcher.portable` marker file. Same code path in dev and release. In dev, the binary is in `target/debug/` — place `launcher.portable` there to test portable mode.
+- Always use `std::env::current_exe()` to locate the `riftle-launcher.portable` marker file. Same code path in dev and release. In dev, the binary is in `target/debug/` — place `riftle-launcher.portable` there to test portable mode.
 - Portable path detection and data_dir resolution live in a **separate `paths.rs` module**. Both db.rs and store.rs import `paths::data_dir()` — avoids duplication, makes detection testable independently.
 - `paths::data_dir()` returns a `PathBuf` AND calls `std::fs::create_dir_all()` to ensure the directory exists. Callers always get a ready-to-use path without needing to mkdir themselves.
 
@@ -53,14 +53,14 @@
 | DATA-04 | Settings persisted via tauri-plugin-store to settings.json (portable-aware path) | `app.store(data_dir.join("settings.json"))` with `StoreExt` trait |
 | DATA-05 | Default settings: hotkey Alt+Space, theme system, opacity 1.0, show_path false, autostart false, additional_paths [], excluded_paths [], reindex_interval 15 | Settings struct with `#[serde(default)]` and `Default` impl |
 | DATA-06 | store.rs exposes get_settings() and set_settings(patch) with typed Settings struct | `store.get("settings")` / `store.set("settings", json!)` with serde_json |
-| DATA-07 | Portable mode detection — launcher.portable file adjacent to exe triggers data path switch to ./data/ | `std::env::current_exe()?.parent()?.join("launcher.portable")` existence check |
+| DATA-07 | Portable mode detection — riftle-launcher.portable file adjacent to exe triggers data path switch to ./data/ | `std::env::current_exe()?.parent()?.join("riftle-launcher.portable")` existence check |
 </phase_requirements>
 
 ---
 
 ## Summary
 
-Phase 2 is a pure Rust backend phase with no frontend work. Three modules are created: `paths.rs` (new, must be added to lib.rs mod declarations), `db.rs` (fill stub), and `store.rs` (fill stub). All three coordinate around a single `data_dir()` PathBuf that is determined at startup by checking for a `launcher.portable` marker file.
+Phase 2 is a pure Rust backend phase with no frontend work. Three modules are created: `paths.rs` (new, must be added to lib.rs mod declarations), `db.rs` (fill stub), and `store.rs` (fill stub). All three coordinate around a single `data_dir()` PathBuf that is determined at startup by checking for a `riftle-launcher.portable` marker file.
 
 The rusqlite 0.31 API is well-understood and stable. `Connection::open()` for the real DB, `Connection::open_in_memory()` for tests. The `execute()` / `prepare()` + `query_map()` pattern is idiomatic for all four db.rs functions. `INSERT OR REPLACE` handles upsert. `Arc<Mutex<Connection>>` is stored as Tauri managed state and retrieved in later phases via `app.state::<DbState>()`.
 
@@ -87,9 +87,9 @@ The tauri-plugin-store 2.4.2 `StoreExt` trait provides `app.store(path)` which a
 | dirs | ^5 | Cross-platform %APPDATA% lookup | Alternative to `std::env::var("APPDATA")` — adds one dep but more robust on edge cases |
 | tauri Manager trait | (tauri built-in) | app.path().app_data_dir() in setup | Alternative to dirs crate — uses Tauri's own resolver which respects bundle identifier |
 
-**Recommendation for %APPDATA% lookup (Claude's Discretion):** Use `app.path().app_data_dir()` from the `tauri::Manager` trait rather than `std::env::var("APPDATA")` or the `dirs` crate. This is the correct Tauri-idiomatic approach — it returns `%APPDATA%\com.riftle.launcher\` (including the bundle identifier automatically), avoids adding a new crate, and is already available in the setup callback where `paths::data_dir()` is called. However, `paths::data_dir()` needs an `&AppHandle` parameter to use this approach.
+**Recommendation for %APPDATA% lookup (Claude's Discretion):** Use `std::env::var("APPDATA")` + hard-coded subfolder `\riftle-launcher\` rather than `app.path().app_data_dir()`. This returns `%APPDATA%\riftle-launcher\` (hardcoded for discoverability), avoids relying on the bundle identifier in the path, and is already available in the setup callback where `paths::data_dir()` is called. However, `paths::data_dir()` needs an `&AppHandle` parameter to use this approach.
 
-**Alternative:** Use `std::env::var("APPDATA")` + hard-coded subfolder `\launcher\`. This works without an AppHandle but is less idiomatic and ties to a string literal instead of the bundle identifier.
+**Alternative:** Use `app.path().app_data_dir()`. This uses Tauri's bundle identifier for the path but is less predictable since it depends on the bundle identifier matching the expected folder name.
 
 **No new crates needed** — the `dirs` crate is an unnecessary addition given Tauri's built-in path resolution.
 
@@ -132,13 +132,12 @@ pub fn data_dir(app: &AppHandle) -> PathBuf {
         .expect("exe has no parent directory")
         .to_path_buf();
 
-    let portable_marker = exe_dir.join("launcher.portable");
+    let portable_marker = exe_dir.join("riftle-launcher.portable");
     let dir = if portable_marker.exists() {
         exe_dir.join("data")
     } else {
-        // Uses Tauri path resolver — returns %APPDATA%\com.riftle.launcher\
-        app.path().app_data_dir()
-            .expect("cannot resolve app data dir")
+        // Hardcoded via APPDATA env var — returns %APPDATA%\riftle-launcher\
+        PathBuf::from(std::env::var("APPDATA").expect("APPDATA not set")).join("riftle-launcher")
     };
 
     std::fs::create_dir_all(&dir)
@@ -329,10 +328,10 @@ This avoids needing to lock a Mutex in unit tests.
 ## Common Pitfalls
 
 ### Pitfall 1: store plugin resolves paths relative to AppData by default
-**What goes wrong:** `app.store("settings.json")` stores the file at `%APPDATA%\com.riftle.launcher\settings.json` regardless of portable mode. In portable mode, you want `./data/settings.json`.
+**What goes wrong:** `app.store("settings.json")` stores the file at `%APPDATA%\riftle-launcher\settings.json` regardless of portable mode. In portable mode, you want `./data/settings.json`.
 **Why it happens:** `resolve_store_path()` in the plugin calls `app.path().resolve(path, BaseDirectory::AppData)`. Relative paths get the AppData prefix.
 **How to avoid:** Pass the full absolute `PathBuf` to `app.store()`. Rust's `PathBuf::join()` semantics mean that when the argument is an absolute path, it replaces the base — so `data_dir.join("settings.json")` (where `data_dir` is an absolute path from `paths::data_dir()`) correctly bypasses the AppData default in Tauri's resolver.
-**Warning signs:** settings.json appears in `%APPDATA%\com.riftle.launcher\` even when `launcher.portable` exists; portable build data is not co-located with the exe.
+**Warning signs:** settings.json appears in `%APPDATA%\riftle-launcher\` even when `riftle-launcher.portable` exists; portable build data is not co-located with the exe.
 
 ### Pitfall 2: INSERT OR REPLACE resets launch_count to 0
 **What goes wrong:** Indexer re-runs and calls `upsert_app()` for all found apps. `INSERT OR REPLACE` deletes and re-inserts the row, resetting `launch_count` to 0 (the column default).
@@ -436,11 +435,10 @@ pub fn data_dir(app: &AppHandle) -> PathBuf {
         .expect("exe has no parent directory")
         .to_path_buf();
 
-    let dir = if exe_dir.join("launcher.portable").exists() {
+    let dir = if exe_dir.join("riftle-launcher.portable").exists() {
         exe_dir.join("data")
     } else {
-        app.path().app_data_dir()
-            .expect("cannot resolve app data dir")
+        PathBuf::from(std::env::var("APPDATA").expect("APPDATA not set")).join("riftle-launcher")
     };
 
     std::fs::create_dir_all(&dir)
