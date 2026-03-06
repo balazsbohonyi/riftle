@@ -50,11 +50,11 @@
 - [ ] **LWND-05**: Ctrl+Shift+Enter triggers elevated launch
 - [ ] **LWND-06**: Window auto-hides on focus loss
 - [x] **LWND-07**: Each result row: app icon (16×16 or 32×32) · app name
-- [ ] **LWND-08**: Selected row shows full executable path below name when show_path setting is true
+- [x] **LWND-08**: Selected row shows full executable path below name when show_path setting is true
 - [ ] **LWND-09**: [Admin] badge in selected row hint area when Ctrl+Shift is held
 - [x] **LWND-10**: Result list virtualised for performance
 - [x] **LWND-11**: Placeholder: "Search apps, or > for system commands…" when no query
-- [ ] **LWND-12**: System command results render with ⚙️ icon and no path line
+- [x] **LWND-12**: System command results render with ⚙️ icon and no path line
 
 ### Launch Actions
 
@@ -155,11 +155,11 @@
 | LWND-05 | Phase 5 | Pending |
 | LWND-06 | Phase 5 | Pending |
 | LWND-07 | Phase 5 | Complete |
-| LWND-08 | Phase 5 | Pending |
+| LWND-08 | Phase 5 | Complete |
 | LWND-09 | Phase 5 | Pending |
 | LWND-10 | Phase 5 | Complete |
 | LWND-11 | Phase 5 | Complete |
-| LWND-12 | Phase 5 | Pending |
+| LWND-12 | Phase 5 | Complete |
 | LAUN-01 | Phase 6 | Pending |
 | LAUN-02 | Phase 6 | Pending |
 | LAUN-03 | Phase 6 | Pending |
