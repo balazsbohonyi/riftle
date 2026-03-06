@@ -203,6 +203,7 @@ pub fn start_background_tasks(
 /// Spawns a thread, returns immediately. Frontend shows loading state.
 #[tauri::command]
 pub fn reindex(
+    app: tauri::AppHandle,
     db_state: tauri::State<crate::db::DbState>,
     is_indexing: tauri::State<Arc<AtomicBool>>,
     timer_tx: tauri::State<Arc<Mutex<mpsc::Sender<()>>>>,
@@ -224,6 +225,8 @@ pub fn reindex(
             // Phase 8 will wire set_settings changes to trigger reindex via this command
             let settings = crate::store::Settings::default();
             run_full_index(&db, &data_dir, &settings);
+            // Phase 4: Rebuild search index with fresh DB contents
+            crate::search::rebuild_index(&app);
             flag.store(false, Ordering::Release);
             // Reset timer so next auto-index is interval minutes from now
             let _ = tx.lock().unwrap().send(());

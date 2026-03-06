@@ -56,6 +56,14 @@ pub fn run() {
                 // Run full index synchronously (window is hidden — startup latency OK)
                 crate::indexer::run_full_index(&db_arc, &data_dir, &settings);
 
+                // Phase 4: Ensure system command icon exists
+                if let Err(e) = crate::search::ensure_system_command_icon(&data_dir) {
+                    eprintln!("[search] failed to write system_command icon: {}", e);
+                }
+
+                // Phase 4: Build nucleo search index from freshly-indexed DB
+                crate::search::init_search_index(app.handle());
+
                 // Store data_dir as managed state for reindex() command
                 app.manage(data_dir.clone());
 
@@ -78,6 +86,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             crate::indexer::reindex,
+            crate::search::search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
