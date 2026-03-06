@@ -33,6 +33,9 @@ pub struct Settings {
     #[serde(default = "default_reindex_interval")]
     pub reindex_interval: u32,
 
+    #[serde(default = "default_animation")]
+    pub animation: String,
+
     /// Filenames (lowercase) that are allowed through the system-directory filter.
     /// Lets useful Windows tools (notepad, regedit, …) appear even though they live
     /// in blocked paths like System32. Users can extend or trim this list.
@@ -44,6 +47,7 @@ fn default_hotkey() -> String { "Alt+Space".to_string() }
 fn default_theme() -> String { "system".to_string() }
 fn default_opacity() -> f64 { 1.0 }
 fn default_reindex_interval() -> u32 { 15 }
+fn default_animation() -> String { "slide".to_string() }
 fn default_system_tool_allowlist() -> Vec<String> {
     [
         // Text / media
@@ -78,6 +82,7 @@ impl Default for Settings {
             additional_paths: vec![],
             excluded_paths: vec![],
             reindex_interval: default_reindex_interval(),
+            animation: default_animation(),
             system_tool_allowlist: default_system_tool_allowlist(),
         }
     }
@@ -125,6 +130,24 @@ pub fn set_settings(app: &AppHandle, data_dir: &Path, settings: &Settings) {
     } else {
         eprintln!("[store] failed to open settings store");
     }
+}
+
+// ---- Tauri commands ----
+
+#[tauri::command]
+pub fn get_settings_cmd(
+    app: tauri::AppHandle,
+    data_dir: tauri::State<std::path::PathBuf>,
+) -> serde_json::Value {
+    let settings = get_settings(&app, &data_dir);
+    serde_json::json!({
+        "show_path": settings.show_path,
+        "animation": settings.animation,
+        "data_dir": data_dir.to_string_lossy(),
+        "hotkey": settings.hotkey,
+        "theme": settings.theme,
+        "opacity": settings.opacity,
+    })
 }
 
 // ---- Unit tests ----
