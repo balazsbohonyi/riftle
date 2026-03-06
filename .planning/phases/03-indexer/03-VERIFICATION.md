@@ -133,7 +133,7 @@ No blocker or warning anti-patterns found. No `todo!()` macros remain. No placeh
 
 #### 2. Icon Extraction Creates PNG Files
 
-**Test:** After launching the app, check `{data_dir}/icons/` directory (typically `%APPDATA%\riftle\icons\` or beside the exe for portable mode). Count non-`generic.png` files.
+**Test:** After launching the app, check `{data_dir}/icons/` directory (typically `%APPDATA%\riftle-launcher\icons\` or beside the exe for portable mode). Count non-`generic.png` files.
 
 **Expected:** Multiple hex-named `.png` files exist (e.g. `a1b2c3d4e5f60718.png`). Each should be a valid 32x32 RGBA PNG. The `generic.png` should also be present as fallback.
 

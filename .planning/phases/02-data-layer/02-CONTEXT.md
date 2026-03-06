@@ -29,7 +29,7 @@ Implement SQLite schema, settings persistence via tauri-plugin-store, and portab
 - Settings struct uses `#[serde(default)]` on every field for forward compatibility. Missing fields in settings.json auto-fill with defaults — old settings files survive schema additions without triggering a reset.
 
 ### Portable Path Detection
-- Always use `std::env::current_exe()` to locate the `launcher.portable` marker file. Same code path in dev and release. In dev, the binary is in `target/debug/` — place `launcher.portable` there to test portable mode.
+- Always use `std::env::current_exe()` to locate the `riftle-launcher.portable` marker file. Same code path in dev and release. In dev, the binary is in `target/debug/` — place `riftle-launcher.portable` there to test portable mode.
 - Portable path detection and data_dir resolution live in a **separate `paths.rs` module**. Both db.rs and store.rs import `paths::data_dir()` — avoids duplication, makes detection testable independently.
 - `paths::data_dir()` returns a `PathBuf` AND calls `std::fs::create_dir_all()` to ensure the directory exists. Callers always get a ready-to-use path without needing to mkdir themselves.
 
