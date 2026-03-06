@@ -343,7 +343,6 @@ html, body {
   border: 1px solid #ffffff25;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   /* Animation: hidden state */
   opacity: 0;
   transform: translateY(-6px);
