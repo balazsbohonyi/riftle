@@ -33,7 +33,7 @@ let launchInProgress = false
 
 // ---- Computed ----
 const listHeight = computed(() =>
-  Math.min(results.value.length, 8) * 48
+  Math.min(results.value.length, 5) * 48
 )
 
 // ---- Watchers ----
@@ -53,8 +53,8 @@ watch(results, () => {
 
 watch(selectedIndex, () => {
   // Scroll only when selection is at edge of visible items
-  if (scrollerRef.value && results.value.length > 8) {
-    const visibleRows = 8
+  if (scrollerRef.value && results.value.length > 5) {
+    const visibleRows = 5
     const firstVisible = Math.floor((scrollerRef.value.$el?.scrollTop || 0) / 48)
     const lastVisible = firstVisible + visibleRows - 1
 
@@ -343,6 +343,7 @@ html, body {
   border: 1px solid #ffffff25;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   /* Animation: hidden state */
   opacity: 0;
   transform: translateY(-6px);
