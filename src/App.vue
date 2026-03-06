@@ -121,7 +121,11 @@ function onKeyUp(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
 }
 
-// ---- Window hide ----
+// ---- Window show/hide ----
+async function showWindow() {
+  await getCurrentWindow().show().catch(console.error)
+}
+
 async function hideWindow() {
   isVisible.value = false
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
@@ -156,6 +160,9 @@ onMounted(async () => {
   // Delay before making CSS visible (allows window to settle)
   await nextTick()
   isVisible.value = true
+
+  // Show the Tauri window (Phase 9 will wire hotkey to toggle this)
+  await showWindow()
 
   // Auto-hide on focus loss
   unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
