@@ -3,6 +3,7 @@
 
 mod db;           // Phase 2: SQLite database layer
 mod store;        // Phase 2: Settings persistence via tauri-plugin-store
+mod paths;        // Phase 2: Portable-aware data directory resolution
 mod hotkey;       // Phase 9: Global hotkey registration
 mod indexer;      // Phase 3: Windows application indexer
 mod search;       // Phase 4: Nucleo fuzzy search engine
