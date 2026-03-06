@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-06T18:19:09.991Z"
+last_updated: "2026-03-06T18:25:41.583Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 13
+  completed_plans: 14
   percent: 92
 ---
 
@@ -114,6 +114,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 04-search-engine]: 13 test stubs use should_panic + todo!() RED state pattern (mirrors Phase 3 indexer approach)
 - [Phase 04-search-engine]: score_and_rank truncates to 50 inside function for unit testability — search() Tauri command not testable without AppHandle
 - [Phase 04-search-engine]: Plan spec error corrected: search_system_commands('sh') returns Shutdown only (1 result) — 'Sleep' does not contain 'sh'
+- [Phase 04-search-engine]: Tauri v2 try_state returns Option<State<T>> not Result — use if let Some pattern for rebuild_index
+- [Phase 04-search-engine]: reindex() Tauri command required app: tauri::AppHandle parameter addition to support rebuild_index call — plan spec gap auto-fixed
+- [Phase 04-search-engine]: PoisonError<_> type annotation required in RwLock write() unwrap_or_else closure for Tauri v2 type inference
 
 ## Performance Metrics
 
@@ -131,6 +134,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 03-indexer | 05 | 3min | 2 | 2 |
 | Phase 04-search-engine P01 | 6min | 2 tasks | 4 files |
 | Phase 04-search-engine P02 | 3min | 3 tasks | 1 files |
+| Phase 04-search-engine P03 | 3min | 2 tasks | 3 files |
 
 ## Session Log
 
