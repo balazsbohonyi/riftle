@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 4 of 5 complete
-status: executing
-last_updated: "2026-03-06T09:25:47.005Z"
+current_plan: 5 of 5 complete
+status: complete
+last_updated: "2026-03-06T09:33:00Z"
 progress:
   total_phases: 10
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -20,23 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 3 (Indexer) — Plans 01-04 complete. Plan 05 pending.
+**Current focus:** Phase 3 (Indexer) complete. Phase 4 (Search Engine) is next.
 
 ## Current Position
 
 **Phase:** 03-indexer
-**Current Plan:** 4 of 5 complete
-**Status:** In progress (Phase 3 Plans 01-04 done, Plan 05 pending)
+**Current Plan:** 5 of 5 complete
+**Status:** Phase 3 complete (all 5 plans done). Ready for Phase 4 (Search Engine).
 
 ## Progress
 
-[█████████░] 90%
+[██████████] 100%
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
 | 2 | Data Layer | Complete |
-| 3 | Indexer | In Progress (4/5) |
+| 3 | Indexer | Complete |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
 | 6 | Launch Actions | Pending |
@@ -76,6 +76,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 03-indexer]: app.id used as icon_filename key — normalized lowercase path is canonical stable key used throughout indexer
 - [Phase 03-indexer]: DB lock scope as block ({}) in run_full_index — MutexGuard drops before thread spawn, never held across GDI calls
 - [Phase 03-indexer]: Icon file existence check in run_full_index skips extraction threads for already-indexed apps on re-index runs
+- [Phase 03-indexer]: Settings::default() in reindex() command — real settings not in managed state; Phase 8 will wire properly
+- [Phase 03-indexer]: Watcher and timer failures are non-fatal — eprintln! + thread return; app continues without background refresh
+- [Phase 03-indexer]: app.manage(data_dir.clone()) stores raw PathBuf as managed state for reindex() tauri::State<PathBuf> retrieval
 
 ## Performance Metrics
 
@@ -90,6 +93,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 03-indexer | 02 | 5min | 2 | 1 |
 | 03-indexer | 03 | 4min | 2 | 2 |
 | 03-indexer | 04 | 2min | 1 | 1 |
+| 03-indexer | 05 | 3min | 2 | 2 |
 
 ## Session Log
 
@@ -114,3 +118,4 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 03-02: Path discovery, crawl_dir, resolve_lnk, make_app_record, icon_filename, prune_stale implemented; 7 tests GREEN
 - Executed plan 03-03: ensure_generic_icon + extract_icon_png GDI pipeline; 18 lib tests GREEN
 - Executed plan 03-04: run_full_index implemented — wires crawl, upsert, per-app icon threads, prune_stale; 7 indexer tests GREEN
+- Executed plan 03-05: Background coordination layer — try_start_index, start_background_tasks, reindex Tauri command, lib.rs wired; 20 tests GREEN (2 ignored); Phase 3 complete

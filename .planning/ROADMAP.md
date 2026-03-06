@@ -55,7 +55,7 @@ Plans:
 
 **Requirements**: INDX-01, INDX-02, INDX-03, INDX-04, INDX-05, INDX-06, INDX-07, INDX-08
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md — Wave 0 scaffold: add lnk/notify-debouncer-mini/image crates, create generic.png, write all indexer.rs function stubs + 12 failing test stubs
@@ -186,7 +186,7 @@ Plans:
 |---|-------|--------------|--------|
 | 1 | 2/2 | Complete   | 2026-03-05 |
 | 2 | 3/3 | Complete   | 2026-03-06 |
-| 3 | 4/5 | In Progress|  |
+| 3 | 5/5 | Complete   | 2026-03-06 |
 | 4 | Search Engine | SRCH-01–05 | Pending |
 | 5 | Launcher Window UI | LWND-01–12 | Pending |
 | 6 | Launch Actions | LAUN-01–04 | Pending |
