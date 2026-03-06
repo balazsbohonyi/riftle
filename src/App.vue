@@ -123,7 +123,15 @@ function onKeyUp(e: KeyboardEvent) {
 
 // ---- Window show/hide ----
 async function showWindow() {
-  await getCurrentWindow().show().catch(console.error)
+  try {
+    console.log('[App] showWindow called')
+    const win = getCurrentWindow()
+    console.log('[App] got window reference:', win)
+    await win.show()
+    console.log('[App] window shown successfully')
+  } catch (e) {
+    console.error('[App] showWindow failed:', e)
+  }
 }
 
 async function hideWindow() {
@@ -135,6 +143,7 @@ async function hideWindow() {
 
 // ---- Lifecycle ----
 onMounted(async () => {
+  console.log('[App] onMounted called')
   // Load settings from Rust
   try {
     const settings = await invoke<{
