@@ -52,9 +52,16 @@ watch(results, () => {
 })
 
 watch(selectedIndex, () => {
-  // Scroll virtualised list to keep selected item in view
+  // Scroll only when selection is at edge of visible items
   if (scrollerRef.value && results.value.length > 8) {
-    scrollerRef.value.scrollToItem(selectedIndex.value)
+    const visibleRows = 8
+    const firstVisible = Math.floor((scrollerRef.value.$el?.scrollTop || 0) / 48)
+    const lastVisible = firstVisible + visibleRows - 1
+
+    // Scroll if selection is above first visible or below last visible
+    if (selectedIndex.value < firstVisible || selectedIndex.value > lastVisible) {
+      scrollerRef.value.scrollToItem(selectedIndex.value)
+    }
   }
 })
 
@@ -154,11 +161,18 @@ async function showWindow() {
 }
 
 async function hideWindow() {
+  console.log('[App] hideWindow called, isTauriContext:', isTauriContext.value)
   isVisible.value = false
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
   await new Promise(resolve => setTimeout(resolve, delay))
   if (isTauriContext.value) {
-    await getCurrentWindow().hide().catch(console.error)
+    console.log('[App] calling getCurrentWindow().hide()')
+    await getCurrentWindow().hide().catch(e => {
+      console.error('[App] hideWindow failed:', e)
+    })
+    console.log('[App] window hidden')
+  } else {
+    console.log('[App] hideWindow skipped: not in Tauri context')
   }
 }
 
@@ -204,11 +218,15 @@ onMounted(async () => {
 
   // Auto-hide on focus loss (only in Tauri context)
   if (isTauriContext.value) {
+    console.log('[App] setting up focus listener')
     unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      console.log('[App] focus changed:', { focused, launchInProgress })
       if (!focused && !launchInProgress) {
+        console.log('[App] auto-hiding window')
         hideWindow()
       }
     })
+    console.log('[App] focus listener registered')
   }
 })
 
