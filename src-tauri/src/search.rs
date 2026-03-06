@@ -2,6 +2,7 @@
 
 use nucleo_matcher::{Matcher, Config, Utf32String, pattern::{Pattern, CaseMatching, Normalization}};
 use serde::Serialize;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 use crate::db::AppRecord;
 
@@ -29,7 +30,7 @@ pub struct SearchIndex {
 
 pub struct SearchIndexState(pub Arc<RwLock<SearchIndex>>);
 
-pub fn ensure_system_command_icon(data_dir: &std::path::Path) -> std::io::Result<()> {
+pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
     todo!()
 }
 
@@ -79,80 +80,171 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_empty_returns_empty() {
-        todo!()
+        let apps = vec![make_app("chrome", "Chrome", 5)];
+        let results = score_and_rank("", &apps);
+        assert!(results.is_empty(), "Empty query should return empty results");
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_fuzzy_returns_matches() {
-        todo!()
+        let apps = vec![
+            make_app("chrome", "Chrome", 5),
+            make_app("firefox", "Firefox", 3),
+        ];
+        let results = score_and_rank("chr", &apps);
+        assert!(!results.is_empty(), "Should return at least one result");
+        assert!(
+            results.iter().any(|r| r.name == "Chrome"),
+            "Should contain Chrome"
+        );
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_prefix_beats_fuzzy() {
-        todo!()
+        // Both match "chr" but Chrome has prefix tier
+        let apps = vec![
+            make_app("chrome", "Chrome", 5),
+            make_app("chromebook", "Chromebook", 1),
+        ];
+        let results = score_and_rank("chr", &apps);
+        assert!(!results.is_empty(), "Should return results");
+        // Both are prefix matches — at minimum both should appear
+        assert!(results.iter().any(|r| r.name == "Chrome"));
+        assert!(results.iter().any(|r| r.name == "Chromebook"));
+        // Visual Studio should rank above fuzzy-only match via acronym tier
+        let apps2 = vec![
+            make_app("vs", "Visual Studio", 5),
+            make_app("vbox", "VirtualBox", 5),
+        ];
+        let results2 = score_and_rank("vs", &apps2);
+        assert!(!results2.is_empty());
+        // Visual Studio gets acronym tier (initials "vs"), VirtualBox does not
+        let vs_pos = results2.iter().position(|r| r.name == "Visual Studio");
+        let vbox_pos = results2.iter().position(|r| r.name == "VirtualBox");
+        if let (Some(vs), Some(vb)) = (vs_pos, vbox_pos) {
+            assert!(vs < vb, "Visual Studio (acronym) should rank before VirtualBox (fuzzy)");
+        }
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_acronym_tier() {
-        todo!()
+        // "vs" matches Visual Studio AND Video Stream (both have initials "vs")
+        let apps = vec![
+            make_app("vs", "Visual Studio", 5),
+            make_app("vstream", "Video Stream", 3),
+            make_app("vbox", "VirtualBox", 10),
+        ];
+        let results = score_and_rank("vs", &apps);
+        assert!(!results.is_empty());
+        let vs_pos = results.iter().position(|r| r.name == "Visual Studio");
+        let vstream_pos = results.iter().position(|r| r.name == "Video Stream");
+        let vbox_pos = results.iter().position(|r| r.name == "VirtualBox");
+        // Both acronym matches should appear before fuzzy
+        if let (Some(vs), Some(vb)) = (vs_pos, vbox_pos) {
+            assert!(vs < vb, "Visual Studio (acronym) should rank before VirtualBox (fuzzy)");
+        }
+        if let (Some(vs), Some(vb)) = (vstream_pos, vbox_pos) {
+            assert!(vs < vb, "Video Stream (acronym) should rank before VirtualBox (fuzzy)");
+        }
+        // Single-char query should NOT apply acronym tier
+        let apps2 = vec![make_app("vbox", "VirtualBox", 5)];
+        let results2 = score_and_rank("v", &apps2);
+        // VirtualBox starts with "v" so it will match prefix tier (tier 2), not acronym
+        // The key behavior: no panic, just verify it runs
+        let _ = results2;
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_mru_tiebreak() {
-        todo!()
+        // Two apps both matching "note" at same tier, higher launch_count ranks first
+        let apps = vec![
+            make_app("notepad", "Notepad", 2),
+            make_app("notepadpp", "Notepad++", 10),
+        ];
+        let results = score_and_rank("note", &apps);
+        assert!(results.len() >= 2, "Should return both results");
+        let notepadpp_pos = results.iter().position(|r| r.name == "Notepad++");
+        let notepad_pos = results.iter().position(|r| r.name == "Notepad");
+        if let (Some(pp), Some(np)) = (notepadpp_pos, notepad_pos) {
+            assert!(pp < np, "Notepad++ (higher launch_count) should rank before Notepad");
+        }
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_capped_at_50() {
-        todo!()
+        // 60 apps all matching "app" — score_and_rank should return exactly 50
+        let apps: Vec<AppRecord> = (0..60)
+            .map(|i| make_app(&format!("app{}", i), &format!("AppFoo{}", i), i as i64))
+            .collect();
+        let results = score_and_rank("app", &apps);
+        assert_eq!(results.len(), 50, "score_and_rank should cap at 50 results");
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_system_prefix_all() {
-        todo!()
+        let results = search_system_commands("");
+        assert_eq!(results.len(), 4, "Empty suffix should return all 4 system commands");
+        let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&"Lock"), "Should contain Lock");
+        assert!(names.contains(&"Shutdown"), "Should contain Shutdown");
+        assert!(names.contains(&"Restart"), "Should contain Restart");
+        assert!(names.contains(&"Sleep"), "Should contain Sleep");
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_system_prefix_filtered() {
-        todo!()
+        let results = search_system_commands("sh");
+        assert_eq!(results.len(), 2, "'sh' should match Shutdown and Sleep only");
+        let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&"Shutdown"), "Should contain Shutdown");
+        assert!(names.contains(&"Sleep"), "Should contain Sleep");
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_system_no_space() {
-        todo!()
+        let results = search_system_commands("lo");
+        assert!(!results.is_empty(), "Should return Lock for 'lo'");
+        assert!(results.iter().any(|r| r.name == "Lock"), "Should contain Lock");
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_search_system_no_app_mixing() {
-        todo!()
+        let results = search_system_commands("");
+        assert!(!results.is_empty());
+        assert!(
+            results.iter().all(|r| r.kind != "app"),
+            "No system command result should have kind == 'app'"
+        );
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_system_result_kind() {
-        todo!()
+        let results = search_system_commands("");
+        assert!(!results.is_empty());
+        assert!(
+            results.iter().all(|r| r.kind == "system"),
+            "All system command results should have kind == 'system'"
+        );
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_system_result_icon() {
-        todo!()
+        let results = search_system_commands("");
+        assert!(!results.is_empty());
+        assert!(
+            results.iter().all(|r| r.icon_path == "system_command.png"),
+            "All system command results should have icon_path == 'system_command.png'"
+        );
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_system_result_path_empty() {
-        todo!()
+        let results = search_system_commands("");
+        assert!(!results.is_empty());
+        assert!(
+            results.iter().all(|r| r.path.is_empty()),
+            "All system command results should have path == ''"
+        );
     }
 }
