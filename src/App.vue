@@ -25,6 +25,7 @@ const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
 const dataDir       = ref('')
 const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
+const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
 
 let unlistenFocus: (() => void) | null = null
 let launchInProgress = false
@@ -49,6 +50,7 @@ watch(results, () => {
 
 // ---- Window sizing ----
 async function updateWindowHeight() {
+  if (!isTauriContext.value) return // Skip in browser dev mode
   // 56px input + 2px border + rows
   const h = Math.max(56 + 2 + listHeight.value, 58)
   await getCurrentWindow().setSize(new LogicalSize(640, h)).catch(console.error)
@@ -123,6 +125,7 @@ function onKeyUp(e: KeyboardEvent) {
 
 // ---- Window show/hide ----
 async function showWindow() {
+  if (!isTauriContext.value) return // Skip in browser dev mode
   try {
     console.log('[App] showWindow called')
     const win = getCurrentWindow()
@@ -138,25 +141,34 @@ async function hideWindow() {
   isVisible.value = false
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
   await new Promise(resolve => setTimeout(resolve, delay))
-  await getCurrentWindow().hide().catch(console.error)
+  if (isTauriContext.value) {
+    await getCurrentWindow().hide().catch(console.error)
+  }
 }
 
 // ---- Lifecycle ----
 onMounted(async () => {
   console.log('[App] onMounted called')
-  // Load settings from Rust
-  try {
-    const settings = await invoke<{
-      show_path: boolean
-      animation: string
-      data_dir: string
-    }>('get_settings_cmd')
-    showPath.value = settings.show_path
-    animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
-    dataDir.value  = settings.data_dir
-  } catch {
-    // Use defaults — dataDir stays empty, icons will not load but app still functions
-    console.warn('[launcher] get_settings_cmd failed, using defaults')
+
+  // Detect if we're in Tauri context (not in browser dev mode)
+  isTauriContext.value = !!(window.__TAURI_INVOKE__)
+  console.log('[App] Tauri context available:', isTauriContext.value)
+
+  // Load settings from Rust (only works in Tauri context)
+  if (isTauriContext.value) {
+    try {
+      const settings = await invoke<{
+        show_path: boolean
+        animation: string
+        data_dir: string
+      }>('get_settings_cmd')
+      showPath.value = settings.show_path
+      animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
+      dataDir.value  = settings.data_dir
+    } catch {
+      // Use defaults — dataDir stays empty, icons will not load but app still functions
+      console.warn('[launcher] get_settings_cmd failed, using defaults')
+    }
   }
 
   // Set initial window height (no results yet)
@@ -173,12 +185,14 @@ onMounted(async () => {
   // Show the Tauri window (Phase 9 will wire hotkey to toggle this)
   await showWindow()
 
-  // Auto-hide on focus loss
-  unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-    if (!focused && !launchInProgress) {
-      hideWindow()
-    }
-  })
+  // Auto-hide on focus loss (only in Tauri context)
+  if (isTauriContext.value) {
+    unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (!focused && !launchInProgress) {
+        hideWindow()
+      }
+    })
+  }
 })
 
 onUnmounted(() => {
