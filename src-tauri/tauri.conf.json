@@ -15,7 +15,7 @@
         "label": "launcher",
         "title": "Riftle",
         "width": 640,
-        "height": 60,
+        "height": 100,
         "center": true,
         "decorations": false,
         "transparent": false,
@@ -23,7 +23,7 @@
         "resizable": false,
         "skipTaskbar": true,
         "alwaysOnTop": true,
-        "visible": false,
+        "visible": true,
         "focus": false
       },
       {
