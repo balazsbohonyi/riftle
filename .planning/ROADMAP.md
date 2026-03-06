@@ -80,7 +80,7 @@ Plans:
 
 **Requirements**: SRCH-01, SRCH-02, SRCH-03, SRCH-04, SRCH-05
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 04-01-PLAN.md — Wave 0 scaffold: add nucleo-matcher dep, create system_command.png asset, write 13 RED test stubs in search.rs
@@ -194,7 +194,7 @@ Plans:
 | 1 | 2/2 | Complete   | 2026-03-05 |
 | 2 | 3/3 | Complete   | 2026-03-06 |
 | 3 | 5/5 | Complete    | 2026-03-06 |
-| 4 | Search Engine | SRCH-01–05 | Pending |
+| 4 | 3/3 | Complete   | 2026-03-06 |
 | 5 | Launcher Window UI | LWND-01–12 | Pending |
 | 6 | Launch Actions | LAUN-01–04 | Pending |
 | 7 | Context Menu | MENU-01–03 | Pending |

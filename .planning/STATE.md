@@ -4,9 +4,25 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-06T09:39:39.225Z"
+last_updated: "2026-03-06T18:35:31.459Z"
+last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
+  completed_phases: 4
+  total_plans: 13
+  completed_plans: 14
+  percent: 92
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-06T09:39:39.225Z"
+progress:
+  [█████████░] 92%
   completed_phases: 3
   total_plans: 10
   completed_plans: 10
@@ -93,6 +109,14 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 03-indexer]: Settings::default() in reindex() command — real settings not in managed state; Phase 8 will wire properly
 - [Phase 03-indexer]: Watcher and timer failures are non-fatal — eprintln! + thread return; app continues without background refresh
 - [Phase 03-indexer]: app.manage(data_dir.clone()) stores raw PathBuf as managed state for reindex() tauri::State<PathBuf> retrieval
+- [Phase 04-search-engine]: nucleo-matcher = 0.3 added as direct dep (not transitive) to avoid Utf32String re-export ambiguity
+- [Phase 04-search-engine]: system_command.png is a copy of 32x32.png as valid placeholder; include_bytes! resolves at compile time
+- [Phase 04-search-engine]: 13 test stubs use should_panic + todo!() RED state pattern (mirrors Phase 3 indexer approach)
+- [Phase 04-search-engine]: score_and_rank truncates to 50 inside function for unit testability — search() Tauri command not testable without AppHandle
+- [Phase 04-search-engine]: Plan spec error corrected: search_system_commands('sh') returns Shutdown only (1 result) — 'Sleep' does not contain 'sh'
+- [Phase 04-search-engine]: Tauri v2 try_state returns Option<State<T>> not Result — use if let Some pattern for rebuild_index
+- [Phase 04-search-engine]: reindex() Tauri command required app: tauri::AppHandle parameter addition to support rebuild_index call — plan spec gap auto-fixed
+- [Phase 04-search-engine]: PoisonError<_> type annotation required in RwLock write() unwrap_or_else closure for Tauri v2 type inference
 
 ## Performance Metrics
 
@@ -108,6 +132,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 03-indexer | 03 | 4min | 2 | 2 |
 | 03-indexer | 04 | 2min | 1 | 1 |
 | 03-indexer | 05 | 3min | 2 | 2 |
+| Phase 04-search-engine P01 | 6min | 2 tasks | 4 files |
+| Phase 04-search-engine P02 | 3min | 3 tasks | 1 files |
+| Phase 04-search-engine P03 | 3min | 2 tasks | 3 files |
 
 ## Session Log
 
