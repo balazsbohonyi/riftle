@@ -181,7 +181,8 @@ onMounted(async () => {
   console.log('[App] onMounted called')
 
   // Detect if we're in Tauri context (not in browser dev mode)
-  isTauriContext.value = !!(window.__TAURI_INVOKE__)
+  // Tauri v2 exposes __TAURI_INTERNALS__ on the window object
+  isTauriContext.value = '__TAURI_INTERNALS__' in window
   console.log('[App] Tauri context available:', isTauriContext.value)
 
   // Load settings from Rust (only works in Tauri context)
