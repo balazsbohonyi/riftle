@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 3 of 5 complete
+current_plan: 4 of 5 complete
 status: executing
-last_updated: "2026-03-06T09:22:00.000Z"
+last_updated: "2026-03-06T09:25:47.005Z"
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -20,23 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 3 (Indexer) — Plans 01-03 complete. Plans 04-05 pending.
+**Current focus:** Phase 3 (Indexer) — Plans 01-04 complete. Plan 05 pending.
 
 ## Current Position
 
 **Phase:** 03-indexer
-**Current Plan:** 3 of 5 complete
-**Status:** In progress (Phase 3 Plans 01-03 done, Plans 04-05 pending)
+**Current Plan:** 4 of 5 complete
+**Status:** In progress (Phase 3 Plans 01-04 done, Plan 05 pending)
 
 ## Progress
 
-[████████░░] 80%
+[█████████░] 90%
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
 | 2 | Data Layer | Complete |
-| 3 | Indexer | In Progress (3/5) |
+| 3 | Indexer | In Progress (4/5) |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
 | 6 | Launch Actions | Pending |
@@ -73,6 +73,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 03-indexer]: prune_stale uses inline query_map with type annotation to resolve stmt borrow lifetime issue
 - [Phase 03-indexer]: Win32_Foundation feature required for DeleteDC, DeleteObject, DestroyIcon, GetIconInfo — added to windows-sys features in Cargo.toml
 - [Phase 03-indexer]: extract_icon_png has no automated unit test — GDI requires real Windows context; manual smoke test for INDX-05
+- [Phase 03-indexer]: app.id used as icon_filename key — normalized lowercase path is canonical stable key used throughout indexer
+- [Phase 03-indexer]: DB lock scope as block ({}) in run_full_index — MutexGuard drops before thread spawn, never held across GDI calls
+- [Phase 03-indexer]: Icon file existence check in run_full_index skips extraction threads for already-indexed apps on re-index runs
 
 ## Performance Metrics
 
@@ -86,6 +89,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 03-indexer | 01 | 7min | 2 | 4 |
 | 03-indexer | 02 | 5min | 2 | 1 |
 | 03-indexer | 03 | 4min | 2 | 2 |
+| 03-indexer | 04 | 2min | 1 | 1 |
 
 ## Session Log
 
@@ -109,3 +113,4 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 03-01: Wave 0 scaffold — indexer.rs stubs + generic.png + Cargo deps
 - Executed plan 03-02: Path discovery, crawl_dir, resolve_lnk, make_app_record, icon_filename, prune_stale implemented; 7 tests GREEN
 - Executed plan 03-03: ensure_generic_icon + extract_icon_png GDI pipeline; 18 lib tests GREEN
+- Executed plan 03-04: run_full_index implemented — wires crawl, upsert, per-app icon threads, prune_stale; 7 indexer tests GREEN
