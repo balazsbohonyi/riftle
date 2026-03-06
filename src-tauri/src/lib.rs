@@ -87,6 +87,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::indexer::reindex,
             crate::search::search,
+            crate::store::get_settings_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

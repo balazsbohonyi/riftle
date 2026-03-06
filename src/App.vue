@@ -1,33 +1,400 @@
 <script setup lang="ts">
-// Phase 1: minimal launcher shell
-// Full launcher UI implemented in Phase 5 (Launcher Window UI)
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import { LogicalSize } from '@tauri-apps/api/dpi'
+import { RecycleScroller } from 'vue-virtual-scroller'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import magnifierIcon from './assets/magnifier.svg'
+
+interface SearchResult {
+  id: string
+  name: string
+  icon_path: string
+  path: string
+  kind: string
+}
+
+// ---- State ----
+const query         = ref('')
+const results       = ref<SearchResult[]>([])
+const selectedIndex = ref(0)
+const adminMode     = ref(false)
+const showPath      = ref(false)
+const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
+const dataDir       = ref('')
+const isVisible     = ref(false)
+const inputRef      = ref<HTMLInputElement | null>(null)
+
+let unlistenFocus: (() => void) | null = null
+let launchInProgress = false
+
+// ---- Computed ----
+const listHeight = computed(() =>
+  Math.min(results.value.length, 8) * 48
+)
+
+// ---- Watchers ----
+watch(query, async (q) => {
+  results.value = q.trim()
+    ? await invoke<SearchResult[]>('search', { query: q }).catch(() => [])
+    : []
+  selectedIndex.value = 0
+  await updateWindowHeight()
+})
+
+watch(results, () => {
+  selectedIndex.value = 0
+})
+
+// ---- Window sizing ----
+async function updateWindowHeight() {
+  // 56px input + 2px border + rows
+  const h = Math.max(56 + 2 + listHeight.value, 58)
+  await getCurrentWindow().setSize(new LogicalSize(640, h)).catch(console.error)
+}
+
+// ---- Icon URL ----
+function getIconUrl(iconPath: string): string {
+  if (!iconPath) return ''
+  // icon_path is a filename (e.g. "notepad.png"); construct absolute path
+  const sep = dataDir.value.includes('\\') ? '\\' : '/'
+  const fullPath = dataDir.value + sep + 'icons' + sep + iconPath
+  return convertFileSrc(fullPath)
+}
+
+// ---- Launch stubs (Phase 6 implements commands) ----
+async function launchItem(item: SearchResult) {
+  launchInProgress = true
+  if (item.kind === 'system') {
+    await invoke('run_system_command', { cmd: item.id }).catch(console.error)
+  } else {
+    await invoke('launch', { id: item.id }).catch(console.error)
+  }
+  await hideWindow()
+  launchInProgress = false
+}
+
+async function launchElevated(item: SearchResult) {
+  launchInProgress = true
+  await invoke('launch_elevated', { id: item.id }).catch(console.error)
+  setTimeout(() => { launchInProgress = false }, 500)
+  await hideWindow()
+}
+
+// ---- Keyboard ----
+function onKeyDown(e: KeyboardEvent) {
+  adminMode.value = e.ctrlKey && e.shiftKey
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    hideWindow()
+    return
+  }
+
+  if (!results.value.length) return
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault()
+      selectedIndex.value = (selectedIndex.value + 1) % results.value.length
+      break
+    case 'ArrowUp':
+      e.preventDefault()
+      selectedIndex.value = (selectedIndex.value - 1 + results.value.length) % results.value.length
+      break
+    case 'Enter': {
+      e.preventDefault()
+      const item = results.value[selectedIndex.value]
+      if (!item) break
+      if (e.ctrlKey && e.shiftKey) {
+        launchElevated(item)
+      } else {
+        launchItem(item)
+      }
+      break
+    }
+  }
+}
+
+function onKeyUp(e: KeyboardEvent) {
+  adminMode.value = e.ctrlKey && e.shiftKey
+}
+
+// ---- Window hide ----
+async function hideWindow() {
+  isVisible.value = false
+  const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
+  await new Promise(resolve => setTimeout(resolve, delay))
+  await getCurrentWindow().hide().catch(console.error)
+}
+
+// ---- Lifecycle ----
+onMounted(async () => {
+  // Load settings from Rust
+  try {
+    const settings = await invoke<{
+      show_path: boolean
+      animation: string
+      data_dir: string
+    }>('get_settings_cmd')
+    showPath.value = settings.show_path
+    animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
+    dataDir.value  = settings.data_dir
+  } catch {
+    // Use defaults — dataDir stays empty, icons will not load but app still functions
+    console.warn('[launcher] get_settings_cmd failed, using defaults')
+  }
+
+  // Set initial window height (no results yet)
+  await updateWindowHeight()
+
+  // Focus the input
+  await nextTick()
+  inputRef.value?.focus()
+
+  // Delay before making CSS visible (allows window to settle)
+  await nextTick()
+  isVisible.value = true
+
+  // Auto-hide on focus loss
+  unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+    if (!focused && !launchInProgress) {
+      hideWindow()
+    }
+  })
+})
+
+onUnmounted(() => {
+  unlistenFocus?.()
+})
 </script>
 
 <template>
-  <div id="app">
-    <!-- Launcher UI placeholder — implemented in Phase 5 -->
+  <div id="app" :class="['launcher', `anim-${animMode}`, { visible: isVisible }]">
+
+    <!-- Search input area -->
+    <div class="search-area">
+      <input
+        ref="inputRef"
+        v-model="query"
+        class="search-input"
+        type="text"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="Search apps, or > for system commands…"
+        @keydown="onKeyDown"
+        @keyup="onKeyUp"
+      />
+      <img :src="magnifierIcon" class="magnifier-icon" alt="" aria-hidden="true" />
+    </div>
+
+    <!-- Divider (only when results exist) -->
+    <div v-if="results.length > 0" class="divider"></div>
+
+    <!-- Result list (virtualised) -->
+    <RecycleScroller
+      v-if="results.length > 0"
+      class="result-list"
+      :items="results"
+      :item-size="48"
+      key-field="id"
+      :style="{ height: listHeight + 'px' }"
+      v-slot="{ item, index }"
+    >
+      <div
+        class="result-row"
+        :class="{ selected: index === selectedIndex }"
+        @mousedown.prevent="launchItem(item)"
+        @mousemove="selectedIndex = index"
+      >
+        <!-- Icon -->
+        <img
+          class="app-icon"
+          :src="getIconUrl(item.icon_path)"
+          :alt="item.name"
+          width="32"
+          height="32"
+          loading="eager"
+        />
+
+        <!-- Text -->
+        <div class="result-text">
+          <span class="app-name">{{ item.name }}</span>
+          <span
+            v-if="index === selectedIndex && showPath && item.kind !== 'system'"
+            class="path-line"
+          >{{ item.path }}</span>
+        </div>
+
+        <!-- Admin badge (right margin, no layout shift) -->
+        <span
+          v-if="index === selectedIndex && adminMode"
+          class="admin-badge"
+          aria-label="Elevate with admin rights"
+        >🛡 Admin</span>
+      </div>
+    </RecycleScroller>
+
   </div>
 </template>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ---- Reset (inherits from body reset in Phase 1) ---- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-html,
-body {
+/* ---- Root window ---- */
+html, body {
   width: 100%;
   height: 100%;
-  background: #1c1c1e;
   overflow: hidden;
+  background: transparent;
 }
 
+/* ---- Launcher container ---- */
 #app {
   width: 100%;
-  height: 100%;
-  background: #1c1c1e;
+  background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
+  border: 1px solid #ffffff25;
   border-radius: 12px;
+  overflow: hidden;
+  /* Animation: hidden state */
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Animation modes */
+.anim-fade   { transition: opacity 120ms ease; }
+.anim-fade.visible { opacity: 1; }
+
+.anim-slide  { transition: opacity 180ms ease, transform 180ms ease; }
+.anim-slide.visible { opacity: 1; transform: translateY(0); }
+
+.anim-instant { transition: none; }
+.anim-instant.visible { opacity: 1; transform: translateY(0); }
+
+/* ---- Search area ---- */
+.search-area {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px;
+  position: relative;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0f0f0;
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  caret-color: #0A84FF;
+  padding: 0;
+  padding-right: 28px; /* room for magnifier icon */
+}
+
+.search-input::placeholder {
+  color: #555558;
+  font-weight: 400;
+}
+
+.magnifier-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---- Divider ---- */
+.divider {
+  height: 1px;
+  background: #ffffff18;
+  margin: 0;
+}
+
+/* ---- Result list ---- */
+.result-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+}
+.result-list::-webkit-scrollbar { display: none; }
+
+/* ---- Result row ---- */
+.result-row {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 12px;
+  cursor: pointer;
+  position: relative;
+  gap: 10px;
+}
+
+.result-row.selected {
+  background: rgba(10, 132, 255, 0.18);
+}
+
+/* ---- App icon ---- */
+.app-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* ---- Text block ---- */
+.result-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* enables text-overflow: ellipsis in children */
+  flex: 1;
+}
+
+.app-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-row.selected .app-name {
+  color: #ffffff;
+}
+
+.path-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* ---- Admin badge ---- */
+.admin-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #0A84FF;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
 }
 </style>
