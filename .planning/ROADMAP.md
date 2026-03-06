@@ -80,6 +80,13 @@ Plans:
 
 **Requirements**: SRCH-01, SRCH-02, SRCH-03, SRCH-04, SRCH-05
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Wave 0 scaffold: add nucleo-matcher dep, create system_command.png asset, write 13 RED test stubs in search.rs
+- [ ] 04-02-PLAN.md — TDD: implement score_and_rank, match_tier, is_acronym_match, search_system_commands, ensure_system_command_icon; all 13 tests GREEN
+- [ ] 04-03-PLAN.md — Wire search() Tauri command, init_search_index(), rebuild_index() into lib.rs and indexer.rs
+
 **Success Criteria:**
 1. search("") returns empty (or top MRU apps); search("ch") returns Chrome above other matches if launched most often
 2. Exact prefix matches rank above fuzzy substring matches
