@@ -4,7 +4,8 @@ use nucleo_matcher::{Matcher, Config, Utf32String, pattern::{Pattern, CaseMatchi
 use serde::Serialize;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use crate::db::AppRecord;
+use tauri::Manager;
+use crate::db::{AppRecord, get_all_apps};
 
 static SYSTEM_COMMAND_ICON: &[u8] = include_bytes!("../icons/system_command.png");
 
@@ -41,11 +42,26 @@ pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
 }
 
 pub fn init_search_index(app: &tauri::AppHandle) {
-    todo!()
+    let db_state = app.state::<crate::db::DbState>();
+    let apps = {
+        let conn = db_state.0.lock().unwrap();
+        get_all_apps(&conn).unwrap_or_default()
+    };
+    let index = SearchIndex { apps };
+    app.manage(SearchIndexState(Arc::new(RwLock::new(index))));
 }
 
 pub fn rebuild_index(app: &tauri::AppHandle) {
-    todo!()
+    let db_state = app.state::<crate::db::DbState>();
+    let apps = {
+        let conn = db_state.0.lock().unwrap();
+        get_all_apps(&conn).unwrap_or_default()
+    };
+    let new_index = SearchIndex { apps };
+    if let Some(state) = app.try_state::<SearchIndexState>() {
+        let mut guard = state.0.write().unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner());
+        *guard = new_index;
+    }
 }
 
 struct ScoredResult {
@@ -139,7 +155,15 @@ fn search_system_commands(suffix: &str) -> Vec<SearchResult> {
 
 #[tauri::command]
 pub fn search(query: String, index_state: tauri::State<SearchIndexState>) -> Vec<SearchResult> {
-    todo!()
+    if query.is_empty() {
+        return vec![];
+    }
+    if query.starts_with('>') {
+        let suffix = query.trim_start_matches('>').trim_start();
+        return search_system_commands(suffix);
+    }
+    let index = index_state.0.read().unwrap_or_else(|e| e.into_inner());
+    score_and_rank(&query, &index.apps)
 }
 
 #[cfg(test)]
