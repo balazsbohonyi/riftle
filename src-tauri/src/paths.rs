@@ -32,7 +32,6 @@ pub fn data_dir_from_exe_dir(exe_dir: &PathBuf, app: &AppHandle) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs;
 
     #[test]

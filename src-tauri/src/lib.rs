@@ -26,6 +26,11 @@ pub fn run() {
                     None,
                 ))?;
             }
+
+            // Phase 2: Resolve data directory (portable or installed mode)
+            // Plans 02 and 03 will use this to init SQLite and settings store.
+            let _data_dir = crate::paths::data_dir(app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![])
