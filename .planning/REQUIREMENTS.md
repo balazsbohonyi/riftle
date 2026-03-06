@@ -15,8 +15,8 @@
 ### Data Layer
 
 - [x] **DATA-01**: SQLite database initialised at startup with portable-aware path detection
-- [ ] **DATA-02**: Schema: apps table (id, name, path, icon_path, source, last_launched, launch_count)
-- [ ] **DATA-03**: db.rs exposes init_db(), upsert_app(), get_all_apps(), increment_launch_count()
+- [x] **DATA-02**: Schema: apps table (id, name, path, icon_path, source, last_launched, launch_count)
+- [x] **DATA-03**: db.rs exposes init_db(), upsert_app(), get_all_apps(), increment_launch_count()
 - [ ] **DATA-04**: Settings persisted via tauri-plugin-store to settings.json (portable-aware path)
 - [ ] **DATA-05**: Default settings: hotkey Alt+Space, theme system, opacity 1.0, show_path false, autostart false, additional_paths [], excluded_paths [], reindex_interval 15
 - [ ] **DATA-06**: store.rs exposes get_settings() and set_settings(patch) with typed Settings struct
@@ -129,8 +129,8 @@
 | SCAF-03 | Phase 1 | Complete |
 | SCAF-04 | Phase 1 | Complete |
 | DATA-01 | Phase 2 | Complete |
-| DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
+| DATA-02 | Phase 2 | Complete |
+| DATA-03 | Phase 2 | Complete |
 | DATA-04 | Phase 2 | Pending |
 | DATA-05 | Phase 2 | Pending |
 | DATA-06 | Phase 2 | Pending |

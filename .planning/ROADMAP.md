@@ -32,7 +32,7 @@ Plans:
 
 **Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, DATA-06, DATA-07
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 02-01-PLAN.md — Create paths.rs (portable-aware data_dir); add mod paths to lib.rs; wire data_dir call in setup callback
@@ -176,7 +176,7 @@ Plans:
 | # | Phase | Requirements | Status |
 |---|-------|--------------|--------|
 | 1 | 2/2 | Complete   | 2026-03-05 |
-| 2 | 1/3 | In Progress|  |
+| 2 | 2/3 | In Progress|  |
 | 3 | Indexer | INDX-01–08 | Pending |
 | 4 | Search Engine | SRCH-01–05 | Pending |
 | 5 | Launcher Window UI | LWND-01–12 | Pending |

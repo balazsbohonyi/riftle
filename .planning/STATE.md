@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 1 of 3
+current_plan: 2 of 3 complete
 status: in_progress
-last_updated: "2026-03-06T01:05:00.000Z"
+last_updated: "2026-03-06T01:09:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -20,15 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 2 — Data Layer (Plan 01 complete, Plans 02-03 remaining)
+**Current focus:** Phase 2 — Data Layer (Plans 01-02 complete, Plan 03 remaining)
 
 ## Current Position
 
 **Phase:** 02-data-layer
-**Current Plan:** 1 of 3 complete
+**Current Plan:** 2 of 3 complete
 **Status:** In progress
 
 ## Progress
+
+[████████░░] 80%
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -58,6 +60,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 01-project-scaffold-configuration]: App.vue height chain: html, body, and #app must all have height:100% for transparent window to fill viewport correctly
 - [Phase 02-data-layer]: paths::data_dir() uses current_exe() for portable detection, data_dir_from_exe_dir() helper for testability without AppHandle
 - [Phase 02-data-layer]: paths module separated from db/store to avoid duplication; create_dir_all called before returning to guarantee directory exists
+- [Phase 02-data-layer]: ON CONFLICT DO UPDATE SET (not INSERT OR REPLACE) preserves launch_count on re-index
+- [Phase 02-data-layer]: init_db_connection() separated from init_db() to enable in-memory testing without AppHandle
+- [Phase 02-data-layer]: tauri::Manager trait import required for app.manage() in Tauri v2 setup callback
 
 ## Performance Metrics
 
@@ -66,6 +71,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 01-project-scaffold-configuration | 01 | 3min | 2 | 10 |
 | 01-project-scaffold-configuration | 02 | 25min | 3 | 5 |
 | 02-data-layer | 01 | 5min | 2 | 2 |
+| 02-data-layer | 02 | 4min | 2 | 2 |
 
 ## Session Log
 
@@ -80,4 +86,5 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 01-02: Tauri two-window configuration and JS plugin packages
 - Phase 1 complete — smoke test approved by user
 - Executed plan 02-01: paths.rs portable-aware data directory resolution
-- Stopped at: Completed 02-01-PLAN.md
+- Executed plan 02-02: SQLite data layer — db.rs + DbState wired into lib.rs
+- Stopped at: Completed 02-02-PLAN.md
