@@ -4,9 +4,25 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-06T09:39:39.225Z"
+last_updated: "2026-03-06T18:13:09.850Z"
+last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
+  completed_phases: 3
+  total_plans: 13
+  completed_plans: 12
+  percent: 92
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-06T09:39:39.225Z"
+progress:
+  [█████████░] 92%
   completed_phases: 3
   total_plans: 10
   completed_plans: 10
@@ -93,6 +109,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 03-indexer]: Settings::default() in reindex() command — real settings not in managed state; Phase 8 will wire properly
 - [Phase 03-indexer]: Watcher and timer failures are non-fatal — eprintln! + thread return; app continues without background refresh
 - [Phase 03-indexer]: app.manage(data_dir.clone()) stores raw PathBuf as managed state for reindex() tauri::State<PathBuf> retrieval
+- [Phase 04-search-engine]: nucleo-matcher = 0.3 added as direct dep (not transitive) to avoid Utf32String re-export ambiguity
+- [Phase 04-search-engine]: system_command.png is a copy of 32x32.png as valid placeholder; include_bytes! resolves at compile time
+- [Phase 04-search-engine]: 13 test stubs use should_panic + todo!() RED state pattern (mirrors Phase 3 indexer approach)
 
 ## Performance Metrics
 
@@ -108,6 +127,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 03-indexer | 03 | 4min | 2 | 2 |
 | 03-indexer | 04 | 2min | 1 | 1 |
 | 03-indexer | 05 | 3min | 2 | 2 |
+| Phase 04-search-engine P01 | 6min | 2 tasks | 4 files |
 
 ## Session Log
 

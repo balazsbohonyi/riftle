@@ -35,11 +35,11 @@
 
 ### Search
 
-- [ ] **SRCH-01**: search(query) Tauri command returns ranked Result[] using nucleo fuzzy matching
-- [ ] **SRCH-02**: Scoring order: exact prefix > acronym match > fuzzy substring; secondary sort by launch_count
-- [ ] **SRCH-03**: Maximum 50 results returned
-- [ ] **SRCH-04**: Query starting with > returns only system command results (prefix-based matching)
-- [ ] **SRCH-05**: Built-in system commands: lock, shutdown, restart, sleep — carry kind: "system" and fixed icon
+- [x] **SRCH-01**: search(query) Tauri command returns ranked Result[] using nucleo fuzzy matching
+- [x] **SRCH-02**: Scoring order: exact prefix > acronym match > fuzzy substring; secondary sort by launch_count
+- [x] **SRCH-03**: Maximum 50 results returned
+- [x] **SRCH-04**: Query starting with > returns only system command results (prefix-based matching)
+- [x] **SRCH-05**: Built-in system commands: lock, shutdown, restart, sleep — carry kind: "system" and fixed icon
 
 ### Launcher Window
 
@@ -143,11 +143,11 @@
 | INDX-06 | Phase 3 | Complete |
 | INDX-07 | Phase 3 | Complete |
 | INDX-08 | Phase 3 | Complete |
-| SRCH-01 | Phase 4 | Pending |
-| SRCH-02 | Phase 4 | Pending |
-| SRCH-03 | Phase 4 | Pending |
-| SRCH-04 | Phase 4 | Pending |
-| SRCH-05 | Phase 4 | Pending |
+| SRCH-01 | Phase 4 | Complete |
+| SRCH-02 | Phase 4 | Complete |
+| SRCH-03 | Phase 4 | Complete |
+| SRCH-04 | Phase 4 | Complete |
+| SRCH-05 | Phase 4 | Complete |
 | LWND-01 | Phase 5 | Pending |
 | LWND-02 | Phase 5 | Pending |
 | LWND-03 | Phase 5 | Pending |
