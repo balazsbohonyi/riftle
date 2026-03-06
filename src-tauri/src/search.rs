@@ -31,7 +31,13 @@ pub struct SearchIndex {
 pub struct SearchIndexState(pub Arc<RwLock<SearchIndex>>);
 
 pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
-    todo!()
+    let icons_dir = data_dir.join("icons");
+    std::fs::create_dir_all(&icons_dir)?;
+    let dest = icons_dir.join("system_command.png");
+    if !dest.exists() {
+        std::fs::write(&dest, SYSTEM_COMMAND_ICON)?;
+    }
+    Ok(())
 }
 
 pub fn init_search_index(app: &tauri::AppHandle) {
@@ -42,20 +48,93 @@ pub fn rebuild_index(app: &tauri::AppHandle) {
     todo!()
 }
 
+struct ScoredResult {
+    tier: u8,
+    score: u32,
+    launch_count: i64,
+    result: SearchResult,
+}
+
 pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
-    todo!()
+    if query.is_empty() {
+        return Vec::new();
+    }
+
+    let mut matcher = Matcher::new(Config::DEFAULT);
+    let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
+    let q_lower = query.to_lowercase();
+
+    let mut scored: Vec<ScoredResult> = apps
+        .iter()
+        .filter_map(|app| {
+            let haystack = Utf32String::from(app.name.as_str());
+            pattern
+                .score(haystack.slice(..), &mut matcher)
+                .map(|score| {
+                    let name_lower = app.name.to_lowercase();
+                    let tier = match_tier(&q_lower, &name_lower);
+                    ScoredResult {
+                        tier,
+                        score,
+                        launch_count: app.launch_count,
+                        result: SearchResult {
+                            id: app.id.clone(),
+                            name: app.name.clone(),
+                            icon_path: app
+                                .icon_path
+                                .clone()
+                                .unwrap_or_else(|| "generic.png".to_string()),
+                            path: app.path.clone(),
+                            kind: "app".to_string(),
+                        },
+                    }
+                })
+        })
+        .collect();
+
+    scored.sort_unstable_by(|a, b| {
+        b.tier
+            .cmp(&a.tier)
+            .then_with(|| b.score.cmp(&a.score))
+            .then_with(|| b.launch_count.cmp(&a.launch_count))
+    });
+
+    scored.truncate(50);
+    scored.into_iter().map(|s| s.result).collect()
 }
 
 fn match_tier(q_lower: &str, name_lower: &str) -> u8 {
-    todo!()
+    if name_lower.starts_with(q_lower) {
+        2
+    } else if q_lower.len() >= 2 && is_acronym_match(q_lower, name_lower) {
+        1
+    } else {
+        0
+    }
 }
 
 fn is_acronym_match(query: &str, name: &str) -> bool {
-    todo!()
+    let initials: String = name
+        .split_whitespace()
+        .filter_map(|word| word.chars().next())
+        .collect::<String>()
+        .to_lowercase();
+    initials.starts_with(query)
 }
 
 fn search_system_commands(suffix: &str) -> Vec<SearchResult> {
-    todo!()
+    let q = suffix.to_lowercase();
+    SYSTEM_COMMANDS
+        .iter()
+        .filter(|(_, name)| q.is_empty() || name.to_lowercase().contains(&q))
+        .map(|(id, name)| SearchResult {
+            id: id.to_string(),
+            name: name.to_string(),
+            icon_path: "system_command.png".to_string(),
+            path: String::new(),
+            kind: "system".to_string(),
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -194,11 +273,13 @@ mod tests {
 
     #[test]
     fn test_search_system_prefix_filtered() {
+        // "sh" is contained in "Shutdown" — "Sleep" does not contain "sh"
+        // Plan spec noted "Sleep" but "sleep".contains("sh") == false;
+        // correct behavior is Shutdown only (1 result)
         let results = search_system_commands("sh");
-        assert_eq!(results.len(), 2, "'sh' should match Shutdown and Sleep only");
+        assert_eq!(results.len(), 1, "'sh' should match Shutdown only");
         let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
         assert!(names.contains(&"Shutdown"), "Should contain Shutdown");
-        assert!(names.contains(&"Sleep"), "Should contain Sleep");
     }
 
     #[test]
@@ -246,5 +327,18 @@ mod tests {
             results.iter().all(|r| r.path.is_empty()),
             "All system command results should have path == ''"
         );
+    }
+
+    #[test]
+    fn test_ensure_system_command_icon_creates_file() {
+        let tmp = std::env::temp_dir().join("riftle_test_icon");
+        let _ = std::fs::remove_dir_all(&tmp);
+        ensure_system_command_icon(&tmp).expect("Should succeed");
+        assert!(
+            tmp.join("icons").join("system_command.png").exists(),
+            "system_command.png should be created in icons/"
+        );
+        // Second call should be idempotent
+        ensure_system_command_icon(&tmp).expect("Second call should also succeed");
     }
 }
