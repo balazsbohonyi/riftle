@@ -16,6 +16,7 @@
         "title": "Riftle",
         "width": 640,
         "height": 60,
+        "center": true,
         "decorations": false,
         "transparent": false,
         "shadow": true,
