@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-06T18:13:09.850Z"
+last_updated: "2026-03-06T18:19:09.991Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 92
 ---
 
@@ -112,6 +112,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 04-search-engine]: nucleo-matcher = 0.3 added as direct dep (not transitive) to avoid Utf32String re-export ambiguity
 - [Phase 04-search-engine]: system_command.png is a copy of 32x32.png as valid placeholder; include_bytes! resolves at compile time
 - [Phase 04-search-engine]: 13 test stubs use should_panic + todo!() RED state pattern (mirrors Phase 3 indexer approach)
+- [Phase 04-search-engine]: score_and_rank truncates to 50 inside function for unit testability — search() Tauri command not testable without AppHandle
+- [Phase 04-search-engine]: Plan spec error corrected: search_system_commands('sh') returns Shutdown only (1 result) — 'Sleep' does not contain 'sh'
 
 ## Performance Metrics
 
@@ -128,6 +130,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 03-indexer | 04 | 2min | 1 | 1 |
 | 03-indexer | 05 | 3min | 2 | 2 |
 | Phase 04-search-engine P01 | 6min | 2 tasks | 4 files |
+| Phase 04-search-engine P02 | 3min | 3 tasks | 1 files |
 
 ## Session Log
 
