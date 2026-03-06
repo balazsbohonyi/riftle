@@ -25,7 +25,66 @@ static GENERIC_ICON: &[u8] = include_bytes!("../icons/generic.png");
 /// Run a full blocking index. Called synchronously in setup() before app is ready.
 /// Crawls all source dirs, upserts apps, extracts icons async, prunes stale entries.
 pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &Settings) {
-    todo!("Phase 3 Plan 04: implement full index")
+    // 1. Ensure {data_dir}/icons/ exists and generic.png is present
+    if let Err(e) = ensure_generic_icon(data_dir) {
+        eprintln!("[indexer] failed to write generic icon: {}", e);
+    }
+
+    let icons_dir = data_dir.join("icons");
+
+    // 2. Collect all source directories to crawl
+    let source_dirs = get_index_paths(settings);
+
+    // 3. Crawl each directory, upsert each app, spawn icon extraction thread
+    let mut discovered_ids: HashSet<String> = HashSet::new();
+
+    for (dir, source) in &source_dirs {
+        let apps = crawl_dir(dir, source, &settings.excluded_paths);
+        for app in apps {
+            discovered_ids.insert(app.id.clone());
+
+            // Upsert with generic.png placeholder — release lock immediately
+            {
+                let conn = db.lock().unwrap();
+                let _ = upsert_app(&conn, &app);
+            } // lock released here
+
+            // Spawn icon extraction thread (non-blocking, INDX-05)
+            // Skip if icon file already exists on disk (re-index optimization)
+            let icon_file = icons_dir.join(icon_filename(&app.id));
+            if !icon_file.exists() {
+                let db_clone = Arc::clone(db);
+                let exe_path = PathBuf::from(&app.path);
+                let app_id = app.id.clone();
+                std::thread::spawn(move || {
+                    match extract_icon_png(&exe_path) {
+                        Some(bytes) => {
+                            if std::fs::write(&icon_file, &bytes).is_ok() {
+                                let filename = icon_file
+                                    .file_name()
+                                    .unwrap_or_default()
+                                    .to_string_lossy()
+                                    .to_string();
+                                let conn = db_clone.lock().unwrap();
+                                let _ = conn.execute(
+                                    "UPDATE apps SET icon_path = ?1 WHERE id = ?2",
+                                    rusqlite::params![filename, app_id],
+                                );
+                            }
+                            // else: icon write failed, keeps generic.png — acceptable
+                        }
+                        None => {
+                            // Extraction failed: icon_path stays as "generic.png" — correct fallback
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    // 4. Prune stale entries (apps removed from disk since last index)
+    let conn = db.lock().unwrap();
+    let _ = prune_stale(&conn, &discovered_ids);
 }
 
 /// Spawn background timer thread and filesystem watcher thread.
