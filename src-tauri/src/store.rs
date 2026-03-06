@@ -61,7 +61,7 @@ impl Default for Settings {
 // An absolute PathBuf is expected to bypass this via PathBuf::join() semantics,
 // but this is a LOW-confidence finding (source-inspected, not runtime-verified).
 //
-// If settings.json appears at %APPDATA%\com.riftle.launcher\settings.json
+// If settings.json appears at %APPDATA%\riftle-launcher\settings.json
 // even in portable mode, replace app.store() with direct serde_json file I/O:
 //   let json_bytes = std::fs::read(store_path)?;
 //   serde_json::from_slice(&json_bytes).unwrap_or_default()
