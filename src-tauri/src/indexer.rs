@@ -2,10 +2,17 @@
 // crawl Start Menu, Desktop, PATH; .lnk resolution; icon extraction; background refresh
 
 use std::collections::HashSet;
+use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, mpsc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use rusqlite::Connection;
+use windows_sys::Win32::UI::Shell::ExtractIconExW;
+use windows_sys::Win32::UI::WindowsAndMessaging::{ICONINFO, GetIconInfo, DestroyIcon};
+use windows_sys::Win32::Graphics::Gdi::{
+    GetDIBits, GetObjectW, DeleteObject, CreateCompatibleDC, DeleteDC,
+    BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS,
+};
 
 use crate::db::{AppRecord, upsert_app};
 use crate::store::Settings;
@@ -229,7 +236,112 @@ pub(crate) fn ensure_generic_icon(data_dir: &Path) -> std::io::Result<()> {
 /// Returns PNG bytes or None on any failure.
 /// MUST be called from a spawned thread — GDI calls take 5-50ms per exe.
 pub(crate) fn extract_icon_png(exe_path: &Path) -> Option<Vec<u8>> {
-    todo!("Phase 3 Plan 03: implement icon extraction")
+    // Convert path to null-terminated wide string
+    let wide: Vec<u16> = exe_path.as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0u16))
+        .collect();
+
+    unsafe {
+        // Extract large icon (32x32) at index 0
+        let mut hicon_large: isize = 0;
+        let count = ExtractIconExW(
+            wide.as_ptr(),
+            0,
+            &mut hicon_large,
+            std::ptr::null_mut(),
+            1,
+        );
+        if count == 0 || hicon_large == 0 {
+            return None;
+        }
+
+        // Get icon bitmap handle info
+        let mut icon_info = ICONINFO {
+            fIcon: 0,
+            xHotspot: 0,
+            yHotspot: 0,
+            hbmMask: 0,
+            hbmColor: 0,
+        };
+        if GetIconInfo(hicon_large, &mut icon_info) == 0 {
+            DestroyIcon(hicon_large);
+            return None;
+        }
+
+        // Get bitmap dimensions from hbmColor
+        let mut bmp: BITMAP = std::mem::zeroed();
+        let got = GetObjectW(
+            icon_info.hbmColor,
+            std::mem::size_of::<BITMAP>() as i32,
+            &mut bmp as *mut _ as *mut _,
+        );
+        if got == 0 || bmp.bmWidth == 0 || bmp.bmHeight == 0 {
+            DeleteObject(icon_info.hbmColor);
+            DeleteObject(icon_info.hbmMask);
+            DestroyIcon(hicon_large);
+            return None;
+        }
+
+        let width = bmp.bmWidth.unsigned_abs();
+        let height = bmp.bmHeight.unsigned_abs();
+
+        // Allocate BGRA pixel buffer
+        let row_bytes = width * 4;
+        let mut pixels = vec![0u8; (row_bytes * height) as usize];
+
+        // Create compatible DC for GetDIBits
+        let dc = CreateCompatibleDC(0);
+
+        let mut bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: width as i32,
+                biHeight: -(height as i32), // negative = top-down (no flip needed)
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: 0, // BI_RGB
+                biSizeImage: 0,
+                biXPelsPerMeter: 0,
+                biYPelsPerMeter: 0,
+                biClrUsed: 0,
+                biClrImportant: 0,
+            },
+            bmiColors: [std::mem::zeroed()],
+        };
+
+        let lines = GetDIBits(
+            dc,
+            icon_info.hbmColor,
+            0,
+            height,
+            pixels.as_mut_ptr() as *mut _,
+            &mut bmi,
+            DIB_RGB_COLORS,
+        );
+
+        // Cleanup GDI resources
+        DeleteDC(dc);
+        DeleteObject(icon_info.hbmColor);
+        DeleteObject(icon_info.hbmMask);
+        DestroyIcon(hicon_large);
+
+        if lines == 0 {
+            return None;
+        }
+
+        // BGRA -> RGBA channel swap (GDI uses BGRA, image crate expects RGBA)
+        for chunk in pixels.chunks_exact_mut(4) {
+            chunk.swap(0, 2); // B <-> R
+        }
+
+        // Encode as PNG via image crate
+        let img = image::RgbaImage::from_raw(width, height, pixels)?;
+        let mut png_bytes: Vec<u8> = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut png_bytes);
+        img.write_to(&mut cursor, image::ImageFormat::Png).ok()?;
+        Some(png_bytes)
+    }
 }
 
 /// Try to start an index run. No-op if already indexing (AtomicBool guard).

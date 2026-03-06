@@ -36,8 +36,9 @@ windows-sys = { version = "^0.52", features = [
   "Win32_System_Shutdown",
   "Win32_System_Power",
   "Win32_System_RemoteDesktop",
-  "Win32_Graphics_Gdi",           # NEW: GetIconInfo, GetDIBits, DeleteObject, CreateCompatibleDC
-  "Win32_UI_WindowsAndMessaging",  # NEW: ICONINFO, DestroyIcon
+  "Win32_Foundation",              # Required by DeleteDC, DeleteObject, DestroyIcon, GetIconInfo
+  "Win32_Graphics_Gdi",           # GetIconInfo, GetDIBits, DeleteObject, CreateCompatibleDC
+  "Win32_UI_WindowsAndMessaging",  # ICONINFO, DestroyIcon
 ] }
 
 # Phase 3: Indexer dependencies
