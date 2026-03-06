@@ -693,7 +693,7 @@ mod tests {
 
     #[test]
     fn test_resolve_lnk_broken() {
-        let result = resolve_lnk(Path::new("C:\\nonexistent\\fake.lnk"));
+        let result = resolve_lnk(Path::new("C:\\nonexistent\\fake.lnk"), &[]);
         assert!(result.is_none());
     }
 
