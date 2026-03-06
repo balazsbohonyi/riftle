@@ -82,14 +82,15 @@ pub fn run() {
                 app.manage(Arc::new(Mutex::new(timer_tx)));
             }
 
-            // Disable DWM rounding and border on launcher window so CSS border-radius
-            // has full control. Windows 11 otherwise applies its own small rounded corners.
+            // Configure DWM on launcher: remove accent border, use large rounded corners.
+            // DWM must handle transparency + rounding — CSS border-radius on a transparent
+            // window leaves black corners in the WebView.
             #[cfg(target_os = "windows")]
             if let Some(launcher) = app.get_webview_window("launcher") {
                 use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE};
                 use windows::Win32::Foundation::HWND;
-                const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE;      // no border
-                const DWMWCP_DONOTROUND: u32 = 1;               // disable DWM corner rounding
+                const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE; // no accent border
+                const DWMWCP_ROUND: u32 = 2;              // large rounded corners (Windows 11)
                 let hwnd = HWND(launcher.hwnd().unwrap().0 as *mut std::ffi::c_void);
                 unsafe {
                     let _ = DwmSetWindowAttribute(
@@ -101,7 +102,7 @@ pub fn run() {
                     let _ = DwmSetWindowAttribute(
                         hwnd,
                         DWMWA_WINDOW_CORNER_PREFERENCE,
-                        &DWMWCP_DONOTROUND as *const u32 as *const _,
+                        &DWMWCP_ROUND as *const u32 as *const _,
                         std::mem::size_of::<u32>() as u32,
                     );
                 }

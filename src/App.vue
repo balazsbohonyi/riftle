@@ -340,7 +340,6 @@ html, body {
   width: 100%;
   height: 100%;
   background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
-  border-radius: 12px;
   overflow: hidden;
   /* Animation: hidden state */
   opacity: 0;
