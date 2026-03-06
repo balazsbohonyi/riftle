@@ -92,4 +92,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Executed plan 02-01: paths.rs portable-aware data directory resolution
 - Executed plan 02-02: SQLite data layer — db.rs + DbState wired into lib.rs
 - Executed plan 02-03: Settings persistence — store.rs + lib.rs first-run init
-- Stopped at: Completed 02-03-PLAN.md
+- Fix: get_settings() is read-only; added set_settings() call in lib.rs setup to write defaults on first run (DATA-04)
+- Runtime verified: installed mode (launcher.db + settings.json in %APPDATA%), portable mode (both in target/debug/data/, %APPDATA% absent)
+- LOW-confidence item resolved: app.store(absolute_PathBuf) correctly bypasses BaseDirectory::AppData in portable mode
+- Phase 2 fully verified and closed. Phase 3 (Indexer) is next.
