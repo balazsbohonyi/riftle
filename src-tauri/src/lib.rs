@@ -1,6 +1,9 @@
 // Riftle Launcher — Tauri v2 application entry point
 // Phase 1: plugin registration scaffold; command handlers added in later phases
 
+use std::sync::{Arc, Mutex};
+use tauri::Manager;
+
 mod db;           // Phase 2: SQLite database layer
 mod store;        // Phase 2: Settings persistence via tauri-plugin-store
 mod paths;        // Phase 2: Portable-aware data directory resolution
@@ -28,8 +31,15 @@ pub fn run() {
             }
 
             // Phase 2: Resolve data directory (portable or installed mode)
-            // Plans 02 and 03 will use this to init SQLite and settings store.
-            let _data_dir = crate::paths::data_dir(app.handle());
+            let data_dir = crate::paths::data_dir(app.handle());
+
+            // Phase 2: Initialize SQLite database and register as managed state
+            let db_path = data_dir.join("launcher.db");
+            let conn = crate::db::init_db(&db_path)
+                .expect("failed to initialize database");
+            app.manage(crate::db::DbState(Arc::new(Mutex::new(conn))));
+
+            // Note: store init (settings.json) is added in Plan 03.
 
             Ok(())
         })
