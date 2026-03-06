@@ -216,7 +216,13 @@ pub(crate) fn prune_stale(conn: &Connection, discovered_ids: &HashSet<String>) -
 
 /// Copy bundled GENERIC_ICON to {data_dir}/icons/generic.png if missing.
 pub(crate) fn ensure_generic_icon(data_dir: &Path) -> std::io::Result<()> {
-    todo!("Phase 3 Plan 03: implement ensure_generic_icon")
+    let icons_dir = data_dir.join("icons");
+    std::fs::create_dir_all(&icons_dir)?;
+    let dest = icons_dir.join("generic.png");
+    if !dest.exists() {
+        std::fs::write(&dest, GENERIC_ICON)?;
+    }
+    Ok(())
 }
 
 /// Extract a 32x32 RGBA PNG from an exe file using Windows GDI.
@@ -336,7 +342,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_generic_icon_bootstrap() {
         let dir = tempdir().unwrap();
         ensure_generic_icon(dir.path()).unwrap();
