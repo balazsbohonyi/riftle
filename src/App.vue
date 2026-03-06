@@ -201,7 +201,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div id="app" :class="['launcher', `anim-${animMode}`, { visible: isVisible }]">
+  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]">
 
     <!-- Search input area -->
     <div class="search-area">
@@ -283,8 +283,18 @@ html, body {
   background: transparent;
 }
 
-/* ---- Launcher container ---- */
+/* Vue root mount point */
 #app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+/* ---- Launcher container ---- */
+.launcher-app {
   width: 100%;
   background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
   border: 1px solid #ffffff25;
