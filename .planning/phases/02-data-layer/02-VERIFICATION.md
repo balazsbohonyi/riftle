@@ -6,10 +6,10 @@ score: 14/14 must-haves verified (automated) + 4/4 runtime checks passed
 re_verification: false
 human_verification:
   - test: "Portable mode — DB at exe_dir/data/launcher.db"
-    expected: "Place launcher.portable next to the exe, run pnpm tauri dev, verify data/launcher.db created adjacent to the binary (not in %APPDATA%)"
+    expected: "Place riftle-launcher.portable next to the exe, run pnpm tauri dev, verify data/launcher.db created adjacent to the binary (not in %APPDATA%)"
     why_human: "Requires live AppHandle and filesystem; store plugin needs a running Tauri app"
-  - test: "Installed mode — DB at %APPDATA%/com.riftle.launcher/launcher.db"
-    expected: "Without launcher.portable marker, run pnpm tauri dev, verify launcher.db appears in %APPDATA%\\com.riftle.launcher\\"
+  - test: "Installed mode — DB at %APPDATA%/riftle-launcher/launcher.db"
+    expected: "Without riftle-launcher.portable marker, run pnpm tauri dev, verify launcher.db appears in %APPDATA%\\riftle-launcher\\"
     why_human: "Requires live AppHandle; app_data_dir() resolution only tested unit-level for portable branch"
   - test: "settings.json created at correct portable-aware path on first run"
     expected: "Run pnpm tauri dev, verify settings.json appears in the same data_dir as launcher.db (not hardcoded %APPDATA%)"
@@ -34,8 +34,8 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|---------|
-| 1 | paths::data_dir() returns exe_dir/data when launcher.portable marker exists | VERIFIED | paths.rs:20 — `if exe_dir.join("launcher.portable").exists() { exe_dir.join("data") }`; unit test test_portable_detection_returns_data_subdir passes |
-| 2 | paths::data_dir() returns %APPDATA%/com.riftle.launcher/ when no marker | VERIFIED (partial) | paths.rs:23-26 — installed branch calls `app.path().app_data_dir()`; unit test confirms conditional; REQUIRES HUMAN for end-to-end |
+| 1 | paths::data_dir() returns exe_dir/data when riftle-launcher.portable marker exists | VERIFIED | paths.rs:20 — `if exe_dir.join("riftle-launcher.portable").exists() { exe_dir.join("data") }`; unit test test_portable_detection_returns_data_subdir passes |
+| 2 | paths::data_dir() returns %APPDATA%/riftle-launcher/ when no marker | VERIFIED (partial) | paths.rs:23-26 — installed branch uses APPDATA env var + "riftle-launcher"; unit test confirms conditional; REQUIRES HUMAN for end-to-end |
 | 3 | paths::data_dir() calls create_dir_all so directory always exists | VERIFIED | paths.rs:28-30 — `std::fs::create_dir_all(&dir)` called before returning in data_dir_from_exe_dir() |
 | 4 | lib.rs setup resolves data_dir and passes it to db/store init before app runs | VERIFIED | lib.rs:34-43 — data_dir resolved first, then used for db_path (line 37) and store init (line 43) |
 | 5 | init_db() creates apps table with correct schema | VERIFIED | db.rs:28-42 — CREATE TABLE IF NOT EXISTS with all 7 columns; test_schema_init passes |
@@ -87,7 +87,7 @@ human_verification:
 | DATA-04 | 02-03 | Settings persisted via tauri-plugin-store to settings.json (portable-aware) | VERIFIED | Runtime confirmed: settings.json appeared in target/debug/data/ (portable) and %APPDATA% (installed). Absolute PathBuf bypasses BaseDirectory::AppData as expected. |
 | DATA-05 | 02-03 | Default settings: hotkey Alt+Space, theme system, opacity 1.0, show_path false, autostart false, additional_paths [], excluded_paths [], reindex_interval 15 | VERIFIED | store.rs:42-55 — Settings::default() implements all 8 values; test_settings_defaults asserts all 8 |
 | DATA-06 | 02-03 | store.rs exposes get_settings() and set_settings() with typed Settings struct | VERIFIED | Both functions present at store.rs:73 and 89; signatures match spec |
-| DATA-07 | 02-01 | Portable mode — launcher.portable adjacent to exe triggers data path switch | VERIFIED | paths.rs:20 — launcher.portable existence check; test_portable_detection_returns_data_subdir confirms branch |
+| DATA-07 | 02-01 | Portable mode — riftle-launcher.portable adjacent to exe triggers data path switch | VERIFIED | paths.rs:20 — riftle-launcher.portable existence check; test_portable_detection_returns_data_subdir confirms branch |
 
 **Cross-reference with ROADMAP.md / REQUIREMENTS.md:**
 
@@ -120,20 +120,20 @@ No blockers or stub implementations found.
 
 ### 1. Portable Mode — DB File Location
 
-**Test:** Place a file named `launcher.portable` in the same directory as the compiled binary (e.g., `src-tauri/target/debug/` for dev builds). Run `pnpm tauri dev`.
-**Expected:** A `data/` subdirectory is created adjacent to the exe, containing `launcher.db`. No database file appears under `%APPDATA%\com.riftle.launcher\`.
+**Test:** Place a file named `riftle-launcher.portable` in the same directory as the compiled binary (e.g., `src-tauri/target/debug/` for dev builds). Run `pnpm tauri dev`.
+**Expected:** A `data/` subdirectory is created adjacent to the exe, containing `launcher.db`. No database file appears under `%APPDATA%\riftle-launcher\`.
 **Why human:** paths::data_dir() uses `std::env::current_exe()` which returns the actual binary path at runtime. The unit tests exercise the logic with a tempdir injection, but the full end-to-end path (exe path resolution + AppHandle) requires a running Tauri process.
 
 ### 2. Installed Mode — DB File Location
 
-**Test:** Without a `launcher.portable` marker, run `pnpm tauri dev`.
-**Expected:** `launcher.db` is created at `%APPDATA%\com.riftle.launcher\launcher.db` (or equivalent). No `data/` directory is created adjacent to the binary.
-**Why human:** The installed branch calls `app.path().app_data_dir()` which requires a live AppHandle; this path is not covered by any unit test by design.
+**Test:** Without a `riftle-launcher.portable` marker, run `pnpm tauri dev`.
+**Expected:** `launcher.db` is created at `%APPDATA%\riftle-launcher\launcher.db` (or equivalent). No `data/` directory is created adjacent to the binary.
+**Why human:** The installed branch uses `std::env::var("APPDATA") + "riftle-launcher"` which requires a real environment; this path is not covered by any unit test by design.
 
 ### 3. Portable Mode — settings.json File Location
 
-**Test:** With `launcher.portable` marker present, run `pnpm tauri dev`. Inspect the `data/` directory.
-**Expected:** `data/settings.json` exists adjacent to the exe. No `settings.json` appears under `%APPDATA%\com.riftle.launcher\`.
+**Test:** With `riftle-launcher.portable` marker present, run `pnpm tauri dev`. Inspect the `data/` directory.
+**Expected:** `data/settings.json` exists adjacent to the exe. No `settings.json` appears under `%APPDATA%\riftle-launcher\`.
 **Why human:** store.rs contains a documented LOW-confidence assumption (lines 59-68) that passing an absolute PathBuf to `app.store()` bypasses tauri-plugin-store's BaseDirectory::AppData resolution. This was source-inspected but NOT runtime-verified. If this assumption is wrong, portable mode will write settings to the installed path regardless.
 
 ### 4. settings.json Content Matches Settings::default()

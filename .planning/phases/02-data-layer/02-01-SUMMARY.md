@@ -16,13 +16,13 @@ affects:
   - 02-data-layer/02-02 (db.rs uses paths::data_dir for SQLite file location)
   - 02-data-layer/02-03 (store.rs uses paths::data_dir for settings file location)
   - 03-indexer (reads app list from DB initialized at this path)
-  - 10-packaging (portable mode distributable uses launcher.portable marker)
+  - 10-packaging (portable mode distributable uses riftle-launcher.portable marker)
 
 # Tech tracking
 tech-stack:
   added: []
   patterns:
-    - "Portable mode detection via launcher.portable marker file adjacent to exe"
+    - "Portable mode detection via riftle-launcher.portable marker file adjacent to exe"
     - "data_dir_from_exe_dir() helper pattern for AppHandle-free unit testing"
     - "create_dir_all() called before returning path — callers always get ready-to-use path"
     - "_prefixed variable to suppress unused warning on forward-declared values"
@@ -54,7 +54,7 @@ completed: 2026-03-06
 
 # Phase 2 Plan 01: Paths Module Summary
 
-**Portable-aware data directory resolution via paths.rs — returns exe_dir/data in portable mode or %APPDATA%/com.riftle.launcher/ in installed mode, with create_dir_all guarantee before returning**
+**Portable-aware data directory resolution via paths.rs — returns exe_dir/data in portable mode or %APPDATA%/riftle-launcher/ in installed mode, with create_dir_all guarantee before returning**
 
 ## Performance
 
@@ -67,7 +67,7 @@ completed: 2026-03-06
 ## Accomplishments
 
 - Created `src-tauri/src/paths.rs` with `data_dir(app: &AppHandle) -> PathBuf` and testable `data_dir_from_exe_dir()` helper
-- Portable branch: detects `launcher.portable` adjacent to exe, returns `exe_dir/data/`
+- Portable branch: detects `riftle-launcher.portable` adjacent to exe, returns `exe_dir/data/`
 - Installed branch: returns Tauri's `app.path().app_data_dir()` result
 - Both branches call `create_dir_all` before returning to guarantee directory exists
 - Wired `crate::paths::data_dir(app.handle())` in lib.rs setup callback; `mod paths;` declared alongside existing stubs
@@ -89,7 +89,7 @@ Each task was committed atomically:
 
 ## Decisions Made
 
-- Used `std::env::current_exe()` for portable detection (consistent in dev and release; in dev, `launcher.portable` goes in `target/debug/`)
+- Used `std::env::current_exe()` for portable detection (consistent in dev and release; in dev, `riftle-launcher.portable` goes in `target/debug/`)
 - Split `data_dir_from_exe_dir(exe_dir, app)` as internal helper so unit tests can inject a tempdir without needing an AppHandle
 - Installed-mode path (`app_data_dir()`) not unit-tested — requires AppHandle, deferred to smoke test in Plan 02
 - Removed unused `super::*` import from test module (auto-fixed Rule 2 — minor warning cleanup)

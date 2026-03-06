@@ -64,8 +64,8 @@ created: 2026-03-06
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| DB created at correct portable path on launch | DATA-01 | Requires AppHandle + filesystem; integration smoke | Run `pnpm tauri dev`, place `launcher.portable` next to exe, verify `./data/riftle.db` created |
-| DB created at correct installed path on launch | DATA-01 | Requires AppHandle + filesystem; integration smoke | Run `pnpm tauri dev` without portable marker, verify `%APPDATA%/com.riftle.launcher/riftle.db` created |
+| DB created at correct portable path on launch | DATA-01 | Requires AppHandle + filesystem; integration smoke | Run `pnpm tauri dev`, place `riftle-launcher.portable` next to exe, verify `./data/launcher.db` created |
+| DB created at correct installed path on launch | DATA-01 | Requires AppHandle + filesystem; integration smoke | Run `pnpm tauri dev` without portable marker, verify `%APPDATA%/riftle-launcher/launcher.db` created |
 | settings.json created on first run | DATA-04 | Requires live AppHandle; store plugin needs real app context | Run `pnpm tauri dev`, verify `settings.json` appears at correct data dir path |
 
 ---
