@@ -32,6 +32,13 @@ Plans:
 
 **Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, DATA-06, DATA-07
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Create paths.rs (portable-aware data_dir); add mod paths to lib.rs; wire data_dir call in setup callback
+- [ ] 02-02-PLAN.md — Implement db.rs (AppRecord, DbState, init_db, upsert_app, get_all_apps, increment_launch_count + unit tests); register DbState in lib.rs setup
+- [ ] 02-03-PLAN.md — Implement store.rs (Settings struct, get_settings, set_settings + unit tests); wire get_settings in lib.rs setup for first-run defaults
+
 **Success Criteria:**
 1. On launch, SQLite database is created at the correct path (portable: ./data/, installed: %APPDATA%\launcher\)
 2. apps table schema matches spec (id, name, path, icon_path, source, last_launched, launch_count)
