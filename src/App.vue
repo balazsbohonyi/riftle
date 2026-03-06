@@ -25,6 +25,7 @@ const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
 const dataDir       = ref('')
 const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
+const scrollerRef   = ref<any>(null) // RecycleScroller reference
 const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
 
 let unlistenFocus: (() => void) | null = null
@@ -48,6 +49,13 @@ watch(query, async (q) => {
 
 watch(results, () => {
   selectedIndex.value = 0
+})
+
+watch(selectedIndex, () => {
+  // Scroll virtualised list to keep selected item in view
+  if (scrollerRef.value && results.value.length > 8) {
+    scrollerRef.value.scrollToItem(selectedIndex.value)
+  }
 })
 
 // ---- Window sizing ----
@@ -235,6 +243,7 @@ onUnmounted(() => {
 
     <!-- Result list (virtualised) -->
     <RecycleScroller
+      ref="scrollerRef"
       v-if="results.length > 0"
       class="result-list"
       :items="results"
@@ -273,7 +282,7 @@ onUnmounted(() => {
           v-if="index === selectedIndex && adminMode"
           class="admin-badge"
           aria-label="Elevate with admin rights"
-        >🛡 Admin</span>
+        >[Admin]</span>
       </div>
     </RecycleScroller>
 
