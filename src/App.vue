@@ -52,9 +52,13 @@ watch(results, () => {
 
 // ---- Window sizing ----
 async function updateWindowHeight() {
-  if (!isTauriContext.value) return // Skip in browser dev mode
+  if (!isTauriContext.value) {
+    console.log('[App] updateWindowHeight skipped: not in Tauri context')
+    return
+  }
   // 56px input + 2px border + rows
   const h = Math.max(56 + 2 + listHeight.value, 58)
+  console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
   await getCurrentWindow().setSize(new LogicalSize(640, h)).catch(console.error)
 }
 
@@ -169,9 +173,10 @@ onMounted(async () => {
       showPath.value = settings.show_path
       animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
       dataDir.value  = settings.data_dir
-    } catch {
+      console.log('[App] settings loaded:', { dataDir: dataDir.value, showPath: showPath.value, animMode: animMode.value })
+    } catch (e) {
       // Use defaults — dataDir stays empty, icons will not load but app still functions
-      console.warn('[launcher] get_settings_cmd failed, using defaults')
+      console.warn('[launcher] get_settings_cmd failed, using defaults:', e)
     }
   }
 
