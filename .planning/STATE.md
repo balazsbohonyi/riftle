@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 2 of 5 complete
+current_plan: 3 of 5 complete
 status: executing
-last_updated: "2026-03-06T09:12:37.760Z"
+last_updated: "2026-03-06T09:22:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 10
-  completed_plans: 7
-  percent: 70
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -20,23 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 3 (Indexer) — Plans 01-02 complete. Plans 03-05 pending.
+**Current focus:** Phase 3 (Indexer) — Plans 01-03 complete. Plans 04-05 pending.
 
 ## Current Position
 
 **Phase:** 03-indexer
-**Current Plan:** 2 of 5 complete
-**Status:** In progress (Phase 3 Plans 01-02 done, Plans 03-05 pending)
+**Current Plan:** 3 of 5 complete
+**Status:** In progress (Phase 3 Plans 01-03 done, Plans 04-05 pending)
 
 ## Progress
 
-[███████░░░] 70%
+[████████░░] 80%
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
 | 2 | Data Layer | Complete |
-| 3 | Indexer | In Progress (2/5) |
+| 3 | Indexer | In Progress (3/5) |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
 | 6 | Launch Actions | Pending |
@@ -71,6 +71,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 03-indexer]: Timer stub tests (test_timer_fires, test_timer_reset) marked #[ignore] — no-op bodies can never satisfy should_panic
 - [Phase 03-indexer]: lnk crate (0.3.0) has no public link_info() method — used working_dir()+relative_path() public methods to reconstruct shortcut target path
 - [Phase 03-indexer]: prune_stale uses inline query_map with type annotation to resolve stmt borrow lifetime issue
+- [Phase 03-indexer]: Win32_Foundation feature required for DeleteDC, DeleteObject, DestroyIcon, GetIconInfo — added to windows-sys features in Cargo.toml
+- [Phase 03-indexer]: extract_icon_png has no automated unit test — GDI requires real Windows context; manual smoke test for INDX-05
 
 ## Performance Metrics
 
@@ -83,6 +85,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 02-data-layer | 03 | 3min | 2 | 2 |
 | 03-indexer | 01 | 7min | 2 | 4 |
 | 03-indexer | 02 | 5min | 2 | 1 |
+| 03-indexer | 03 | 4min | 2 | 2 |
 
 ## Session Log
 
@@ -105,3 +108,4 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Phase 2 fully verified and closed. Phase 3 (Indexer) is next.
 - Executed plan 03-01: Wave 0 scaffold — indexer.rs stubs + generic.png + Cargo deps
 - Executed plan 03-02: Path discovery, crawl_dir, resolve_lnk, make_app_record, icon_filename, prune_stale implemented; 7 tests GREEN
+- Executed plan 03-03: ensure_generic_icon + extract_icon_png GDI pipeline; 18 lib tests GREEN
