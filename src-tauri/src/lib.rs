@@ -82,6 +82,23 @@ pub fn run() {
                 app.manage(Arc::new(Mutex::new(timer_tx)));
             }
 
+            // Remove DWM border from launcher window (Windows 11 adds a 1px accent border)
+            #[cfg(target_os = "windows")]
+            if let Some(launcher) = app.get_webview_window("launcher") {
+                use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR};
+                use windows::Win32::Foundation::HWND;
+                const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE;
+                let hwnd = HWND(launcher.hwnd().unwrap().0 as *mut std::ffi::c_void);
+                unsafe {
+                    let _ = DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_BORDER_COLOR,
+                        &DWMWA_COLOR_NONE as *const u32 as *const _,
+                        std::mem::size_of::<u32>() as u32,
+                    );
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

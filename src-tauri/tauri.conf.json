@@ -15,7 +15,7 @@
         "label": "launcher",
         "title": "Riftle",
         "width": 640,
-        "height": 250,
+        "height": 58,
         "center": true,
         "decorations": false,
         "transparent": true,
