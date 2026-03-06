@@ -71,8 +71,8 @@ async function updateWindowHeight() {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
     return
   }
-  // 56px input + 2px border + rows
-  const h = Math.max(56 + 2 + listHeight.value, 58)
+  // 56px input + rows
+  const h = Math.max(56 + listHeight.value, 56)
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
   await getCurrentWindow().setSize(new LogicalSize(640, h)).catch(console.error)
 }
@@ -337,10 +337,9 @@ html, body {
 
 /* ---- Launcher container ---- */
 .launcher-app {
-  width: 640px;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
-  border-radius: 8px;
   overflow: hidden;
   /* Animation: hidden state */
   opacity: 0;
