@@ -214,8 +214,14 @@ onMounted(async () => {
   await nextTick()
   isVisible.value = true
 
-  // Show the Tauri window (Phase 9 will wire hotkey to toggle this)
-  await showWindow()
+  // Show the Tauri window only for the launcher (Phase 9 will wire hotkey to toggle this)
+  // Settings window has its own show logic; we must not show it here
+  if (isTauriContext.value) {
+    const win = getCurrentWindow()
+    if (win.label === 'launcher') {
+      await showWindow()
+    }
+  }
 
   // Auto-hide on focus loss (only in Tauri context)
   if (isTauriContext.value) {
