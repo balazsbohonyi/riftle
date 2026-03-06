@@ -2,14 +2,28 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 3 of 3 complete
-status: in_progress
-last_updated: "2026-03-06T01:18:24.000Z"
+current_plan: Not started
+status: planning
+last_updated: "2026-03-06T09:39:39.225Z"
 progress:
   total_phases: 10
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 3
+  total_plans: 10
+  completed_plans: 10
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: 5 of 5 complete
+status: complete
+last_updated: "2026-03-06T09:33:00Z"
+progress:
+  total_phases: 10
+  completed_phases: 3
+  total_plans: 10
+  completed_plans: 10
   percent: 100
 ---
 
@@ -20,13 +34,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 2 complete — Data Layer (all 3 plans done). Phase 3 (Indexer) is next.
+**Current focus:** Phase 3 (Indexer) complete. Phase 4 (Search Engine) is next.
 
 ## Current Position
 
-**Phase:** 02-data-layer
-**Current Plan:** 3 of 3 complete
-**Status:** In progress (Phase 2 complete, Phase 3 pending)
+**Phase:** 03-indexer
+**Current Plan:** Not started
+**Status:** Ready to plan
 
 ## Progress
 
@@ -36,7 +50,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 |-------|------|--------|
 | 1 | Project Scaffold & Configuration | Complete |
 | 2 | Data Layer | Complete |
-| 3 | Indexer | Pending |
+| 3 | Indexer | Complete |
 | 4 | Search Engine | Pending |
 | 5 | Launcher Window UI | Pending |
 | 6 | Launch Actions | Pending |
@@ -66,6 +80,19 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 02-data-layer]: Settings uses full-struct replace (not partial patch) for simplicity — Phase 8 reads current, updates fields, writes full struct back
 - [Phase 02-data-layer]: Silent reset on malformed settings.json via unwrap_or_default — avoids startup failure if user corrupts file
 - [Phase 02-data-layer]: get_settings() called in lib.rs setup to trigger first-run settings.json creation before any other subsystem needs it
+- [Phase 03-indexer]: include_bytes! path is ../icons/generic.png relative to src/indexer.rs (not ../../)
+- [Phase 03-indexer]: todo!() macro produces 'not yet implemented: ...' messages — use should_panic(expected = 'not yet implemented') for RED state tests
+- [Phase 03-indexer]: Timer stub tests (test_timer_fires, test_timer_reset) marked #[ignore] — no-op bodies can never satisfy should_panic
+- [Phase 03-indexer]: lnk crate (0.3.0) has no public link_info() method — used working_dir()+relative_path() public methods to reconstruct shortcut target path
+- [Phase 03-indexer]: prune_stale uses inline query_map with type annotation to resolve stmt borrow lifetime issue
+- [Phase 03-indexer]: Win32_Foundation feature required for DeleteDC, DeleteObject, DestroyIcon, GetIconInfo — added to windows-sys features in Cargo.toml
+- [Phase 03-indexer]: extract_icon_png has no automated unit test — GDI requires real Windows context; manual smoke test for INDX-05
+- [Phase 03-indexer]: app.id used as icon_filename key — normalized lowercase path is canonical stable key used throughout indexer
+- [Phase 03-indexer]: DB lock scope as block ({}) in run_full_index — MutexGuard drops before thread spawn, never held across GDI calls
+- [Phase 03-indexer]: Icon file existence check in run_full_index skips extraction threads for already-indexed apps on re-index runs
+- [Phase 03-indexer]: Settings::default() in reindex() command — real settings not in managed state; Phase 8 will wire properly
+- [Phase 03-indexer]: Watcher and timer failures are non-fatal — eprintln! + thread return; app continues without background refresh
+- [Phase 03-indexer]: app.manage(data_dir.clone()) stores raw PathBuf as managed state for reindex() tauri::State<PathBuf> retrieval
 
 ## Performance Metrics
 
@@ -76,6 +103,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 02-data-layer | 01 | 5min | 2 | 2 |
 | 02-data-layer | 02 | 4min | 2 | 2 |
 | 02-data-layer | 03 | 3min | 2 | 2 |
+| 03-indexer | 01 | 7min | 2 | 4 |
+| 03-indexer | 02 | 5min | 2 | 1 |
+| 03-indexer | 03 | 4min | 2 | 2 |
+| 03-indexer | 04 | 2min | 1 | 1 |
+| 03-indexer | 05 | 3min | 2 | 2 |
 
 ## Session Log
 
@@ -96,3 +128,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - Runtime verified: installed mode (launcher.db + settings.json in %APPDATA%), portable mode (both in target/debug/data/, %APPDATA% absent)
 - LOW-confidence item resolved: app.store(absolute_PathBuf) correctly bypasses BaseDirectory::AppData in portable mode
 - Phase 2 fully verified and closed. Phase 3 (Indexer) is next.
+- Executed plan 03-01: Wave 0 scaffold — indexer.rs stubs + generic.png + Cargo deps
+- Executed plan 03-02: Path discovery, crawl_dir, resolve_lnk, make_app_record, icon_filename, prune_stale implemented; 7 tests GREEN
+- Executed plan 03-03: ensure_generic_icon + extract_icon_png GDI pipeline; 18 lib tests GREEN
+- Executed plan 03-04: run_full_index implemented — wires crawl, upsert, per-app icon threads, prune_stale; 7 indexer tests GREEN
+- Executed plan 03-05: Background coordination layer — try_start_index, start_background_tasks, reindex Tauri command, lib.rs wired; 20 tests GREEN (2 ignored); Phase 3 complete

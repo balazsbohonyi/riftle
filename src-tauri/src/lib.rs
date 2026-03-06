@@ -2,6 +2,7 @@
 // Phase 1: plugin registration scaffold; command handlers added in later phases
 
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicBool;
 use tauri::Manager;
 
 mod db;           // Phase 2: SQLite database layer
@@ -45,11 +46,39 @@ pub fn run() {
             // get_settings returns defaults if no file exists; set_settings persists them.
             // This guarantees settings.json exists after setup (DATA-04).
             // Phase 8 will expose settings to the frontend via Tauri commands.
-            let _ = settings;
+
+            // Phase 3: Indexer — synchronous first index then background refresh
+            #[cfg(desktop)]
+            {
+                let db_arc = Arc::clone(&app.state::<crate::db::DbState>().0);
+                let is_indexing = Arc::new(AtomicBool::new(false));
+
+                // Run full index synchronously (window is hidden — startup latency OK)
+                crate::indexer::run_full_index(&db_arc, &data_dir, &settings);
+
+                // Store data_dir as managed state for reindex() command
+                app.manage(data_dir.clone());
+
+                // Store is_indexing flag as managed state
+                app.manage(Arc::clone(&is_indexing));
+
+                // Start background timer + watcher; get timer reset Sender
+                let timer_tx = crate::indexer::start_background_tasks(
+                    Arc::clone(&db_arc),
+                    data_dir.clone(),
+                    &settings,
+                    Arc::clone(&is_indexing),
+                );
+
+                // Store timer Sender as managed state (reindex() command resets the timer via this)
+                app.manage(Arc::new(Mutex::new(timer_tx)));
+            }
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            crate::indexer::reindex,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
