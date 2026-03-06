@@ -3199,6 +3199,7 @@ dependencies = [
  "notify",
  "notify-debouncer-mini",
  "nucleo",
+ "nucleo-matcher",
  "rusqlite",
  "serde",
  "serde_json",
