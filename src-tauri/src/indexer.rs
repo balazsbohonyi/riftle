@@ -39,20 +39,35 @@ pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &S
     let mut discovered_ids: HashSet<String> = HashSet::new();
 
     for (dir, source) in &source_dirs {
-        let apps = crawl_dir(dir, source, &settings.excluded_paths);
+        let apps = crawl_dir(dir, source, &settings.excluded_paths, &settings.system_tool_allowlist);
         for app in apps {
-            discovered_ids.insert(app.id.clone());
+            // Deduplicate by path: same exe can appear via multiple .lnk files or
+            // in both user and all-users Start Menu. HashSet::insert returns false
+            // if already present — skip the duplicate entirely.
+            if !discovered_ids.insert(app.id.clone()) {
+                continue;
+            }
 
-            // Upsert with generic.png placeholder — release lock immediately
+            let icon_file = icons_dir.join(icon_filename(&app.id));
+            let icon_cached = icon_file.exists();
+
+            // If the icon file is already on disk (e.g. DB was deleted but icons weren't),
+            // upsert with the real filename so the DB is immediately correct.
+            // Otherwise upsert with the generic placeholder and let the thread fill it in.
+            let mut app = app;
+            if icon_cached {
+                app.icon_path = Some(
+                    icon_file.file_name().unwrap_or_default().to_string_lossy().to_string()
+                );
+            }
+
             {
                 let conn = db.lock().unwrap();
                 let _ = upsert_app(&conn, &app);
-            } // lock released here
+            }
 
-            // Spawn icon extraction thread (non-blocking, INDX-05)
-            // Skip if icon file already exists on disk (re-index optimization)
-            let icon_file = icons_dir.join(icon_filename(&app.id));
-            if !icon_file.exists() {
+            // Spawn icon extraction thread only when the file doesn't exist yet
+            if !icon_cached {
                 let db_clone = Arc::clone(db);
                 let exe_path = PathBuf::from(&app.path);
                 let app_id = app.id.clone();
@@ -71,11 +86,8 @@ pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &S
                                     rusqlite::params![filename, app_id],
                                 );
                             }
-                            // else: icon write failed, keeps generic.png — acceptable
                         }
-                        None => {
-                            // Extraction failed: icon_path stays as "generic.png" — correct fallback
-                        }
+                        None => {} // Extraction failed — icon_path stays as "generic.png"
                     }
                 });
             }
@@ -255,15 +267,6 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
         paths.push((public_desktop, "desktop"));
     }
 
-    // PATH entries
-    if let Ok(path_var) = std::env::var("PATH") {
-        for dir in std::env::split_paths(&path_var) {
-            if dir.exists() {
-                paths.push((dir, "path"));
-            }
-        }
-    }
-
     // Additional paths from settings
     for additional in &settings.additional_paths {
         let p = PathBuf::from(additional);
@@ -278,14 +281,9 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
 /// Walk a directory, resolve .lnk shortcuts, return AppRecords.
 /// source: "start_menu" | "desktop" | "path" | "additional"
 /// PATH source: .exe only, no .lnk resolution, max_depth 1.
-pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String]) -> Vec<AppRecord> {
+pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String], allowlist: &[String]) -> Vec<AppRecord> {
     let mut apps = vec![];
-    let walker = if source == "path" {
-        // PATH directories: only top-level .exe files (not recursive)
-        walkdir::WalkDir::new(root).max_depth(1)
-    } else {
-        walkdir::WalkDir::new(root).follow_links(true)
-    };
+    let walker = walkdir::WalkDir::new(root).follow_links(true);
 
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -297,13 +295,21 @@ pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String]) 
 
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         match ext {
-            "lnk" if source != "path" => {
-                if let Some(target) = resolve_lnk(path) {
-                    apps.push(make_app_record(&target, source));
+            "lnk" => {
+                if let Some(target) = resolve_lnk(path, allowlist) {
+                    // Use the .lnk filename as display name — it's already the human-readable
+                    // name the user sees in the Start Menu (e.g. "Google Chrome.lnk" → "Google Chrome")
+                    let name = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string());
+                    apps.push(make_app_record(&target, source, name));
                 }
             }
             "exe" => {
-                apps.push(make_app_record(path, source));
+                // For direct .exe files, try the PE FileDescription first
+                let name = get_file_description(path);
+                apps.push(make_app_record(path, source, name));
             }
             _ => {}
         }
@@ -311,55 +317,161 @@ pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String]) 
     apps
 }
 
-/// Resolve a .lnk file to its target executable path.
-/// Returns None if: unresolvable, target is another .lnk, target doesn't exist, target isn't .exe.
-pub(crate) fn resolve_lnk(lnk_path: &Path) -> Option<PathBuf> {
-    use lnk::ShellLink;
-
-    // Open the shell link — returns None if file missing or not a valid .lnk
-    let shortcut = ShellLink::open(lnk_path).ok()?;
-
-    // Reconstruct target path from working_dir + filename from relative_path.
-    // Real Windows shortcuts store: working_dir = parent dir, relative_path = "./filename.exe"
-    // Fallback: try working_dir alone if no relative_path.
-    let target = {
-        let working_dir = shortcut.working_dir().as_ref()?;
-        let relative = shortcut.relative_path().clone();
-
-        if let Some(rel) = relative {
-            // Strip leading "./" or ".\" prefix from relative path
-            let rel_stripped = rel
-                .trim_start_matches("./")
-                .trim_start_matches(".\\");
-            PathBuf::from(working_dir).join(rel_stripped)
-        } else {
-            PathBuf::from(working_dir)
-        }
+/// Resolve a .lnk file to its target executable path using the Windows IShellLink COM API.
+/// Returns None if: COM fails, unresolvable, target is another .lnk, target doesn't exist, or not .exe.
+/// Uses native Windows APIs — cannot panic on malformed shortcuts.
+pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathBuf> {
+    use std::ffi::OsString;
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    use windows::{
+        core::{Interface, PCWSTR},
+        Win32::Foundation::{HWND, MAX_PATH},
+        Win32::Storage::FileSystem::WIN32_FIND_DATAW,
+        Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, IPersistFile,
+            CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, STGM,
+        },
+        Win32::UI::Shell::{IShellLinkW, ShellLink},
     };
 
-    // One level only: skip if target is also a .lnk
-    if target.extension().and_then(|e| e.to_str()) == Some("lnk") {
-        return None;
-    }
+    unsafe {
+        // CoInitializeEx is idempotent per thread: S_FALSE = already initialized = OK.
+        // We intentionally don't call CoUninitialize — COM lifetime matches process lifetime.
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
-    // Must exist and be an .exe
-    if target.exists() && target.extension().and_then(|e| e.to_str()) == Some("exe") {
-        Some(target)
-    } else {
-        None
+        // Create IShellLinkW instance
+        let shell_link: IShellLinkW =
+            CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
+
+        // Load the .lnk file via IPersistFile
+        let persist_file: IPersistFile = shell_link.cast().ok()?;
+        let wide_path: Vec<u16> = lnk_path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0u16))
+            .collect();
+        persist_file.Load(PCWSTR(wide_path.as_ptr()), STGM(0)).ok()?;
+
+        // Resolve with no-UI flag (0x1 = SLR_NO_UI) so broken links silently fail
+        let _ = shell_link.Resolve(HWND(std::ptr::null_mut()), 0x1);
+
+        // Get target path — 4 = SLGP_RAWPATH (returns stored path without env-var expansion)
+        let mut buf = vec![0u16; MAX_PATH as usize];
+        let mut find_data: WIN32_FIND_DATAW = std::mem::zeroed();
+        shell_link
+            .GetPath(&mut buf, &mut find_data, 4u32)
+            .ok()?;
+
+        let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        if len == 0 {
+            return None;
+        }
+        let target = PathBuf::from(OsString::from_wide(&buf[..len]));
+
+        // One level only: skip if target is also a .lnk
+        if target.extension().and_then(|e| e.to_str()) == Some("lnk") {
+            return None;
+        }
+
+        // Some system tools are worth keeping despite living in blocked directories.
+        // The list comes from settings so users can extend or trim it.
+        let filename = target
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let allowlisted = allowlist
+            .iter()
+            .any(|s: &String| s.to_lowercase() == filename);
+
+        // Skip executables in known noisy system directories unless explicitly allowlisted
+        if !allowlisted {
+            let normalized = target.to_string_lossy().to_lowercase();
+            if normalized.contains("\\windows\\system32\\")
+                || normalized.contains("\\windows\\syswow64\\")
+                || normalized.contains("\\windows\\winsxs\\")
+                || normalized.contains("\\windows\\microsoft.net\\")
+                || normalized.contains("\\program files\\common files\\")
+                || normalized.contains("\\program files (x86)\\common files\\")
+            {
+                return None;
+            }
+        }
+
+        // Must exist and be an .exe
+        if target.exists() && target.extension().and_then(|e| e.to_str()) == Some("exe") {
+            Some(target)
+        } else {
+            None
+        }
     }
 }
 
 /// Build a canonical AppRecord from an exe path.
-pub(crate) fn make_app_record(exe_path: &Path, source: &'static str) -> AppRecord {
+/// `display_name`: human-readable name override (from .lnk filename or PE FileDescription).
+/// Falls back to the exe stem when None.
+pub(crate) fn make_app_record(exe_path: &Path, source: &'static str, display_name: Option<String>) -> AppRecord {
+    let name = display_name.unwrap_or_else(|| {
+        exe_path.file_stem().unwrap_or_default().to_string_lossy().to_string()
+    });
     AppRecord {
         id: exe_path.to_string_lossy().to_lowercase(),
-        name: exe_path.file_stem().unwrap_or_default().to_string_lossy().to_string(),
+        name,
         path: exe_path.to_string_lossy().to_string(),
         icon_path: Some("generic.png".to_string()),
         source: source.to_string(),
         last_launched: None,
         launch_count: 0,
+    }
+}
+
+/// Read the FileDescription string from a PE executable's VERSIONINFO resource.
+/// Returns None if the file has no version info or doesn't carry a FileDescription.
+pub(crate) fn get_file_description(exe_path: &Path) -> Option<String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
+    };
+
+    let wide: Vec<u16> = exe_path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0u16))
+        .collect();
+
+    unsafe {
+        let mut dummy: u32 = 0;
+        let size = GetFileVersionInfoSizeW(wide.as_ptr(), &mut dummy);
+        if size == 0 {
+            return None;
+        }
+
+        let mut buf = vec![0u8; size as usize];
+        if GetFileVersionInfoW(wide.as_ptr(), 0, size, buf.as_mut_ptr() as *mut _) == 0 {
+            return None;
+        }
+
+        // Query FileDescription using the US-English + Unicode codepage (040904b0).
+        // This covers the vast majority of Windows applications.
+        let subblock: Vec<u16> = "\\StringFileInfo\\040904b0\\FileDescription\0"
+            .encode_utf16()
+            .collect();
+
+        let mut ptr: *mut core::ffi::c_void = std::ptr::null_mut();
+        let mut len: u32 = 0;
+        if VerQueryValueW(
+            buf.as_ptr() as *const _,
+            subblock.as_ptr(),
+            &mut ptr,
+            &mut len,
+        ) == 0 || len == 0 || ptr.is_null() {
+            return None;
+        }
+
+        let slice = std::slice::from_raw_parts(ptr as *const u16, len as usize);
+        let end = slice.iter().position(|&c| c == 0).unwrap_or(slice.len());
+        let desc = String::from_utf16_lossy(&slice[..end]);
+        if desc.is_empty() { None } else { Some(desc) }
     }
 }
 
@@ -562,7 +674,7 @@ mod tests {
     #[test]
     fn test_crawl_discovers_exe() {
         let (dir, _exe) = temp_dir_with_exe("foo.exe");
-        let apps = crawl_dir(dir.path(), "additional", &[]);
+        let apps = crawl_dir(dir.path(), "additional", &[], &[]);
         assert_eq!(apps.len(), 1);
         assert!(apps[0].path.ends_with("foo.exe"));
     }
@@ -618,7 +730,7 @@ mod tests {
         fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
         fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
         let excluded = vec![excluded_sub.to_string_lossy().to_string()];
-        let apps = crawl_dir(dir.path(), "additional", &excluded);
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
         // Only visible.exe should appear
         assert_eq!(apps.len(), 1);
         assert!(apps[0].path.contains("visible.exe"));

@@ -39,11 +39,17 @@ windows-sys = { version = "^0.52", features = [
   "Win32_Foundation",              # Required by DeleteDC, DeleteObject, DestroyIcon, GetIconInfo
   "Win32_Graphics_Gdi",           # GetIconInfo, GetDIBits, DeleteObject, CreateCompatibleDC
   "Win32_UI_WindowsAndMessaging",  # ICONINFO, DestroyIcon
+  "Win32_Storage_FileSystem",      # GetFileVersionInfoW, VerQueryValueW (PE version info)
 ] }
 
 # Phase 3: Indexer dependencies
-lnk = "^0.3"
 notify-debouncer-mini = "0.4"
+windows = { version = "0.58", features = [
+  "Win32_UI_Shell",           # IShellLinkW, ShellLink, SLGP_FLAGS, SLGP_RAWPATH
+  "Win32_System_Com",         # CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER
+  "Win32_Foundation",         # HWND, MAX_PATH
+  "Win32_Storage_FileSystem", # WIN32_FIND_DATAW (required by IShellLinkW::GetPath)
+] }
 image = { version = "^0.25", default-features = false, features = ["png"] }
 serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"

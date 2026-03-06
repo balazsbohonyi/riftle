@@ -68,12 +68,13 @@ fn try_init_db(db_path: &Path) -> Result<Connection> {
 /// Per CONTEXT.md: returns Result<()> — callers decide how to handle errors.
 pub fn upsert_app(conn: &Connection, app: &AppRecord) -> Result<()> {
     conn.execute(
+        // icon_path intentionally excluded from DO UPDATE: managed by the icon extraction thread.
+        // Omitting it here prevents re-index from resetting a cached icon back to generic.png.
         "INSERT INTO apps (id, name, path, icon_path, source, last_launched, launch_count)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
          ON CONFLICT(id) DO UPDATE SET
              name         = excluded.name,
              path         = excluded.path,
-             icon_path    = excluded.icon_path,
              source       = excluded.source",
         rusqlite::params![
             app.id,

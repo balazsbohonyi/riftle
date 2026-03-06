@@ -32,12 +32,40 @@ pub struct Settings {
 
     #[serde(default = "default_reindex_interval")]
     pub reindex_interval: u32,
+
+    /// Filenames (lowercase) that are allowed through the system-directory filter.
+    /// Lets useful Windows tools (notepad, regedit, …) appear even though they live
+    /// in blocked paths like System32. Users can extend or trim this list.
+    #[serde(default = "default_system_tool_allowlist")]
+    pub system_tool_allowlist: Vec<String>,
 }
 
 fn default_hotkey() -> String { "Alt+Space".to_string() }
 fn default_theme() -> String { "system".to_string() }
 fn default_opacity() -> f64 { 1.0 }
 fn default_reindex_interval() -> u32 { 15 }
+fn default_system_tool_allowlist() -> Vec<String> {
+    [
+        // Text / media
+        "notepad.exe", "wordpad.exe", "write.exe", "mspaint.exe",
+        "wmplayer.exe",
+        // Calculators / utilities
+        "calc.exe", "charmap.exe", "snippingtool.exe",
+        // Shell
+        "cmd.exe", "powershell.exe",
+        // Remote / network
+        "mstsc.exe",
+        // System admin
+        "regedit.exe", "taskmgr.exe", "msconfig.exe", "msinfo32.exe",
+        "resmon.exe", "perfmon.exe", "eventvwr.exe", "compmgmt.exe",
+        "dfrgui.exe", "cleanmgr.exe", "optionalfeatures.exe",
+        // Accessibility
+        "magnify.exe", "osk.exe", "narrator.exe",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
 
 impl Default for Settings {
     fn default() -> Self {
@@ -50,6 +78,7 @@ impl Default for Settings {
             additional_paths: vec![],
             excluded_paths: vec![],
             reindex_interval: default_reindex_interval(),
+            system_tool_allowlist: default_system_tool_allowlist(),
         }
     }
 }
