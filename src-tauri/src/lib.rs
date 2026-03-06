@@ -39,10 +39,13 @@ pub fn run() {
                 .expect("failed to initialize database");
             app.manage(crate::db::DbState(Arc::new(Mutex::new(conn))));
 
-            // Phase 2: Initialize settings store — loads existing settings or writes defaults
-            let _settings = crate::store::get_settings(app.handle(), &data_dir);
-            // Note: _settings is unused here; it's loaded to trigger first-run settings.json creation.
+            // Phase 2: Initialize settings store — loads existing settings or writes defaults on first run
+            let settings = crate::store::get_settings(app.handle(), &data_dir);
+            crate::store::set_settings(app.handle(), &data_dir, &settings);
+            // get_settings returns defaults if no file exists; set_settings persists them.
+            // This guarantees settings.json exists after setup (DATA-04).
             // Phase 8 will expose settings to the frontend via Tauri commands.
+            let _ = settings;
 
             Ok(())
         })
