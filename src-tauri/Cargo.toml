@@ -31,6 +31,7 @@ rusqlite = { version = "^0.31", features = ["bundled"] }
 walkdir = "^2"
 notify = "^6"
 nucleo = "^0.5"
+nucleo-matcher = "0.3"
 windows-sys = { version = "^0.52", features = [
   "Win32_UI_Shell",
   "Win32_System_Shutdown",
