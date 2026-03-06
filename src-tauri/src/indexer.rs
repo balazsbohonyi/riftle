@@ -287,7 +287,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_prune_stale() {
         let conn = in_memory_db();
         // Insert two apps
@@ -313,7 +312,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_crawl_excludes_path() {
         let dir = tempdir().unwrap();
         let excluded_sub = dir.path().join("excluded");
