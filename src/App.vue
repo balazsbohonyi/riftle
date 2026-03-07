@@ -74,7 +74,7 @@ async function updateWindowHeight() {
   // 56px input + rows
   const h = Math.max(56 + listHeight.value, 56)
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
-  await getCurrentWindow().setSize(new LogicalSize(640, h)).catch(console.error)
+  await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
 }
 
 // ---- Icon URL ----
@@ -340,7 +340,18 @@ html, body {
   width: 100%;
   height: 100%;
   background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
-  overflow: hidden;
+  /* overflow: hidden; */
+
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.15);
+  /* Josh Comeau;s beatiful shadows */
+  /* box-shadow:
+      1px 2px 2px hsl(220deg 60% 50% / 0.2),
+      2px 4px 4px hsl(220deg 60% 50% / 0.2),
+      4px 8px 8px hsl(220deg 60% 50% / 0.2),
+      8px 16px 16px hsl(220deg 60% 50% / 0.2),
+      16px 32px 32px hsl(220deg 60% 50% / 0.2); */
+
   /* Animation: hidden state */
   opacity: 0;
   transform: translateY(-6px);
