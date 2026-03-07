@@ -59,24 +59,19 @@ Copy the release exe alongside a `launcher.portable` marker file. All settings a
 ## Project Structure
 
 ```
-src-tauri/
-├── main.rs                — bootstrap, window management
-├── hotkey.rs              — global shortcut registration
-├── indexer.rs             — Windows path crawl + user-defined paths
-├── search.rs              — fuzzy search over SQLite index
-├── system_commands.rs     — lock / shutdown / restart / sleep
-├── commands.rs            — Tauri #[command] IPC handlers
-├── db.rs                  — SQLite schema & queries
-└── store.rs               — settings persistence (portable-aware)
-
 src/
-├── launcher/
-│   ├── Launcher.vue       — main window root
-│   ├── SearchInput.vue    — controlled input + keyboard nav
-│   ├── ResultList.vue     — virtualised result rows
-│   └── ContextMenu.vue    — right-click HTML overlay
-└── settings/
-    └── Settings.vue       — settings window root + tabs
+└── App.vue                — entire launcher UI (search input, result list, keyboard nav)
+
+src-tauri/src/
+├── lib.rs                 — app entry point, startup sequence, plugin registration
+├── paths.rs               — data directory resolution (portable vs installed mode)
+├── db.rs                  — SQLite schema & queries
+├── store.rs               — settings persistence (portable-aware)
+├── indexer.rs             — Windows path crawl + user-defined paths + background re-index
+├── search.rs              — Nucleo fuzzy/prefix/acronym search with MRU ranking
+├── hotkey.rs              — global shortcut registration
+├── commands.rs            — Tauri #[command] IPC handlers (launch, launch_elevated)
+└── system_commands.rs     — lock / shutdown / restart / sleep
 ```
 
 ## Usage
