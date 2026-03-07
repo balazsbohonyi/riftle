@@ -58,10 +58,10 @@
 
 ### Launch Actions
 
-- [ ] **LAUN-01**: launch(id) opens app via ShellExecuteW with lpVerb = NULL
-- [ ] **LAUN-02**: launch_elevated(id) opens with lpVerb = "runas"; UAC cancellation silently absorbed
-- [ ] **LAUN-03**: run_system_command dispatches: lock → LockWorkStation(), shutdown → shutdown /s /t 0, restart → shutdown /r /t 0, sleep → SetSuspendState
-- [ ] **LAUN-04**: All launch actions hide the launcher window after execution
+- [x] **LAUN-01**: launch(id) opens app via ShellExecuteW with lpVerb = NULL
+- [x] **LAUN-02**: launch_elevated(id) opens with lpVerb = "runas"; UAC cancellation silently absorbed
+- [x] **LAUN-03**: run_system_command dispatches: lock → LockWorkStation(), shutdown → shutdown /s /t 0, restart → shutdown /r /t 0, sleep → SetSuspendState
+- [x] **LAUN-04**: All launch actions hide the launcher window after execution
 
 ### Context Menu
 
@@ -160,10 +160,10 @@
 | LWND-10 | Phase 5 | Complete |
 | LWND-11 | Phase 5 | Complete |
 | LWND-12 | Phase 5 | Complete |
-| LAUN-01 | Phase 6 | Pending |
-| LAUN-02 | Phase 6 | Pending |
-| LAUN-03 | Phase 6 | Pending |
-| LAUN-04 | Phase 6 | Pending |
+| LAUN-01 | Phase 6 | Complete |
+| LAUN-02 | Phase 6 | Complete |
+| LAUN-03 | Phase 6 | Complete |
+| LAUN-04 | Phase 6 | Complete |
 | MENU-01 | Phase 7 | Pending |
 | MENU-02 | Phase 7 | Pending |
 | MENU-03 | Phase 7 | Pending |

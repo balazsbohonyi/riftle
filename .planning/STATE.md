@@ -4,10 +4,26 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-07T01:41:21.099Z"
+last_updated: "2026-03-07T16:39:55.109Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
+  completed_phases: 5
+  total_plans: 19
+  completed_plans: 19
+  percent: 100
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-07T01:41:21.099Z"
+last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
+progress:
+  [██████████] 100%
   completed_phases: 4
   total_plans: 18
   completed_plans: 18
@@ -157,6 +173,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 05-launcher-window-ui]: adminMode ref and keyboard handlers preserved — Ctrl+Shift+Enter elevated launch still works; only badge visibility decoupled from keyboard state
 - [Phase 05-launcher-window-ui]: setSize() delay matches animMode: slide=180ms, fade=120ms, instant=0ms — mirrors existing hideWindow() pattern
 - [Phase 05-launcher-window-ui]: active guard applied to both :class and @mousemove to eliminate both flash and stale-index corruption
+- [Phase 06-launch-actions]: launch_elevated window-hide ownership: Rust owns hide decision so UAC cancel leaves launcher open; frontend must not call hideWindow() after invoke('launch_elevated')
+- [Phase 06-launch-actions]: system command IDs include 'system:' prefix from search index — strip in run_system_command before matching
+- [Phase 06-launch-actions]: app.state::<T>() temporary must be bound to local variable before .0.lock() — borrow checker requirement in Tauri commands
 
 ## Performance Metrics
 
@@ -179,6 +198,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 05-launcher-window-ui P01 | 7min | 2 tasks | 3 files |
 | Phase 05-launcher-window-ui P04 | 4min | 2 tasks | 2 files |
 | Phase 05-launcher-window-ui P05 | 2min | 2 tasks | 1 files |
+| Phase 06-launch-actions P01 | 45min | 3 tasks | 4 files |
 
 ## Session Log
 

@@ -114,6 +114,9 @@ pub fn run() {
             crate::indexer::reindex,
             crate::search::search,
             crate::store::get_settings_cmd,
+            crate::commands::launch,
+            crate::commands::launch_elevated,
+            crate::system_commands::run_system_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

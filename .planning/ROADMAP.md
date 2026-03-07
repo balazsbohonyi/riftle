@@ -129,6 +129,11 @@ Plans:
 
 **Requirements**: LAUN-01, LAUN-02, LAUN-03, LAUN-04
 
+**Plans:** 1/1 plans complete
+
+Plans:
+- [ ] 06-01-PLAN.md — Implement launch, launch_elevated, run_system_command commands + invoke_handler wiring + smoke test checkpoint
+
 **Success Criteria:**
 1. launch(id) opens the target application via ShellExecuteW
 2. launch_elevated(id) opens with runas verb; if user cancels UAC prompt, launcher remains open with no error displayed
@@ -205,7 +210,7 @@ Plans:
 | 3 | 5/5 | Complete    | 2026-03-06 |
 | 4 | 3/3 | Complete   | 2026-03-06 |
 | 5 | 4/5 | In Progress|  |
-| 6 | Launch Actions | LAUN-01–04 | Pending |
+| 6 | 1/1 | Complete   | 2026-03-07 |
 | 7 | Context Menu | MENU-01–03 | Pending |
 | 8 | Settings Window | SETT-01–07 | Pending |
 | 9 | Global Hotkey | HKEY-01–03 | Pending |
