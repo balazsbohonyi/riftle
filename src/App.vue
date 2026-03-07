@@ -72,9 +72,13 @@ async function updateWindowHeight() {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
     return
   }
-  // 56px input + rows
   const h = Math.max(56 + listHeight.value, 56)
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
+  // Delay OS window resize until after the CSS height transition completes
+  const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
+  if (delay > 0) {
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
   await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
 }
 
@@ -420,6 +424,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none; /* Firefox */
+  transition: height 180ms ease;
 }
 .result-list::-webkit-scrollbar { display: none; }
 
