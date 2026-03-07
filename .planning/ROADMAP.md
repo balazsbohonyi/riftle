@@ -102,12 +102,14 @@ Plans:
 
 **Requirements**: LWND-01, LWND-02, LWND-03, LWND-04, LWND-05, LWND-06, LWND-07, LWND-08, LWND-09, LWND-10, LWND-11, LWND-12
 
-**Plans:** 2/3 plans executed
+**Plans:** 5 plans (3 executed + 2 gap closure)
 
 Plans:
 - [ ] 05-01-PLAN.md — Rust prep: add animation field to Settings struct, add get_settings_cmd Tauri command, enable asset protocol in tauri.conf.json
 - [ ] 05-02-PLAN.md — Frontend scaffold: install vue-virtual-scroller + @fontsource packages, create magnifier SVG, build complete App.vue with layout, search input, RecycleScroller result list, and window resize
 - [ ] 05-03-PLAN.md — Smoke test checkpoint: center window config + human verify all 12 LWND requirements
+- [ ] 05-04-PLAN.md — Gap closure: fix admin badge — add requires_elevation to SearchResult struct + TypeScript interface, decouple badge v-if from keyboard state
+- [ ] 05-05-PLAN.md — Gap closure: fix window resize animation (CSS height transition + deferred setSize) and virtual scroll selection highlight (active slot prop guard)
 
 **Success Criteria:**
 1. Window is 640px wide, frameless, always-on-top, not in taskbar; height grows up to 8 result rows
@@ -202,7 +204,7 @@ Plans:
 | 2 | 3/3 | Complete   | 2026-03-06 |
 | 3 | 5/5 | Complete    | 2026-03-06 |
 | 4 | 3/3 | Complete   | 2026-03-06 |
-| 5 | 2/3 | In Progress|  |
+| 5 | 5/5 | In Progress (gap closure)|  |
 | 6 | Launch Actions | LAUN-01–04 | Pending |
 | 7 | Context Menu | MENU-01–03 | Pending |
 | 8 | Settings Window | SETT-01–07 | Pending |
