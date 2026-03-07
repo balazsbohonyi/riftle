@@ -13,6 +13,7 @@ interface SearchResult {
   icon_path: string
   path: string
   kind: string
+  requires_elevation: boolean
 }
 
 // ---- State ----
@@ -304,7 +305,7 @@ onUnmounted(() => {
 
         <!-- Admin badge (right margin, no layout shift) -->
         <span
-          v-if="index === selectedIndex && adminMode"
+          v-if="item.requires_elevation"
           class="admin-badge"
           aria-label="Elevate with admin rights"
         >[Admin]</span>
