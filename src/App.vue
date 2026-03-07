@@ -108,8 +108,10 @@ async function launchItem(item: SearchResult) {
 async function launchElevated(item: SearchResult) {
   launchInProgress = true
   await invoke('launch_elevated', { id: item.id }).catch(console.error)
+  // Do NOT call hideWindow() here — the Rust command owns the hide decision.
+  // On success: Rust hides the window and the process launches elevated.
+  // On UAC cancel: Rust returns Ok(()) without hiding, so the launcher stays open.
   setTimeout(() => { launchInProgress = false }, 500)
-  await hideWindow()
 }
 
 // ---- Keyboard ----
