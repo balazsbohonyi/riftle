@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { listen } from '@tauri-apps/api/event'
 import { LogicalSize } from '@tauri-apps/api/dpi'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
@@ -30,6 +31,7 @@ const scrollerRef   = ref<any>(null) // RecycleScroller reference
 const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
 
 let unlistenFocus: (() => void) | null = null
+let unlistenShow: (() => void) | null = null
 let launchInProgress = false
 
 // ---- Computed ----
@@ -154,6 +156,8 @@ function onKeyUp(e: KeyboardEvent) {
 }
 
 // ---- Window show/hide ----
+// showWindow is kept for Phase 8 Settings window — not called by launcher path (Phase 9 owns show via hotkey)
+// @ts-ignore: reserved for Phase 8 Settings window show logic
 async function showWindow() {
   if (!isTauriContext.value) return // Skip in browser dev mode
   try {
@@ -214,21 +218,17 @@ onMounted(async () => {
   // Set initial window height (no results yet)
   await updateWindowHeight()
 
-  // Make CSS visible before showing window
-  isVisible.value = true
-
-  // Show the Tauri window only for the launcher (Phase 9 will wire hotkey to toggle this)
-  // Settings window has its own show logic; we must not show it here
+  // In Tauri context: launcher stays hidden until first hotkey press (Phase 9 handles show).
+  // In browser dev mode: show immediately so the dev workflow continues to work.
   if (isTauriContext.value) {
     const win = getCurrentWindow()
     if (win.label === 'launcher') {
-      await showWindow()
-      // Focus the input after the window is active so keystrokes are captured
-      await nextTick()
-      inputRef.value?.focus()
+      // Hotkey (Alt+Space) owns show/hide — do NOT call showWindow() here.
+      // isVisible stays false until the 'launcher-show' event fires.
     }
   } else {
-    // Browser dev mode: just focus the input directly
+    // Browser dev mode: show immediately and focus the input
+    isVisible.value = true
     await nextTick()
     inputRef.value?.focus()
   }
@@ -245,10 +245,26 @@ onMounted(async () => {
     })
     console.log('[App] focus listener registered')
   }
+
+  // Listen for 'launcher-show' event from hotkey.rs — replay animation, clear query, focus
+  if (isTauriContext.value) {
+    unlistenShow = await listen('launcher-show', async () => {
+      // Reset animation to hidden state and clear query
+      isVisible.value = false
+      query.value = ''
+      // Wait for CSS to apply the hidden state
+      await nextTick()
+      // Trigger the appear animation
+      isVisible.value = true
+      await nextTick()
+      inputRef.value?.focus()
+    })
+  }
 })
 
 onUnmounted(() => {
   unlistenFocus?.()
+  unlistenShow?.()
 })
 </script>
 
