@@ -81,9 +81,9 @@
 
 ### Global Hotkey
 
-- [ ] **HKEY-01**: Register Alt+Space (or user-configured) via tauri-plugin-global-shortcut on app start
-- [ ] **HKEY-02**: Hotkey toggles launcher visibility; on show: bring to front, clear input, focus
-- [ ] **HKEY-03**: Hotkey change in Settings: deregister old, register new immediately
+- [x] **HKEY-01**: Register Alt+Space (or user-configured) via tauri-plugin-global-shortcut on app start
+- [x] **HKEY-02**: Hotkey toggles launcher visibility; on show: bring to front, clear input, focus
+- [x] **HKEY-03**: Hotkey change in Settings: deregister old, register new immediately
 
 ### Packaging
 
@@ -174,9 +174,9 @@
 | SETT-05 | Phase 8 | Pending |
 | SETT-06 | Phase 8 | Pending |
 | SETT-07 | Phase 8 | Pending |
-| HKEY-01 | Phase 9 | Pending |
-| HKEY-02 | Phase 9 | Pending |
-| HKEY-03 | Phase 9 | Pending |
+| HKEY-01 | Phase 9 | Complete |
+| HKEY-02 | Phase 9 | Complete |
+| HKEY-03 | Phase 9 | Complete |
 | PACK-01 | Phase 10 | Pending |
 | PACK-02 | Phase 10 | Pending |
 | PACK-03 | Phase 10 | Pending |
