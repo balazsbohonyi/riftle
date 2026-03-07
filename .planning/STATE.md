@@ -230,5 +230,6 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename | 2026-03-06 | 9fc9f98 | [1-in-recent-commits-we-changed-some-paths-](./quick/1-in-recent-commits-we-changed-some-paths-/) |
+| 2 | Fix launcher search input focus — window steals OS focus on show, cursor ready for typing | 2026-03-07 | 502196a | [2-when-the-launcher-appears-it-does-not-ha](./quick/2-when-the-launcher-appears-it-does-not-ha/) |
 
-Last activity: 2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename
+Last activity: 2026-03-07 - Completed quick task 2: Fix launcher search input focus on window show

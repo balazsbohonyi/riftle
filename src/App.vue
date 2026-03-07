@@ -161,7 +161,8 @@ async function showWindow() {
     const win = getCurrentWindow()
     console.log('[App] got window reference:', win)
     await win.show()
-    console.log('[App] window shown successfully')
+    await win.setFocus()
+    console.log('[App] window shown and focused successfully')
   } catch (e) {
     console.error('[App] showWindow failed:', e)
   }
@@ -213,12 +214,7 @@ onMounted(async () => {
   // Set initial window height (no results yet)
   await updateWindowHeight()
 
-  // Focus the input
-  await nextTick()
-  inputRef.value?.focus()
-
-  // Delay before making CSS visible (allows window to settle)
-  await nextTick()
+  // Make CSS visible before showing window
   isVisible.value = true
 
   // Show the Tauri window only for the launcher (Phase 9 will wire hotkey to toggle this)
@@ -227,7 +223,14 @@ onMounted(async () => {
     const win = getCurrentWindow()
     if (win.label === 'launcher') {
       await showWindow()
+      // Focus the input after the window is active so keystrokes are captured
+      await nextTick()
+      inputRef.value?.focus()
     }
+  } else {
+    // Browser dev mode: just focus the input directly
+    await nextTick()
+    inputRef.value?.focus()
   }
 
   // Auto-hide on focus loss (only in Tauri context)
