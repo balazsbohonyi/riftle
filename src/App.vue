@@ -249,9 +249,14 @@ onMounted(async () => {
   // Listen for 'launcher-show' event from hotkey.rs — replay animation, clear query, focus
   if (isTauriContext.value) {
     unlistenShow = await listen('launcher-show', async () => {
-      // Reset animation to hidden state and clear query
+      // Reset animation to hidden state, clear results and query
       isVisible.value = false
+      results.value = []
       query.value = ''
+      // Resize OS window to empty height immediately (window is hidden — no animation delay needed)
+      await getCurrentWindow().setSize(new LogicalSize(500, 56)).catch(console.error)
+      // Center after resize so the position is based on the correct (empty) height
+      await getCurrentWindow().center().catch(console.error)
       // Wait for CSS to apply the hidden state
       await nextTick()
       // Trigger the appear animation

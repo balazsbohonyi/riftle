@@ -27,7 +27,6 @@ pub fn register(app: &AppHandle, hotkey_str: &str) {
             if win_clone.is_visible().unwrap_or(false) {
                 let _ = win_clone.hide();
             } else {
-                let _ = win_clone.center();
                 let _ = win_clone.show();
                 let _ = win_clone.set_focus();
                 let _ = win_clone.emit("launcher-show", ());

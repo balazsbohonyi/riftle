@@ -118,12 +118,14 @@ The entire launcher UI lives in a single `src/App.vue` component (no sub-compone
 
 ```rust
 // in lib.rs invoke_handler
-crate::indexer::reindex       // manual re-index trigger
-crate::search::search         // fuzzy search — returns Vec<SearchResult>
-crate::store::get_settings_cmd // returns settings as JSON
-
-// planned in commands.rs (Phase 6)
-launch, launch_elevated, run_system_command
+crate::indexer::reindex           // manual re-index trigger
+crate::search::search             // fuzzy search — returns Vec<SearchResult>
+crate::store::get_settings_cmd    // returns settings as JSON
+crate::commands::launch           // launch app by id
+crate::commands::launch_elevated  // launch app elevated (ShellExecuteW runas)
+crate::system_commands::run_system_command // lock/shutdown/restart/sleep
+crate::hotkey::update_hotkey      // (Phase 9) deregister old hotkey, register new, persist to settings.json
+                                  // Called by Phase 8 Settings UI: invoke('update_hotkey', { hotkey: 'Alt+Space' })
 ```
 
 ## Testing
