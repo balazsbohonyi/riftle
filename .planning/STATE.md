@@ -176,6 +176,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 06-launch-actions]: launch_elevated window-hide ownership: Rust owns hide decision so UAC cancel leaves launcher open; frontend must not call hideWindow() after invoke('launch_elevated')
 - [Phase 06-launch-actions]: system command IDs include 'system:' prefix from search index — strip in run_system_command before matching
 - [Phase 06-launch-actions]: app.state::<T>() temporary must be bound to local variable before .0.lock() — borrow checker requirement in Tauri commands
+- [Phase 09-global-hotkey]: update_hotkey Tauri command already implemented in hotkey.rs — Phase 8 Settings UI calls invoke('update_hotkey', { hotkey: 'Alt+Space' }) to rebind immediately; no Rust work needed in Phase 8 for SETT-04
 
 ## Performance Metrics
 
