@@ -64,6 +64,9 @@ pub fn run() {
                 // Phase 4: Build nucleo search index from freshly-indexed DB
                 crate::search::init_search_index(app.handle());
 
+                // Phase 9: Register global hotkey (toggle launcher visibility)
+                crate::hotkey::register(app.handle(), &settings.hotkey);
+
                 // Store data_dir as managed state for reindex() command
                 app.manage(data_dir.clone());
 
@@ -117,6 +120,7 @@ pub fn run() {
             crate::commands::launch,
             crate::commands::launch_elevated,
             crate::system_commands::run_system_command,
+            crate::hotkey::update_hotkey,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
