@@ -23,6 +23,7 @@ pub struct SearchResult {
     pub icon_path: String,
     pub path: String,
     pub kind: String,
+    pub requires_elevation: bool,
 }
 
 pub struct SearchIndex {
@@ -102,6 +103,7 @@ pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
                                 .unwrap_or_else(|| "generic.png".to_string()),
                             path: app.path.clone(),
                             kind: "app".to_string(),
+                            requires_elevation: false,
                         },
                     }
                 })
@@ -149,6 +151,7 @@ fn search_system_commands(suffix: &str) -> Vec<SearchResult> {
             icon_path: "system_command.png".to_string(),
             path: String::new(),
             kind: "system".to_string(),
+            requires_elevation: false,
         })
         .collect()
 }

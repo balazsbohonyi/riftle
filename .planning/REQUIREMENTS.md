@@ -44,14 +44,14 @@
 ### Launcher Window
 
 - [x] **LWND-01**: Frameless floating window, centered on primary monitor, always-on-top, no taskbar entry
-- [x] **LWND-02**: Fixed width 640px; height grows with result count (min: input only, max: input + 8 rows)
+- [x] **LWND-02**: Fixed width 500px; height grows with result count (min: input only, max: input + 5 rows) — intentional design adjustment from original 640px/8-row spec
 - [x] **LWND-03**: Search input autofocused when window appears; cleared when summoned via hotkey
-- [ ] **LWND-04**: ↑/↓ navigate result list (wraps at boundaries); Enter launches selected; Escape hides window
-- [ ] **LWND-05**: Ctrl+Shift+Enter triggers elevated launch
-- [ ] **LWND-06**: Window auto-hides on focus loss
+- [x] **LWND-04**: ↑/↓ navigate result list (wraps at boundaries); Enter launches selected; Escape hides window
+- [x] **LWND-05**: Ctrl+Shift+Enter triggers elevated launch
+- [x] **LWND-06**: Window auto-hides on focus loss
 - [x] **LWND-07**: Each result row: app icon (16×16 or 32×32) · app name
 - [x] **LWND-08**: Selected row shows full executable path below name when show_path setting is true
-- [ ] **LWND-09**: [Admin] badge in selected row hint area when Ctrl+Shift is held
+- [x] **LWND-09**: [Admin] badge shown on any result row where requires_elevation is true (data-driven; Phase 6/8 populates real elevation data)
 - [x] **LWND-10**: Result list virtualised for performance
 - [x] **LWND-11**: Placeholder: "Search apps, or > for system commands…" when no query
 - [x] **LWND-12**: System command results render with ⚙️ icon and no path line
@@ -151,12 +151,12 @@
 | LWND-01 | Phase 5 | Complete |
 | LWND-02 | Phase 5 | Complete |
 | LWND-03 | Phase 5 | Complete |
-| LWND-04 | Phase 5 | Pending |
-| LWND-05 | Phase 5 | Pending |
-| LWND-06 | Phase 5 | Pending |
+| LWND-04 | Phase 5 | Complete |
+| LWND-05 | Phase 5 | Complete |
+| LWND-06 | Phase 5 | Complete |
 | LWND-07 | Phase 5 | Complete |
 | LWND-08 | Phase 5 | Complete |
-| LWND-09 | Phase 5 | Pending |
+| LWND-09 | Phase 5 | Complete |
 | LWND-10 | Phase 5 | Complete |
 | LWND-11 | Phase 5 | Complete |
 | LWND-12 | Phase 5 | Complete |

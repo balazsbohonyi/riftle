@@ -13,6 +13,7 @@ interface SearchResult {
   icon_path: string
   path: string
   kind: string
+  requires_elevation: boolean
 }
 
 // ---- State ----
@@ -71,9 +72,13 @@ async function updateWindowHeight() {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
     return
   }
-  // 56px input + rows
   const h = Math.max(56 + listHeight.value, 56)
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
+  // Delay OS window resize until after the CSS height transition completes
+  const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
+  if (delay > 0) {
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
   await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
 }
 
@@ -275,13 +280,13 @@ onUnmounted(() => {
       :item-size="48"
       key-field="id"
       :style="{ height: listHeight + 'px' }"
-      v-slot="{ item, index }"
+      v-slot="{ item, index, active }"
     >
       <div
         class="result-row"
-        :class="{ selected: index === selectedIndex }"
+        :class="{ selected: active && index === selectedIndex }"
         @mousedown.prevent="launchItem(item)"
-        @mousemove="selectedIndex = index"
+        @mousemove="active && (selectedIndex = index)"
       >
         <!-- Icon -->
         <img
@@ -304,7 +309,7 @@ onUnmounted(() => {
 
         <!-- Admin badge (right margin, no layout shift) -->
         <span
-          v-if="index === selectedIndex && adminMode"
+          v-if="item.requires_elevation"
           class="admin-badge"
           aria-label="Elevate with admin rights"
         >[Admin]</span>
@@ -419,6 +424,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none; /* Firefox */
+  transition: height 180ms ease;
 }
 .result-list::-webkit-scrollbar { display: none; }
 
