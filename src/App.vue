@@ -280,13 +280,13 @@ onUnmounted(() => {
       :item-size="48"
       key-field="id"
       :style="{ height: listHeight + 'px' }"
-      v-slot="{ item, index }"
+      v-slot="{ item, index, active }"
     >
       <div
         class="result-row"
-        :class="{ selected: index === selectedIndex }"
+        :class="{ selected: active && index === selectedIndex }"
         @mousedown.prevent="launchItem(item)"
-        @mousemove="selectedIndex = index"
+        @mousemove="active && (selectedIndex = index)"
       >
         <!-- Icon -->
         <img
