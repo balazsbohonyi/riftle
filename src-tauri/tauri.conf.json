@@ -24,7 +24,7 @@
         "skipTaskbar": true,
         "alwaysOnTop": true,
         "visible": false,
-        "focus": false
+        "focus": true
       },
       {
         "label": "settings",
