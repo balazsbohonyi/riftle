@@ -4,10 +4,26 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-06T20:59:32.344Z"
+last_updated: "2026-03-07T01:27:20.139Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
+  completed_phases: 4
+  total_plans: 18
+  completed_plans: 17
+  percent: 94
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-06T20:59:32.344Z"
+last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
+progress:
+  [█████████░] 94%
   completed_phases: 4
   total_plans: 16
   completed_plans: 16
@@ -137,6 +153,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 05-launcher-window-ui]: Tauri protocol-asset feature + CSP assetProtocol config required for convertFileSrc() icon loading via asset:// scheme
 - [Phase 05-launcher-window-ui]: App.vue style block is unscoped (no scoped attribute) — required for RecycleScroller internal DOM elements to receive CSS rules
 - [Phase 05-launcher-window-ui]: get_settings_cmd placed in store.rs alongside settings logic for cohesion; assetProtocol scope ['**'] for portability across installed and portable data dirs
+- [Phase 05-launcher-window-ui]: All SearchResult construction sites default requires_elevation to false — Phase 6/8 can wire real elevation detection later without breaking changes
+- [Phase 05-launcher-window-ui]: adminMode ref and keyboard handlers preserved — Ctrl+Shift+Enter elevated launch still works; only badge visibility decoupled from keyboard state
 
 ## Performance Metrics
 
@@ -157,6 +175,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 04-search-engine P03 | 3min | 2 tasks | 3 files |
 | Phase 05-launcher-window-ui P02 | 5min | 2 tasks | 9 files |
 | Phase 05-launcher-window-ui P01 | 7min | 2 tasks | 3 files |
+| Phase 05-launcher-window-ui P04 | 4min | 2 tasks | 2 files |
 
 ## Session Log
 
