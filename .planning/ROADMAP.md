@@ -178,6 +178,11 @@ Plans:
 
 **Requirements**: HKEY-01, HKEY-02, HKEY-03
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — Implement hotkey.rs (register + update_hotkey command), wire into lib.rs, update App.vue to listen for launcher-show event and remove auto-show on mount
+
 **Success Criteria:**
 1. Alt+Space (default) toggles launcher visibility from any foreground window
 2. When hotkey shows the window: it appears on the primary monitor, input is cleared, input is focused
