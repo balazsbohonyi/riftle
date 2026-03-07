@@ -9,7 +9,11 @@ pub fn run_system_command(cmd: String, app: tauri::AppHandle) -> Result<(), Stri
         let _ = win.hide();
     }
 
-    match cmd.as_str() {
+    // System command IDs from the search index are prefixed with "system:" (e.g. "system:lock").
+    // Strip the prefix so match arms stay clean.
+    let cmd_key = cmd.strip_prefix("system:").unwrap_or(cmd.as_str());
+
+    match cmd_key {
         "lock" => {
             let result = unsafe { windows_sys::Win32::System::Shutdown::LockWorkStation() };
             if result == 0 {
