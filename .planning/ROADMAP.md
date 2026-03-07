@@ -102,7 +102,7 @@ Plans:
 
 **Requirements**: LWND-01, LWND-02, LWND-03, LWND-04, LWND-05, LWND-06, LWND-07, LWND-08, LWND-09, LWND-10, LWND-11, LWND-12
 
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 05-01-PLAN.md — Rust prep: add animation field to Settings struct, add get_settings_cmd Tauri command, enable asset protocol in tauri.conf.json
@@ -202,7 +202,7 @@ Plans:
 | 2 | 3/3 | Complete   | 2026-03-06 |
 | 3 | 5/5 | Complete    | 2026-03-06 |
 | 4 | 3/3 | Complete   | 2026-03-06 |
-| 5 | Launcher Window UI | LWND-01–12 | Planning |
+| 5 | 2/3 | In Progress|  |
 | 6 | Launch Actions | LAUN-01–04 | Pending |
 | 7 | Context Menu | MENU-01–03 | Pending |
 | 8 | Settings Window | SETT-01–07 | Pending |

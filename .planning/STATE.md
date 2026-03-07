@@ -4,10 +4,26 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-06T18:35:31.459Z"
+last_updated: "2026-03-06T20:59:32.344Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
+  completed_phases: 4
+  total_plans: 16
+  completed_plans: 16
+  percent: 94
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-06T18:35:31.459Z"
+last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
+progress:
+  [█████████░] 94%
   completed_phases: 4
   total_plans: 13
   completed_plans: 14
@@ -117,6 +133,10 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 04-search-engine]: Tauri v2 try_state returns Option<State<T>> not Result — use if let Some pattern for rebuild_index
 - [Phase 04-search-engine]: reindex() Tauri command required app: tauri::AppHandle parameter addition to support rebuild_index call — plan spec gap auto-fixed
 - [Phase 04-search-engine]: PoisonError<_> type annotation required in RwLock write() unwrap_or_else closure for Tauri v2 type inference
+- [Phase 05-launcher-window-ui]: vue-virtual-scroller@2.0.0-beta.8 ships no TypeScript declarations — shimmed in vite-env.d.ts with declare module RecycleScroller pattern
+- [Phase 05-launcher-window-ui]: Tauri protocol-asset feature + CSP assetProtocol config required for convertFileSrc() icon loading via asset:// scheme
+- [Phase 05-launcher-window-ui]: App.vue style block is unscoped (no scoped attribute) — required for RecycleScroller internal DOM elements to receive CSS rules
+- [Phase 05-launcher-window-ui]: get_settings_cmd placed in store.rs alongside settings logic for cohesion; assetProtocol scope ['**'] for portability across installed and portable data dirs
 
 ## Performance Metrics
 
@@ -135,6 +155,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 04-search-engine P01 | 6min | 2 tasks | 4 files |
 | Phase 04-search-engine P02 | 3min | 3 tasks | 1 files |
 | Phase 04-search-engine P03 | 3min | 2 tasks | 3 files |
+| Phase 05-launcher-window-ui P02 | 5min | 2 tasks | 9 files |
+| Phase 05-launcher-window-ui P01 | 7min | 2 tasks | 3 files |
 
 ## Session Log
 

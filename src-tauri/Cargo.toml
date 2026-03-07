@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 
 # Official Tauri plugins — exact version pins (must match Tauri 2.10.3 minor series)
 tauri-plugin-opener = "2"
@@ -50,6 +50,7 @@ windows = { version = "0.58", features = [
   "Win32_System_Com",         # CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER
   "Win32_Foundation",         # HWND, MAX_PATH
   "Win32_Storage_FileSystem", # WIN32_FIND_DATAW (required by IShellLinkW::GetPath)
+  "Win32_Graphics_Dwm",       # DwmSetWindowAttribute — disable DWM border on launcher
 ] }
 image = { version = "^0.25", default-features = false, features = ["png"] }
 serde = { version = "^1", features = ["derive"] }

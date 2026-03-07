@@ -5,6 +5,9 @@
   "windows": ["launcher", "settings"],
   "permissions": [
     "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
     "opener:default",
     "store:default",
     "global-shortcut:default",

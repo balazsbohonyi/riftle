@@ -82,11 +82,38 @@ pub fn run() {
                 app.manage(Arc::new(Mutex::new(timer_tx)));
             }
 
+            // Make launcher window fully invisible to DWM: no border, no rounding, no shadow.
+            // The window is a transparent canvas — CSS handles all visuals (border-radius, shadow).
+            // Window is intentionally larger than launcher content to give room for CSS shadow.
+            #[cfg(target_os = "windows")]
+            if let Some(launcher) = app.get_webview_window("launcher") {
+                use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE};
+                use windows::Win32::Foundation::HWND;
+                const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE; // no accent border
+                const DWMWCP_DONOTROUND: u32 = 1;          // no DWM rounding — CSS owns border-radius
+                let hwnd = HWND(launcher.hwnd().unwrap().0 as *mut std::ffi::c_void);
+                unsafe {
+                    let _ = DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_BORDER_COLOR,
+                        &DWMWA_COLOR_NONE as *const u32 as *const _,
+                        std::mem::size_of::<u32>() as u32,
+                    );
+                    let _ = DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_WINDOW_CORNER_PREFERENCE,
+                        &DWMWCP_DONOTROUND as *const u32 as *const _,
+                        std::mem::size_of::<u32>() as u32,
+                    );
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             crate::indexer::reindex,
             crate::search::search,
+            crate::store::get_settings_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
