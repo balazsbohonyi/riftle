@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-07T01:27:20.139Z"
+last_updated: "2026-03-07T01:30:41.684Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 94
 ---
 
@@ -155,6 +155,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 05-launcher-window-ui]: get_settings_cmd placed in store.rs alongside settings logic for cohesion; assetProtocol scope ['**'] for portability across installed and portable data dirs
 - [Phase 05-launcher-window-ui]: All SearchResult construction sites default requires_elevation to false — Phase 6/8 can wire real elevation detection later without breaking changes
 - [Phase 05-launcher-window-ui]: adminMode ref and keyboard handlers preserved — Ctrl+Shift+Enter elevated launch still works; only badge visibility decoupled from keyboard state
+- [Phase 05-launcher-window-ui]: setSize() delay matches animMode: slide=180ms, fade=120ms, instant=0ms — mirrors existing hideWindow() pattern
+- [Phase 05-launcher-window-ui]: active guard applied to both :class and @mousemove to eliminate both flash and stale-index corruption
 
 ## Performance Metrics
 
@@ -176,6 +178,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 05-launcher-window-ui P02 | 5min | 2 tasks | 9 files |
 | Phase 05-launcher-window-ui P01 | 7min | 2 tasks | 3 files |
 | Phase 05-launcher-window-ui P04 | 4min | 2 tasks | 2 files |
+| Phase 05-launcher-window-ui P05 | 2min | 2 tasks | 1 files |
 
 ## Session Log
 
