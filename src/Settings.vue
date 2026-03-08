@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -45,6 +45,7 @@ const settings = ref<SettingsData>({
 })
 
 onMounted(async () => {
+  window.addEventListener('keydown', onKeyDown)
   if (!isTauriContext.value) return
   try {
     const response = await invoke<SettingsResponse>('get_settings_cmd')
@@ -158,6 +159,12 @@ async function closeWindow() {
   await emitTo('launcher', 'launcher-show').catch(console.error)
   await getCurrentWindow().hide()
 }
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeWindow()
+}
+
+onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 </script>
 
 <template>
