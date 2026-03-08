@@ -230,7 +230,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
         <Row label="Opacity">
           <input
             type="range"
-            :min="0.85"
+            :min="0.5"
             :max="1"
             :step="0.01"
             v-model.number="settings.opacity"

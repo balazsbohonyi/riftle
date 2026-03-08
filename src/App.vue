@@ -482,33 +482,40 @@ html, body {
   position: relative;
   width: 100%;
   height: auto;
-  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
-  /* overflow: hidden; */
 
+  /* Background lives in ::before so opacity only dims it, never the content */
+  background: transparent;
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
-  /* Josh Comeau;s beatiful shadows */
-  /* box-shadow:
-      1px 2px 2px hsl(220deg 60% 50% / 0.2),
-      2px 4px 4px hsl(220deg 60% 50% / 0.2),
-      4px 8px 8px hsl(220deg 60% 50% / 0.2),
-      8px 16px 16px hsl(220deg 60% 50% / 0.2),
-      16px 32px 32px hsl(220deg 60% 50% / 0.2); */
 
   /* Animation: hidden state */
   opacity: 0;
   transform: translateY(-6px);
 }
 
-/* Animation modes */
+/* Frosty background layer — opacity controlled by --launcher-opacity */
+.launcher-app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  opacity: var(--launcher-opacity, 1);
+  pointer-events: none;
+}
+
+/* Animation modes — container always goes to opacity:1; background dims via ::before */
 .anim-fade   { transition: opacity var(--duration-fast) ease; }
-.anim-fade.visible { opacity: var(--launcher-opacity, 1); }
+.anim-fade.visible { opacity: 1; }
 
 .anim-slide  { transition: opacity var(--duration-normal) ease, transform var(--duration-normal) ease; }
-.anim-slide.visible { opacity: var(--launcher-opacity, 1); transform: translateY(0); }
+.anim-slide.visible { opacity: 1; transform: translateY(0); }
 
 .anim-instant { transition: none; }
-.anim-instant.visible { opacity: var(--launcher-opacity, 1); transform: translateY(0); }
+.anim-instant.visible { opacity: 1; transform: translateY(0); }
 
 /* ---- Search area ---- */
 .search-area {
