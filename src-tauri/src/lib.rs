@@ -2,8 +2,12 @@
 // Phase 1: plugin registration scaffold; command handlers added in later phases
 
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
+
+/// Tracks whether the settings window has been centered this session.
+/// First open: center then show. Subsequent opens: show at current position.
+struct SettingsCentered(AtomicBool);
 
 mod db;           // Phase 2: SQLite database layer
 mod store;        // Phase 2: Settings persistence via tauri-plugin-store
@@ -15,9 +19,15 @@ mod commands;     // Phase 6: Launch commands (launch, launch_elevated)
 mod system_commands; // Phase 6: System commands (lock, shutdown, restart, sleep)
 
 #[tauri::command]
-fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+fn open_settings_window(
+    app: tauri::AppHandle,
+    centered: tauri::State<SettingsCentered>,
+) -> Result<(), String> {
     let win = app.get_webview_window("settings")
         .ok_or_else(|| "settings window not found".to_string())?;
+    if !centered.0.swap(true, Ordering::Relaxed) {
+        win.center().map_err(|e| e.to_string())?;
+    }
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
     Ok(())
@@ -101,6 +111,9 @@ pub fn run() {
                 // Store timer Sender as managed state (reindex() command resets the timer via this)
                 app.manage(Arc::new(Mutex::new(timer_tx)));
             }
+
+            // Settings window: centered on first open, position remembered within session
+            app.manage(SettingsCentered(AtomicBool::new(false)));
 
             // Make launcher window fully invisible to DWM: no border, no rounding, no shadow.
             // The window is a transparent canvas — CSS handles all visuals (border-radius, shadow).
