@@ -333,6 +333,10 @@ onMounted(async () => {
       isVisible.value = false
       results.value = []
       query.value = ''
+      // Ensure the OS window is visible (hotkey.rs does this before emitting, but
+      // Settings.vue also emits launcher-show when closing, without going through Rust)
+      await getCurrentWindow().show().catch(console.error)
+      await getCurrentWindow().setFocus().catch(console.error)
       // Resize OS window to empty height immediately (window is hidden — no animation delay needed)
       await getCurrentWindow().setSize(new LogicalSize(500, 56)).catch(console.error)
       // Center after resize so the position is based on the correct (empty) height
@@ -604,9 +608,12 @@ html, body {
   text-overflow: ellipsis;
 }
 
-.result-row.selected .app-name,
-.result-row.selected .path-line {
+.result-row.selected .app-name {
   color: #ffffff;
+}
+
+.result-row.selected .path-line {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .path-line {
