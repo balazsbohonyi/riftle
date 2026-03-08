@@ -483,8 +483,18 @@ html, body {
   width: 100%;
   height: auto;
 
-  /* Background lives in ::before so opacity only dims it, never the content */
-  background: transparent;
+  /* Semi-transparent gradient using rgba() with --launcher-opacity so only
+     the background alpha changes — text/icons are unaffected */
+  background: linear-gradient(
+    180deg,
+    rgba(var(--color-bg-lighter-rgb), var(--launcher-opacity, 1)) 0%,
+    rgba(var(--color-bg-rgb),         var(--launcher-opacity, 1)) 40%,
+    rgba(var(--color-bg-darker-rgb),  var(--launcher-opacity, 1)) 100%
+  );
+  /* Frosted glass blur of content behind the window (visible when opacity < 1) */
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
 
@@ -493,21 +503,8 @@ html, body {
   transform: translateY(-6px);
 }
 
-/* Frosty background layer — opacity controlled by --launcher-opacity */
-.launcher-app::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  opacity: var(--launcher-opacity, 1);
-  pointer-events: none;
-}
-
-/* Animation modes — container always goes to opacity:1; background dims via ::before */
+/* Animation modes — container always reaches opacity:1 so children are unaffected;
+   background transparency is handled by rgba() in the gradient above */
 .anim-fade   { transition: opacity var(--duration-fast) ease; }
 .anim-fade.visible { opacity: 1; }
 

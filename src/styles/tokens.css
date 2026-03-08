@@ -2,6 +2,10 @@
   --color-bg: #1c1c1e;
   --color-bg-lighter: #242427;
   --color-bg-darker: #181818;
+  /* RGB triplets for rgba() opacity compositing */
+  --color-bg-rgb: 28, 28, 30;
+  --color-bg-lighter-rgb: 36, 36, 39;
+  --color-bg-darker-rgb: 24, 24, 24;
   --color-text: #f0f0f0;
   --color-text-muted: #888;
   --color-text-dim: #555558;
@@ -29,6 +33,9 @@
   --color-bg: #f0f0f0;
   --color-bg-lighter: #ffffff;
   --color-bg-darker: #e0e0e0;
+  --color-bg-rgb: 240, 240, 240;
+  --color-bg-lighter-rgb: 255, 255, 255;
+  --color-bg-darker-rgb: 224, 224, 224;
   --color-text: #1c1c1e;
   --color-text-muted: #666;
   --color-text-dim: #aaaaaa;
@@ -41,6 +48,9 @@
     --color-bg: #f0f0f0;
     --color-bg-lighter: #ffffff;
     --color-bg-darker: #e0e0e0;
+    --color-bg-rgb: 240, 240, 240;
+    --color-bg-lighter-rgb: 255, 255, 255;
+    --color-bg-darker-rgb: 224, 224, 224;
     --color-text: #1c1c1e;
     --color-text-muted: #666;
     --color-text-dim: #aaaaaa;
