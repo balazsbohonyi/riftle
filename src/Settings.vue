@@ -154,8 +154,8 @@ async function closeWindow() {
 <template>
   <div class="settings-app" :data-theme="settings.theme === 'system' ? undefined : settings.theme">
     <div class="settings-header" data-tauri-drag-region>
-      <span class="settings-title">Riftle Settings</span>
-      <button class="settings-close" type="button" @click="closeWindow">&times;</button>
+      <span class="settings-title" data-tauri-drag-region>Riftle Settings</span>
+      <button class="settings-close" type="button" @mousedown.stop @click="closeWindow">&times;</button>
     </div>
     <div class="settings-content">
 
@@ -310,6 +310,28 @@ input[type='range'] {
   color: var(--color-text-muted);
   min-width: 36px;
   text-align: right;
+}
+
+/* Custom scrollbar for settings content */
+.settings-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+.settings-content::-webkit-scrollbar-button {
+  display: none;
 }
 </style>
 
