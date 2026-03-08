@@ -17,6 +17,13 @@ interface SearchResult {
   requires_elevation: boolean
 }
 
+interface SettingsPayload {
+  theme?: string
+  opacity?: number
+  show_path?: boolean
+  reindex_interval?: number
+}
+
 // ---- State ----
 const query         = ref('')
 const results       = ref<SearchResult[]>([])
@@ -29,6 +36,7 @@ const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null) // RecycleScroller reference
 const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
+const launcherOpacity = ref(1.0)
 
 // ---- Context menu state ----
 const menuVisible  = ref(false)
@@ -38,6 +46,7 @@ const MENU_HEIGHT  = 80 // px — approximate height of 2-item context menu
 
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
+let unlistenSettings: (() => void) | null = null
 let launchInProgress = false
 
 // ---- Computed ----
@@ -133,6 +142,12 @@ async function launchElevated(item: SearchResult) {
 function onKeyDown(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
 
+  if (e.key === ',' && e.ctrlKey) {
+    e.preventDefault()
+    openSettings()
+    return
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault()
     if (menuVisible.value) {
@@ -192,6 +207,15 @@ async function onContextMenu(e: MouseEvent) {
     if (neededH > contentH) {
       await getCurrentWindow().setSize(new LogicalSize(500, neededH)).catch(console.error)
     }
+  }
+}
+
+function applyTheme(theme: string) {
+  const root = document.documentElement
+  if (theme === 'system') {
+    root.removeAttribute('data-theme')
+  } else {
+    root.setAttribute('data-theme', theme)
   }
 }
 
@@ -255,10 +279,14 @@ onMounted(async () => {
         show_path: boolean
         animation: string
         data_dir: string
+        theme: string
+        opacity: number
       }>('get_settings_cmd')
       showPath.value = settings.show_path
       animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
       dataDir.value  = settings.data_dir
+      if (settings.theme) applyTheme(settings.theme)
+      if (settings.opacity !== undefined) launcherOpacity.value = settings.opacity
       console.log('[App] settings loaded:', { dataDir: dataDir.value, showPath: showPath.value, animMode: animMode.value })
     } catch (e) {
       // Use defaults — dataDir stays empty, icons will not load but app still functions
@@ -317,16 +345,25 @@ onMounted(async () => {
       inputRef.value?.focus()
     })
   }
+
+  if (isTauriContext.value) {
+    unlistenSettings = await listen<SettingsPayload>('settings-changed', ({ payload }) => {
+      if (payload.theme !== undefined) applyTheme(payload.theme)
+      if (payload.opacity !== undefined) launcherOpacity.value = payload.opacity
+      if (payload.show_path !== undefined) showPath.value = payload.show_path
+    })
+  }
 })
 
 onUnmounted(() => {
   unlistenFocus?.()
   unlistenShow?.()
+  unlistenSettings?.()
 })
 </script>
 
 <template>
-  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu">
+  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" :style="{ '--launcher-opacity': launcherOpacity }" @contextmenu.prevent="onContextMenu">
 
     <!-- Search input area -->
     <div class="search-area">
@@ -461,13 +498,13 @@ html, body {
 
 /* Animation modes */
 .anim-fade   { transition: opacity var(--duration-fast) ease; }
-.anim-fade.visible { opacity: 1; }
+.anim-fade.visible { opacity: var(--launcher-opacity, 1); }
 
 .anim-slide  { transition: opacity var(--duration-normal) ease, transform var(--duration-normal) ease; }
-.anim-slide.visible { opacity: 1; transform: translateY(0); }
+.anim-slide.visible { opacity: var(--launcher-opacity, 1); transform: translateY(0); }
 
 .anim-instant { transition: none; }
-.anim-instant.visible { opacity: 1; transform: translateY(0); }
+.anim-instant.visible { opacity: var(--launcher-opacity, 1); transform: translateY(0); }
 
 /* ---- Search area ---- */
 .search-area {
