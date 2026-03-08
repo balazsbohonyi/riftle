@@ -168,7 +168,7 @@ Plans:
 
 **Requirements**: SETT-01, SETT-02, SETT-03, SETT-04, SETT-05, SETT-06, SETT-07
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 08-01-PLAN.md — CSS tokens + Vite multi-page build + Rust backend (set_settings_cmd, open_settings_window, extended get_settings_cmd, tauri-plugin-dialog)
@@ -231,7 +231,7 @@ Plans:
 | 5 | 4/5 | In Progress|  |
 | 6 | 1/1 | Complete   | 2026-03-07 |
 | 7 | 1/2 | In Progress|  |
-| 8 | 3/4 | In Progress|  |
+| 8 | 4/4 | Complete   | 2026-03-08 |
 | 9 | Global Hotkey | HKEY-01–03 | Pending |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 

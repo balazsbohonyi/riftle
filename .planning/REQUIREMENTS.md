@@ -73,7 +73,7 @@
 
 - [x] **SETT-01**: Separate Tauri window (label: settings), normal framed, min size 600×400px
 - [x] **SETT-02**: Single-instance: open_settings_window() focuses existing window if already open
-- [ ] **SETT-03**: Accessible via context menu → Settings and Ctrl+, when launcher focused
+- [x] **SETT-03**: Accessible via context menu → Settings and Ctrl+, when launcher focused
 - [x] **SETT-04**: General section: launch at startup toggle (disabled/hidden in portable mode)
 - [x] **SETT-05**: Hotkey section: key-capture input to rebind; takes effect immediately
 - [x] **SETT-06**: Search section: add/remove additional paths (folder picker), add/remove excluded paths, Re-index now button, re-index interval selector
@@ -169,7 +169,7 @@
 | MENU-03 | Phase 7 | Complete |
 | SETT-01 | Phase 8 | Complete |
 | SETT-02 | Phase 8 | Complete |
-| SETT-03 | Phase 8 | Pending |
+| SETT-03 | Phase 8 | Complete |
 | SETT-04 | Phase 8 | Complete |
 | SETT-05 | Phase 8 | Complete |
 | SETT-06 | Phase 8 | Complete |

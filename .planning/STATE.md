@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-08T17:45:05.332Z"
+last_updated: "2026-03-08T17:49:07.050Z"
 last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
 progress:
   total_phases: 10
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 26
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 ---
@@ -219,6 +219,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: PathList.vue uses dynamic import for plugin-dialog inside addPath() to avoid top-level import errors in browser dev mode
 - [Phase 08-settings-window]: Dynamic import of @tauri-apps/plugin-autostart inside handlers — consistent with plugin-dialog pattern from Plan 02 PathList.vue
 - [Phase 08-settings-window]: emitTo('launcher', 'settings-changed') used (not emit()) to target launcher window and avoid self-handling
+- [Phase 08-settings-window]: Used CSS custom property --launcher-opacity instead of direct opacity style binding to avoid overriding animation transitions in App.vue
+- [Phase 08-settings-window]: settings-changed listener scoped to isTauriContext guard with top-level unlistenSettings variable for consistent onUnmounted cleanup
 
 ## Performance Metrics
 
@@ -247,6 +249,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 08-settings-window P01 | 3min | 2 tasks | 9 files |
 | Phase 08-settings-window P02 | 3min | 2 tasks | 7 files |
 | Phase 08-settings-window P03 | 2min | 2 tasks | 2 files |
+| Phase 08-settings-window P04 | 3min | 1 tasks | 1 files |
 
 ## Session Log
 
