@@ -186,7 +186,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 
       <Section title="Hotkey">
         <Row label="Global shortcut">
-          <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
+          <div class="hotkey-row">
+            <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
+            <button
+              v-if="settings.hotkey !== 'Alt+Space'"
+              type="button"
+              class="reset-link"
+              @click="onHotkeyChange('Alt+Space')"
+            >Reset</button>
+          </div>
         </Row>
       </Section>
 
@@ -325,6 +333,32 @@ input[type='range'] {
 
 .settings-content::-webkit-scrollbar-button {
   display: none;
+}
+
+.hotkey-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.reset-link {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reset-link:focus {
+  outline: none;
+  opacity: 0.8;
+}
+
+.reset-link:hover {
+  opacity: 0.7;
 }
 </style>
 
