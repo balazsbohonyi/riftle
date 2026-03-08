@@ -309,6 +309,11 @@ button:focus {
   border-color: var(--color-accent);
 }
 
+option:checked {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
 input[type='range'] {
   accent-color: var(--color-accent);
 }
