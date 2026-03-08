@@ -75,8 +75,8 @@
 - [x] **SETT-02**: Single-instance: open_settings_window() focuses existing window if already open
 - [ ] **SETT-03**: Accessible via context menu → Settings and Ctrl+, when launcher focused
 - [ ] **SETT-04**: General section: launch at startup toggle (disabled/hidden in portable mode)
-- [ ] **SETT-05**: Hotkey section: key-capture input to rebind; takes effect immediately
-- [ ] **SETT-06**: Search section: add/remove additional paths (folder picker), add/remove excluded paths, Re-index now button, re-index interval selector
+- [x] **SETT-05**: Hotkey section: key-capture input to rebind; takes effect immediately
+- [x] **SETT-06**: Search section: add/remove additional paths (folder picker), add/remove excluded paths, Re-index now button, re-index interval selector
 - [ ] **SETT-07**: Appearance section: theme (System/Light/Dark), opacity slider (0.85–1.0), show_path toggle — all reactive on open launcher
 
 ### Global Hotkey
@@ -171,8 +171,8 @@
 | SETT-02 | Phase 8 | Complete |
 | SETT-03 | Phase 8 | Pending |
 | SETT-04 | Phase 8 | Pending |
-| SETT-05 | Phase 8 | Pending |
-| SETT-06 | Phase 8 | Pending |
+| SETT-05 | Phase 8 | Complete |
+| SETT-06 | Phase 8 | Complete |
 | SETT-07 | Phase 8 | Pending |
 | HKEY-01 | Phase 9 | Complete |
 | HKEY-02 | Phase 9 | Complete |

@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-08T17:36:30.466Z"
+last_updated: "2026-03-08T17:41:33.723Z"
 last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 26
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 ---
@@ -215,6 +215,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: settings-main.ts created as minimal stub — full settings Vue component is Plan 03's responsibility; stub needed for Vite multi-page build to resolve entry point
 - [Phase 08-settings-window]: tauri-plugin-dialog added with caret range '2' consistent with tauri-plugin-opener pattern
 - [Phase 08-settings-window]: open_settings_window placed inline in lib.rs — single-function commands don't warrant a new module file
+- [Phase 08-settings-window]: @tauri-apps/plugin-dialog JS package installed alongside existing Rust crate — was missing from package.json causing TS2307 build error
+- [Phase 08-settings-window]: PathList.vue uses dynamic import for plugin-dialog inside addPath() to avoid top-level import errors in browser dev mode
 
 ## Performance Metrics
 
@@ -241,6 +243,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 07-context-menu P01 | 2min | 2 tasks | 3 files |
 | Phase 07-context-menu P02 | 5min | 1 tasks | 1 files |
 | Phase 08-settings-window P01 | 3min | 2 tasks | 9 files |
+| Phase 08-settings-window P02 | 3min | 2 tasks | 7 files |
 
 ## Session Log
 
