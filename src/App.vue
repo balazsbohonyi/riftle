@@ -604,7 +604,8 @@ html, body {
   text-overflow: ellipsis;
 }
 
-.result-row.selected .app-name {
+.result-row.selected .app-name,
+.result-row.selected .path-line {
   color: #ffffff;
 }
 
