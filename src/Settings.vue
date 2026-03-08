@@ -98,8 +98,16 @@ async function onAutostartChange(v: boolean) {
 
 // Hotkey
 async function onHotkeyChange(hotkey: string) {
-  await invoke('update_hotkey', { hotkey }).catch(console.error)
-  settings.value.hotkey = hotkey
+  try {
+    await invoke('update_hotkey', { hotkey })
+    settings.value.hotkey = hotkey
+  } catch (e: any) {
+    // Rust fell back to a different hotkey (e.g. OS-reserved key)
+    // Extract the fallback from the error message and reload from backend
+    console.warn('Hotkey update error:', e)
+    const fresh = await invoke<SettingsResponse>('get_settings_cmd').catch(() => null)
+    if (fresh) settings.value.hotkey = fresh.hotkey
+  }
   await saveSettings()
 }
 

@@ -75,7 +75,14 @@ pub fn run() {
                 crate::search::init_search_index(app.handle());
 
                 // Phase 9: Register global hotkey (toggle launcher visibility)
-                crate::hotkey::register(app.handle(), &settings.hotkey);
+                // register() returns the actually-registered hotkey (may fall back to Alt+Space).
+                // Persist the fallback so next startup doesn't try the broken key again.
+                let actual_hotkey = crate::hotkey::register(app.handle(), &settings.hotkey);
+                if actual_hotkey != settings.hotkey {
+                    let mut updated = settings.clone();
+                    updated.hotkey = actual_hotkey;
+                    crate::store::set_settings(app.handle(), &data_dir, &updated);
+                }
 
                 // Store data_dir as managed state for reindex() command
                 app.manage(data_dir.clone());
