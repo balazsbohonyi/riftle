@@ -15,8 +15,6 @@ pub struct Settings {
     #[serde(default = "default_theme")]
     pub theme: String,
 
-    #[serde(default = "default_opacity")]
-    pub opacity: f64,
 
     #[serde(default)]
     pub show_path: bool,       // false by default
@@ -45,7 +43,7 @@ pub struct Settings {
 
 fn default_hotkey() -> String { "Alt+Space".to_string() }
 fn default_theme() -> String { "system".to_string() }
-fn default_opacity() -> f64 { 1.0 }
+
 fn default_reindex_interval() -> u32 { 15 }
 fn default_animation() -> String { "slide".to_string() }
 fn default_system_tool_allowlist() -> Vec<String> {
@@ -76,7 +74,7 @@ impl Default for Settings {
         Self {
             hotkey: default_hotkey(),
             theme: default_theme(),
-            opacity: default_opacity(),
+
             show_path: false,
             autostart: false,
             additional_paths: vec![],
@@ -140,14 +138,31 @@ pub fn get_settings_cmd(
     data_dir: tauri::State<std::path::PathBuf>,
 ) -> serde_json::Value {
     let settings = get_settings(&app, &data_dir);
+    let is_portable = data_dir.ends_with("data") &&
+        data_dir.parent().map(|p| p.join("riftle-launcher.portable").exists()).unwrap_or(false);
     serde_json::json!({
-        "show_path": settings.show_path,
-        "animation": settings.animation,
-        "data_dir": data_dir.to_string_lossy(),
         "hotkey": settings.hotkey,
         "theme": settings.theme,
-        "opacity": settings.opacity,
+
+        "show_path": settings.show_path,
+        "autostart": settings.autostart,
+        "additional_paths": settings.additional_paths,
+        "excluded_paths": settings.excluded_paths,
+        "reindex_interval": settings.reindex_interval,
+        "animation": settings.animation,
+        "data_dir": data_dir.to_string_lossy(),
+        "is_portable": is_portable,
     })
+}
+
+#[tauri::command]
+pub fn set_settings_cmd(
+    app: tauri::AppHandle,
+    data_dir: tauri::State<std::path::PathBuf>,
+    settings: Settings,
+) -> Result<(), String> {
+    set_settings(&app, &data_dir, &settings);
+    Ok(())
 }
 
 // ---- Unit tests ----
@@ -161,7 +176,7 @@ mod tests {
         let s = Settings::default();
         assert_eq!(s.hotkey, "Alt+Space");
         assert_eq!(s.theme, "system");
-        assert!((s.opacity - 1.0).abs() < f64::EPSILON);
+
         assert!(!s.show_path);
         assert!(!s.autostart);
         assert!(s.additional_paths.is_empty());
@@ -177,7 +192,7 @@ mod tests {
         let deserialized: Settings = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized.hotkey, original.hotkey);
         assert_eq!(deserialized.theme, original.theme);
-        assert!((deserialized.opacity - original.opacity).abs() < f64::EPSILON);
+
         assert_eq!(deserialized.show_path, original.show_path);
         assert_eq!(deserialized.autostart, original.autostart);
         assert_eq!(deserialized.reindex_interval, original.reindex_interval);

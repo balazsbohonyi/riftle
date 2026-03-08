@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-08T00:08:45.563Z"
+last_updated: "2026-03-08T21:14:15.001Z"
 last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
 progress:
   total_phases: 10
-  completed_phases: 6
-  total_plans: 22
-  completed_plans: 21
+  completed_phases: 7
+  total_plans: 26
+  completed_plans: 25
 ---
 
 ---
@@ -212,6 +212,22 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 07-context-menu]: @mousedown.prevent on menu items prevents focus-loss auto-hide race (not @click)
 - [Phase 07-context-menu]: Menu state reset in both hideWindow() and launcher-show listener — menu never reappears with launcher on next summon
 - [Phase 07-context-menu]: position: fixed on .context-menu prevents OS window clipping; height: auto on .launcher-app prevents stretch; @contextmenu.prevent on result rows suppresses native menu
+- [Phase 08-settings-window]: settings-main.ts created as minimal stub — full settings Vue component is Plan 03's responsibility; stub needed for Vite multi-page build to resolve entry point
+- [Phase 08-settings-window]: tauri-plugin-dialog added with caret range '2' consistent with tauri-plugin-opener pattern
+- [Phase 08-settings-window]: open_settings_window placed inline in lib.rs — single-function commands don't warrant a new module file
+- [Phase 08-settings-window]: @tauri-apps/plugin-dialog JS package installed alongside existing Rust crate — was missing from package.json causing TS2307 build error
+- [Phase 08-settings-window]: PathList.vue uses dynamic import for plugin-dialog inside addPath() to avoid top-level import errors in browser dev mode
+- [Phase 08-settings-window]: Dynamic import of @tauri-apps/plugin-autostart inside handlers — consistent with plugin-dialog pattern from Plan 02 PathList.vue
+- [Phase 08-settings-window]: emitTo('launcher', 'settings-changed') used (not emit()) to target launcher window and avoid self-handling
+- [Phase 08-settings-window]: Used CSS custom property --launcher-opacity instead of direct opacity style binding to avoid overriding animation transitions in App.vue
+- [Phase 08-settings-window]: settings-changed listener scoped to isTauriContext guard with top-level unlistenSettings variable for consistent onUnmounted cleanup
+- [Phase 08-settings-window]: @mousedown.stop on close button required: Tauri drag region intercepts mousedown on all children, preventing clicks from registering without explicit stop propagation
+- [Phase 08-settings-window]: Settings window width set to 450px — previous 800px was too wide for a settings panel
+- [Phase 08-settings-window]: Opacity setting removed — launcher opacity slider and --launcher-opacity CSS variable removed; plain opacity without backdrop-filter makes text unreadable, not a meaningful user setting
+- [Phase 08-settings-window]: Settings window uses hide() not close() — SettingsCentered(AtomicBool) managed state centers on first open only; subsequent opens restore last user-dragged position
+- [Phase 08-settings-window]: hotkey::register() returns actually-registered hotkey and falls back to Alt+Space when OS rejects requested key (e.g. Ctrl+Space blocked by Windows IME); fallback persisted to settings.json to avoid retry on next startup
+- [Phase 08-settings-window]: launcher-show is the unified show-and-focus signal — Settings.vue closeWindow() emits launcher-show before hiding; App.vue launcher-show handler calls show() + setFocus() handling both hotkey-path (Rust) and settings-close-path (Vue)
+- [Phase 08-settings-window]: Background gradient uses solid CSS color tokens (not rgba); opacity: 0→1 on the container is the only opacity transition — text and icons are always at full opacity
 
 ## Performance Metrics
 
@@ -237,6 +253,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 06-launch-actions P01 | 45min | 3 tasks | 4 files |
 | Phase 07-context-menu P01 | 2min | 2 tasks | 3 files |
 | Phase 07-context-menu P02 | 5min | 1 tasks | 1 files |
+| Phase 08-settings-window P01 | 3min | 2 tasks | 9 files |
+| Phase 08-settings-window P02 | 3min | 2 tasks | 7 files |
+| Phase 08-settings-window P03 | 2min | 2 tasks | 2 files |
+| Phase 08-settings-window P04 | 3min | 1 tasks | 1 files |
+| Phase 08-settings-window P04 | 18min | 2 tasks | 3 files |
 
 ## Session Log
 
@@ -269,8 +290,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 |---|-------------|------|--------|-----------|
 | 1 | Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename | 2026-03-06 | 9fc9f98 | [1-in-recent-commits-we-changed-some-paths-](./quick/1-in-recent-commits-we-changed-some-paths-/) |
 | 2 | Fix launcher search input focus — window steals OS focus on show, cursor ready for typing | 2026-03-07 | 502196a | [2-when-the-launcher-appears-it-does-not-ha](./quick/2-when-the-launcher-appears-it-does-not-ha/) |
+| 4 | the bottom border of the launcher is not visible - looks like the launcher is cut off or clipped - The border only becomes visible when showing the context menu | 2026-03-08 | 3ce3e0a | [4-the-bottom-border-of-the-launcher-is-not](./quick/4-the-bottom-border-of-the-launcher-is-not/) |
+| 5 | selected dropdown options should have the accent background color and white text, not that gray background color as now | 2026-03-08 | d72f4fe | [5-selected-dropdown-options-should-have-th](./quick/5-selected-dropdown-options-should-have-th/) |
+| 6 | replace native select elements in Settings with custom dropdown component for full control over selected vs hover styling | 2026-03-08 | 7f97737 | [6-replace-native-select-elements-in-settin](./quick/6-replace-native-select-elements-in-settin/) |
+| 7 | extract custom dropdown into src/components/Dropdown.vue reusable component, fix arrow key navigation, apply accent color to all highlighted options | 2026-03-08 | 475235b | [7-extract-custom-dropdown-into-src-compone](./quick/7-extract-custom-dropdown-into-src-compone/) |
+| 8 | create Button component in src/components/ui with variant prop covering Add Folder and Re-index button styles, add accent variant for Re-index button, replace all Settings window buttons with this component | 2026-03-08 | bc0f535 | [8-create-button-component-in-src-component](./quick/8-create-button-component-in-src-component/) |
 
-Last activity: 2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete
+Last activity: 2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working

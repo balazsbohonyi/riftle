@@ -29,12 +29,13 @@
       {
         "label": "settings",
         "title": "Riftle Settings",
-        "width": 800,
+        "width": 450,
         "height": 600,
-        "minWidth": 600,
+        "minWidth": 450,
         "minHeight": 400,
-        "decorations": true,
-        "visible": false
+        "decorations": false,
+        "visible": false,
+        "url": "settings.html"
       }
     ],
     "security": {

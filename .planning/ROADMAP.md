@@ -168,10 +168,18 @@ Plans:
 
 **Requirements**: SETT-01, SETT-02, SETT-03, SETT-04, SETT-05, SETT-06, SETT-07
 
+**Plans:** 4/4 plans complete
+
+Plans:
+- [ ] 08-01-PLAN.md — CSS tokens + Vite multi-page build + Rust backend (set_settings_cmd, open_settings_window, extended get_settings_cmd, tauri-plugin-dialog)
+- [ ] 08-02-PLAN.md — App.vue CSS refactor to tokens + five UI primitives (Section, Row, Toggle, KeyCapture, PathList)
+- [ ] 08-03-PLAN.md — Settings.vue with all four sections (General, Hotkey, Search, Appearance) + settings-main.ts entry point
+- [ ] 08-04-PLAN.md — App.vue settings-changed reactive listener + Ctrl+, shortcut + human verification
+
 **Success Criteria:**
 1. Settings window opens from context menu → Settings and from Ctrl+, in the launcher
 2. If already open, open_settings_window() brings it to focus rather than opening a second instance
-3. Autostart toggle works on installed mode; toggle is hidden/disabled in portable mode
+3. Autostart toggle works on installed mode; toggle is visible but disabled in portable mode
 4. Changing the hotkey in Settings takes effect immediately (old deregistered, new registered)
 5. Adding/removing index paths and clicking Re-index now triggers a fresh full index
 6. Changing theme, opacity, or show_path in Appearance updates the open launcher reactively without restart
@@ -223,7 +231,7 @@ Plans:
 | 5 | 4/5 | In Progress|  |
 | 6 | 1/1 | Complete   | 2026-03-07 |
 | 7 | 1/2 | In Progress|  |
-| 8 | Settings Window | SETT-01–07 | Pending |
+| 8 | 4/4 | Complete   | 2026-03-08 |
 | 9 | Global Hotkey | HKEY-01–03 | Pending |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 

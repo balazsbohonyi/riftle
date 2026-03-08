@@ -17,6 +17,13 @@ interface SearchResult {
   requires_elevation: boolean
 }
 
+interface SettingsPayload {
+  theme?: string
+
+  show_path?: boolean
+  reindex_interval?: number
+}
+
 // ---- State ----
 const query         = ref('')
 const results       = ref<SearchResult[]>([])
@@ -30,14 +37,17 @@ const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null) // RecycleScroller reference
 const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
 
+
 // ---- Context menu state ----
 const menuVisible  = ref(false)
 const menuX        = ref(0)
 const menuY        = ref(0)
 const MENU_HEIGHT  = 80 // px — approximate height of 2-item context menu
+const BOTTOM_PAD   = 8  // px — extra transparent space below border so WebView2 renders the bottom 1px border
 
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
+let unlistenSettings: (() => void) | null = null
 let launchInProgress = false
 
 // ---- Computed ----
@@ -62,7 +72,7 @@ watch(results, () => {
 
 watch(menuVisible, async (visible) => {
   if (!visible && isTauriContext.value) {
-    const h = Math.max(56 + listHeight.value, 56)
+    const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
     await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
   }
 })
@@ -87,7 +97,7 @@ async function updateWindowHeight() {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
     return
   }
-  const h = Math.max(56 + listHeight.value, 56)
+  const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
   // Delay OS window resize until after the CSS height transition completes
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
@@ -132,6 +142,12 @@ async function launchElevated(item: SearchResult) {
 // ---- Keyboard ----
 function onKeyDown(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
+
+  if (e.key === ',' && e.ctrlKey) {
+    e.preventDefault()
+    openSettings()
+    return
+  }
 
   if (e.key === 'Escape') {
     e.preventDefault()
@@ -187,11 +203,20 @@ async function onContextMenu(e: MouseEvent) {
   menuVisible.value = true
   // Resize Tauri window if the menu would extend beyond the current window height
   if (isTauriContext.value) {
-    const contentH = Math.max(56 + listHeight.value, 56)
+    const contentH = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
     const neededH = menuY.value + MENU_HEIGHT + 8
     if (neededH > contentH) {
       await getCurrentWindow().setSize(new LogicalSize(500, neededH)).catch(console.error)
     }
+  }
+}
+
+function applyTheme(theme: string) {
+  const root = document.documentElement
+  if (theme === 'system') {
+    root.removeAttribute('data-theme')
+  } else {
+    root.setAttribute('data-theme', theme)
   }
 }
 
@@ -255,10 +280,14 @@ onMounted(async () => {
         show_path: boolean
         animation: string
         data_dir: string
+        theme: string
+        opacity: number
       }>('get_settings_cmd')
       showPath.value = settings.show_path
       animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
       dataDir.value  = settings.data_dir
+      if (settings.theme) applyTheme(settings.theme)
+
       console.log('[App] settings loaded:', { dataDir: dataDir.value, showPath: showPath.value, animMode: animMode.value })
     } catch (e) {
       // Use defaults — dataDir stays empty, icons will not load but app still functions
@@ -305,8 +334,12 @@ onMounted(async () => {
       isVisible.value = false
       results.value = []
       query.value = ''
+      // Ensure the OS window is visible (hotkey.rs does this before emitting, but
+      // Settings.vue also emits launcher-show when closing, without going through Rust)
+      await getCurrentWindow().show().catch(console.error)
+      await getCurrentWindow().setFocus().catch(console.error)
       // Resize OS window to empty height immediately (window is hidden — no animation delay needed)
-      await getCurrentWindow().setSize(new LogicalSize(500, 56)).catch(console.error)
+      await getCurrentWindow().setSize(new LogicalSize(500, 56 + BOTTOM_PAD)).catch(console.error)
       // Center after resize so the position is based on the correct (empty) height
       await getCurrentWindow().center().catch(console.error)
       // Wait for CSS to apply the hidden state
@@ -317,11 +350,20 @@ onMounted(async () => {
       inputRef.value?.focus()
     })
   }
+
+  if (isTauriContext.value) {
+    unlistenSettings = await listen<SettingsPayload>('settings-changed', ({ payload }) => {
+      if (payload.theme !== undefined) applyTheme(payload.theme)
+
+      if (payload.show_path !== undefined) showPath.value = payload.show_path
+    })
+  }
 })
 
 onUnmounted(() => {
   unlistenFocus?.()
   unlistenShow?.()
+  unlistenSettings?.()
 })
 </script>
 
@@ -441,18 +483,11 @@ html, body {
   position: relative;
   width: 100%;
   height: auto;
-  background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
-  /* overflow: hidden; */
 
-  border-radius: 9px;
-  border: 1px solid rgba(255,255,255,0.15);
-  /* Josh Comeau;s beatiful shadows */
-  /* box-shadow:
-      1px 2px 2px hsl(220deg 60% 50% / 0.2),
-      2px 4px 4px hsl(220deg 60% 50% / 0.2),
-      4px 8px 8px hsl(220deg 60% 50% / 0.2),
-      8px 16px 16px hsl(220deg 60% 50% / 0.2),
-      16px 32px 32px hsl(220deg 60% 50% / 0.2); */
+  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
+
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
 
   /* Animation: hidden state */
   opacity: 0;
@@ -460,10 +495,10 @@ html, body {
 }
 
 /* Animation modes */
-.anim-fade   { transition: opacity 120ms ease; }
+.anim-fade   { transition: opacity var(--duration-fast) ease; }
 .anim-fade.visible { opacity: 1; }
 
-.anim-slide  { transition: opacity 180ms ease, transform 180ms ease; }
+.anim-slide  { transition: opacity var(--duration-normal) ease, transform var(--duration-normal) ease; }
 .anim-slide.visible { opacity: 1; transform: translateY(0); }
 
 .anim-instant { transition: none; }
@@ -474,7 +509,7 @@ html, body {
   display: flex;
   align-items: center;
   height: 56px;
-  padding: 0 16px;
+  padding: 0 var(--spacing-lg);
   position: relative;
 }
 
@@ -483,23 +518,23 @@ html, body {
   background: transparent;
   border: none;
   outline: none;
-  color: #f0f0f0;
-  font-family: 'Inter', sans-serif;
-  font-size: 18px;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xl);
   font-weight: 400;
-  caret-color: #0A84FF;
+  caret-color: var(--color-accent);
   padding: 0;
   padding-right: 28px; /* room for magnifier icon */
 }
 
 .search-input::placeholder {
-  color: #555558;
+  color: var(--color-text-dim);
   font-weight: 400;
 }
 
 .magnifier-icon {
   position: absolute;
-  right: 16px;
+  right: var(--spacing-lg);
   top: 50%;
   transform: translateY(-50%);
   width: 18px;
@@ -512,7 +547,7 @@ html, body {
 /* ---- Divider ---- */
 .divider {
   height: 1px;
-  background: #ffffff18;
+  background: var(--color-divider);
   margin: 0;
 }
 
@@ -521,7 +556,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none; /* Firefox */
-  transition: height 180ms ease;
+  transition: height var(--duration-normal) ease;
 }
 .result-list::-webkit-scrollbar { display: none; }
 
@@ -530,14 +565,14 @@ html, body {
   display: flex;
   align-items: center;
   height: 48px;
-  padding: 0 12px;
+  padding: 0 var(--spacing-md);
   cursor: pointer;
   position: relative;
   gap: 10px;
 }
 
 .result-row.selected {
-  background: rgba(10, 132, 255, 0.18);
+  background: var(--color-accent);
 }
 
 /* ---- App icon ---- */
@@ -546,7 +581,7 @@ html, body {
   height: 32px;
   flex-shrink: 0;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* ---- Text block ---- */
@@ -558,10 +593,10 @@ html, body {
 }
 
 .app-name {
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
   font-weight: 500;
-  color: #f0f0f0;
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -571,11 +606,15 @@ html, body {
   color: #ffffff;
 }
 
+.result-row.selected .path-line {
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .path-line {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   font-weight: 400;
-  color: #888;
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -584,13 +623,13 @@ html, body {
 
 /* ---- Admin badge ---- */
 .admin-badge {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
   font-weight: 500;
-  color: #0A84FF;
+  color: var(--color-accent);
   flex-shrink: 0;
   margin-left: auto;
-  padding-left: 8px;
+  padding-left: var(--spacing-sm);
 }
 
 /* ---- Context menu ---- */
@@ -602,9 +641,9 @@ html, body {
 
 .context-menu {
   position: fixed;
-  background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 9px;
+  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
   min-width: 160px;
   padding: 4px 0;
   z-index: 100;
@@ -612,17 +651,17 @@ html, body {
 }
 
 .menu-item {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
   font-weight: 400;
-  color: #f0f0f0;
-  padding: 8px 14px;
+  color: var(--color-text);
+  padding: var(--spacing-sm) 14px;
   cursor: pointer;
   user-select: none;
 }
 
 .menu-item:hover {
-  background: rgba(10, 132, 255, 0.18);
+  background: var(--color-accent);
   color: #ffffff;
 }
 </style>
