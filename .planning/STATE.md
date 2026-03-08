@@ -290,8 +290,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 |---|-------------|------|--------|-----------|
 | 1 | Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename | 2026-03-06 | 9fc9f98 | [1-in-recent-commits-we-changed-some-paths-](./quick/1-in-recent-commits-we-changed-some-paths-/) |
 | 2 | Fix launcher search input focus — window steals OS focus on show, cursor ready for typing | 2026-03-07 | 502196a | [2-when-the-launcher-appears-it-does-not-ha](./quick/2-when-the-launcher-appears-it-does-not-ha/) |
+| 4 | the bottom border of the launcher is not visible - looks like the launcher is cut off or clipped - The border only becomes visible when showing the context menu | 2026-03-08 | 3ce3e0a | [4-the-bottom-border-of-the-launcher-is-not](./quick/4-the-bottom-border-of-the-launcher-is-not/) |
 
-Last activity: 2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete
+Last activity: 2026-03-08 - Completed quick task 4: the bottom border of the launcher is not visible
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
