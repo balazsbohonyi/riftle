@@ -14,11 +14,21 @@ mod search;       // Phase 4: Nucleo fuzzy search engine
 mod commands;     // Phase 6: Launch commands (launch, launch_elevated)
 mod system_commands; // Phase 6: System commands (lock, shutdown, restart, sleep)
 
+#[tauri::command]
+fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    let win = app.get_webview_window("settings")
+        .ok_or_else(|| "settings window not found".to_string())?;
+    win.show().map_err(|e| e.to_string())?;
+    win.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -117,11 +127,13 @@ pub fn run() {
             crate::indexer::reindex,
             crate::search::search,
             crate::store::get_settings_cmd,
+            crate::store::set_settings_cmd,
             crate::commands::launch,
             crate::commands::launch_elevated,
             crate::system_commands::run_system_command,
             crate::hotkey::update_hotkey,
             crate::commands::quit_app,   // Phase 7: context menu quit action
+            open_settings_window,        // Phase 8: open settings window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -140,14 +140,31 @@ pub fn get_settings_cmd(
     data_dir: tauri::State<std::path::PathBuf>,
 ) -> serde_json::Value {
     let settings = get_settings(&app, &data_dir);
+    let is_portable = data_dir.ends_with("data") &&
+        data_dir.parent().map(|p| p.join("riftle-launcher.portable").exists()).unwrap_or(false);
     serde_json::json!({
-        "show_path": settings.show_path,
-        "animation": settings.animation,
-        "data_dir": data_dir.to_string_lossy(),
         "hotkey": settings.hotkey,
         "theme": settings.theme,
         "opacity": settings.opacity,
+        "show_path": settings.show_path,
+        "autostart": settings.autostart,
+        "additional_paths": settings.additional_paths,
+        "excluded_paths": settings.excluded_paths,
+        "reindex_interval": settings.reindex_interval,
+        "animation": settings.animation,
+        "data_dir": data_dir.to_string_lossy(),
+        "is_portable": is_portable,
     })
+}
+
+#[tauri::command]
+pub fn set_settings_cmd(
+    app: tauri::AppHandle,
+    data_dir: tauri::State<std::path::PathBuf>,
+    settings: Settings,
+) -> Result<(), String> {
+    set_settings(&app, &data_dir, &settings);
+    Ok(())
 }
 
 // ---- Unit tests ----

@@ -11,6 +11,7 @@
     "opener:default",
     "store:default",
     "global-shortcut:default",
-    "autostart:default"
+    "autostart:default",
+    "dialog:default"
   ]
 }
