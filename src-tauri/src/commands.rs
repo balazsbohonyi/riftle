@@ -114,6 +114,13 @@ pub fn launch_elevated(id: String, app: tauri::AppHandle) -> Result<(), String> 
     Ok(())
 }
 
+/// Phase 7: Quit the launcher process cleanly via AppHandle::exit(0).
+/// No Result wrapper needed — exit(0) does not return.
+#[tauri::command]
+pub fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 /// Converts a Rust &str to a null-terminated wide string (Vec<u16>) for Win32 API calls.
 fn to_wide_null(s: &str) -> Vec<u16> {
     use std::ffi::OsStr;

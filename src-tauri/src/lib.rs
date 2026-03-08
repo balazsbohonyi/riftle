@@ -121,6 +121,7 @@ pub fn run() {
             crate::commands::launch_elevated,
             crate::system_commands::run_system_command,
             crate::hotkey::update_hotkey,
+            crate::commands::quit_app,   // Phase 7: context menu quit action
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

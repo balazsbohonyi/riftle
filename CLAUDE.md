@@ -126,6 +126,7 @@ crate::commands::launch_elevated  // launch app elevated (ShellExecuteW runas)
 crate::system_commands::run_system_command // lock/shutdown/restart/sleep
 crate::hotkey::update_hotkey      // (Phase 9) deregister old hotkey, register new, persist to settings.json
                                   // Called by Phase 8 Settings UI: invoke('update_hotkey', { hotkey: 'Alt+Space' })
+crate::commands::quit_app         // (Phase 7) exit(0) via AppHandle — triggered by context menu "Quit Launcher"
 ```
 
 ## Testing

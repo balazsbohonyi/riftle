@@ -4,10 +4,41 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
+last_updated: "2026-03-08T00:08:45.563Z"
+last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
+progress:
+  total_phases: 10
+  completed_phases: 6
+  total_plans: 22
+  completed_plans: 21
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-08T00:05:28.312Z"
+last_activity: "2026-03-07 - Completed quick task 2: Fix launcher search input focus on window show"
+progress:
+  total_phases: 10
+  completed_phases: 6
+  total_plans: 22
+  completed_plans: 21
+  percent: 91
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
 last_updated: "2026-03-07T16:39:55.109Z"
 last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
 progress:
-  total_phases: 10
+  [█████████░] 91%
   completed_phases: 5
   total_plans: 19
   completed_plans: 19
@@ -177,6 +208,10 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 06-launch-actions]: system command IDs include 'system:' prefix from search index — strip in run_system_command before matching
 - [Phase 06-launch-actions]: app.state::<T>() temporary must be bound to local variable before .0.lock() — borrow checker requirement in Tauri commands
 - [Phase 09-global-hotkey]: update_hotkey Tauri command already implemented in hotkey.rs — Phase 8 Settings UI calls invoke('update_hotkey', { hotkey: 'Alt+Space' }) to rebind immediately; no Rust work needed in Phase 8 for SETT-04
+- [Phase 07-context-menu]: AppHandle::exit(0) used for quit_app — no tauri-plugin-process needed in Tauri v2
+- [Phase 07-context-menu]: @mousedown.prevent on menu items prevents focus-loss auto-hide race (not @click)
+- [Phase 07-context-menu]: Menu state reset in both hideWindow() and launcher-show listener — menu never reappears with launcher on next summon
+- [Phase 07-context-menu]: position: fixed on .context-menu prevents OS window clipping; height: auto on .launcher-app prevents stretch; @contextmenu.prevent on result rows suppresses native menu
 
 ## Performance Metrics
 
@@ -200,6 +235,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 05-launcher-window-ui P04 | 4min | 2 tasks | 2 files |
 | Phase 05-launcher-window-ui P05 | 2min | 2 tasks | 1 files |
 | Phase 06-launch-actions P01 | 45min | 3 tasks | 4 files |
+| Phase 07-context-menu P01 | 2min | 2 tasks | 3 files |
+| Phase 07-context-menu P02 | 5min | 1 tasks | 1 files |
 
 ## Session Log
 
@@ -233,4 +270,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 1 | Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename | 2026-03-06 | 9fc9f98 | [1-in-recent-commits-we-changed-some-paths-](./quick/1-in-recent-commits-we-changed-some-paths-/) |
 | 2 | Fix launcher search input focus — window steals OS focus on show, cursor ready for typing | 2026-03-07 | 502196a | [2-when-the-launcher-appears-it-does-not-ha](./quick/2-when-the-launcher-appears-it-does-not-ha/) |
 
-Last activity: 2026-03-07 - Completed quick task 2: Fix launcher search input focus on window show
+Last activity: 2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete
+
+### 2026-03-08
+- Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
+- Implementation adjustments during verification: position:fixed on .context-menu, height:auto on .launcher-app, @contextmenu.prevent on result rows, async onContextMenu with overflow handling, menuVisible watcher for height restore
+- Phase 7 (Context Menu) fully complete

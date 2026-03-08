@@ -148,6 +148,12 @@ Plans:
 
 **Requirements**: MENU-01, MENU-02, MENU-03
 
+**Plans:** 1/2 plans executed
+
+Plans:
+- [ ] 07-01-PLAN.md — Add quit_app Rust command (commands.rs + lib.rs) and implement full context menu overlay in App.vue (state, template, CSS, keyboard/dismissal wiring)
+- [ ] 07-02-PLAN.md — Human verify: right-click behavior, menu actions, Escape dismissal, click-outside, quit, menu state reset
+
 **Success Criteria:**
 1. Right-clicking anywhere on the launcher window shows the custom overlay positioned at cursor coordinates
 2. Clicking Settings opens (or focuses) the settings window
@@ -216,7 +222,7 @@ Plans:
 | 4 | 3/3 | Complete   | 2026-03-06 |
 | 5 | 4/5 | In Progress|  |
 | 6 | 1/1 | Complete   | 2026-03-07 |
-| 7 | Context Menu | MENU-01–03 | Pending |
+| 7 | 1/2 | In Progress|  |
 | 8 | Settings Window | SETT-01–07 | Pending |
 | 9 | Global Hotkey | HKEY-01–03 | Pending |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |

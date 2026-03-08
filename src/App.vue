@@ -30,6 +30,12 @@ const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null) // RecycleScroller reference
 const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
 
+// ---- Context menu state ----
+const menuVisible  = ref(false)
+const menuX        = ref(0)
+const menuY        = ref(0)
+const MENU_HEIGHT  = 80 // px — approximate height of 2-item context menu
+
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
 let launchInProgress = false
@@ -52,6 +58,13 @@ watch(query, async (q) => {
 
 watch(results, () => {
   selectedIndex.value = 0
+})
+
+watch(menuVisible, async (visible) => {
+  if (!visible && isTauriContext.value) {
+    const h = Math.max(56 + listHeight.value, 56)
+    await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
+  }
 })
 
 watch(selectedIndex, () => {
@@ -122,6 +135,11 @@ function onKeyDown(e: KeyboardEvent) {
 
   if (e.key === 'Escape') {
     e.preventDefault()
+    if (menuVisible.value) {
+      closeMenu()
+      inputRef.value?.focus()
+      return
+    }
     hideWindow()
     return
   }
@@ -155,6 +173,38 @@ function onKeyUp(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
 }
 
+// ---- Context menu ----
+function closeMenu() {
+  menuVisible.value = false
+}
+
+async function onContextMenu(e: MouseEvent) {
+  // Right-click on result rows is reserved for future per-result menu — ignore
+  if ((e.target as HTMLElement).closest('.result-row')) return
+  // Clamp X so menu (min-width 160px) does not overflow the 500px window
+  menuX.value = Math.min(e.clientX, 500 - 170)
+  menuY.value = e.clientY
+  menuVisible.value = true
+  // Resize Tauri window if the menu would extend beyond the current window height
+  if (isTauriContext.value) {
+    const contentH = Math.max(56 + listHeight.value, 56)
+    const neededH = menuY.value + MENU_HEIGHT + 8
+    if (neededH > contentH) {
+      await getCurrentWindow().setSize(new LogicalSize(500, neededH)).catch(console.error)
+    }
+  }
+}
+
+async function openSettings() {
+  closeMenu()
+  await invoke('open_settings_window').catch(console.error)
+}
+
+async function quitApp() {
+  closeMenu()
+  await invoke('quit_app').catch(console.error)
+}
+
 // ---- Window show/hide ----
 // showWindow is kept for Phase 8 Settings window — not called by launcher path (Phase 9 owns show via hotkey)
 // @ts-ignore: reserved for Phase 8 Settings window show logic
@@ -173,6 +223,7 @@ async function showWindow() {
 }
 
 async function hideWindow() {
+  menuVisible.value = false
   console.log('[App] hideWindow called, isTauriContext:', isTauriContext.value)
   isVisible.value = false
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
@@ -249,6 +300,7 @@ onMounted(async () => {
   // Listen for 'launcher-show' event from hotkey.rs — replay animation, clear query, focus
   if (isTauriContext.value) {
     unlistenShow = await listen('launcher-show', async () => {
+      menuVisible.value = false
       // Reset animation to hidden state, clear results and query
       isVisible.value = false
       results.value = []
@@ -274,7 +326,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]">
+  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu">
 
     <!-- Search input area -->
     <div class="search-area">
@@ -311,8 +363,9 @@ onUnmounted(() => {
       <div
         class="result-row"
         :class="{ selected: active && index === selectedIndex }"
-        @mousedown.prevent="launchItem(item)"
+        @mousedown.left.prevent="launchItem(item)"
         @mousemove="active && (selectedIndex = index)"
+        @contextmenu.prevent
       >
         <!-- Icon -->
         <img
@@ -342,6 +395,23 @@ onUnmounted(() => {
       </div>
     </RecycleScroller>
 
+    <!-- Context menu backdrop: click-outside closes menu -->
+    <div
+      v-if="menuVisible"
+      class="menu-backdrop"
+      @mousedown.prevent="closeMenu"
+    ></div>
+
+    <!-- Context menu overlay: absolutely positioned at right-click coordinates -->
+    <div
+      v-if="menuVisible"
+      class="context-menu"
+      :style="{ left: menuX + 'px', top: menuY + 'px' }"
+    >
+      <div class="menu-item" @mousedown.prevent="openSettings">Settings</div>
+      <div class="menu-item" @mousedown.prevent="quitApp">Quit Launcher</div>
+    </div>
+
   </div>
 </template>
 
@@ -368,8 +438,9 @@ html, body {
 
 /* ---- Launcher container ---- */
 .launcher-app {
+  position: relative;
   width: 100%;
-  height: 100%;
+  height: auto;
   background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
   /* overflow: hidden; */
 
@@ -520,5 +591,38 @@ html, body {
   flex-shrink: 0;
   margin-left: auto;
   padding-left: 8px;
+}
+
+/* ---- Context menu ---- */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.context-menu {
+  position: fixed;
+  background: linear-gradient(180deg, #242427 0%, #1c1c1e 40%, #181818 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+  min-width: 160px;
+  padding: 4px 0;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.menu-item {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #f0f0f0;
+  padding: 8px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.menu-item:hover {
+  background: rgba(10, 132, 255, 0.18);
+  color: #ffffff;
 }
 </style>

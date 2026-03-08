@@ -65,9 +65,9 @@
 
 ### Context Menu
 
-- [ ] **MENU-01**: Right-click on launcher shows custom HTML Vue overlay, absolutely positioned at cursor
-- [ ] **MENU-02**: v1 menu items: Settings (opens/focuses settings window) · Quit Launcher (exits process)
-- [ ] **MENU-03**: Menu dismisses on click-outside or Escape
+- [x] **MENU-01**: Right-click on launcher shows custom HTML Vue overlay, absolutely positioned at cursor
+- [x] **MENU-02**: v1 menu items: Settings (opens/focuses settings window) · Quit Launcher (exits process)
+- [x] **MENU-03**: Menu dismisses on click-outside or Escape
 
 ### Settings Window
 
@@ -164,9 +164,9 @@
 | LAUN-02 | Phase 6 | Complete |
 | LAUN-03 | Phase 6 | Complete |
 | LAUN-04 | Phase 6 | Complete |
-| MENU-01 | Phase 7 | Pending |
-| MENU-02 | Phase 7 | Pending |
-| MENU-03 | Phase 7 | Pending |
+| MENU-01 | Phase 7 | Complete |
+| MENU-02 | Phase 7 | Complete |
+| MENU-03 | Phase 7 | Complete |
 | SETT-01 | Phase 8 | Pending |
 | SETT-02 | Phase 8 | Pending |
 | SETT-03 | Phase 8 | Pending |
