@@ -17,6 +17,6 @@ function toggle() { if (!props.disabled) emit('update:modelValue', !props.modelV
 .toggle.on { background: var(--color-accent); }
 .toggle.disabled { opacity: 0.4; cursor: not-allowed; }
 .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
-  border-radius: 50%; background: var(--color-text); transition: left var(--duration-fast); }
+  border-radius: 50%; background: #ffffff; transition: left var(--duration-fast); }
 .toggle.on .toggle-thumb { left: 21px; }
 </style>

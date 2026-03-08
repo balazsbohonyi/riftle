@@ -11,7 +11,7 @@ defineProps<{ title: string }>()
 <style scoped>
 .section { margin-bottom: var(--spacing-lg); }
 .section-title { font-family: var(--font-sans); font-size: var(--font-size-sm);
-  font-weight: 600; color: var(--color-text-muted); text-transform: uppercase;
+  font-weight: 600; color: var(--color-accent); text-transform: uppercase;
   letter-spacing: 0.06em; margin: 0 0 var(--spacing-sm); }
 .section-divider { border: none; border-top: 1px solid var(--color-divider);
   margin: 0 0 var(--spacing-md); }

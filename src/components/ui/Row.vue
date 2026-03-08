@@ -15,7 +15,7 @@ defineProps<{ label: string; hint?: string }>()
   padding: var(--spacing-sm) 0; min-height: 40px; }
 .row-label-group { display: flex; flex-direction: column; gap: 2px; }
 .row-label { font-family: var(--font-sans); font-size: var(--font-size-base);
-  color: var(--color-text); }
+  font-weight: 400; color: var(--color-text); }
 .row-hint { font-size: var(--font-size-xs); color: var(--color-text-muted); }
 .row-control { display: flex; align-items: center; gap: var(--spacing-sm); }
 </style>

@@ -574,7 +574,7 @@ html, body {
 }
 
 .result-row.selected {
-  background: var(--color-selection-bg);
+  background: var(--color-accent);
 }
 
 /* ---- App icon ---- */
@@ -659,7 +659,7 @@ html, body {
 }
 
 .menu-item:hover {
-  background: var(--color-selection-bg);
+  background: var(--color-accent);
   color: #ffffff;
 }
 </style>

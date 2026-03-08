@@ -155,6 +155,7 @@ async function onShowPathChange(v: boolean) {
 }
 
 async function closeWindow() {
+  await emitTo('launcher', 'launcher-show').catch(console.error)
   await getCurrentWindow().hide()
 }
 </script>
