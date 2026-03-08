@@ -1,0 +1,323 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
+import { emitTo } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import Section from './components/ui/Section.vue'
+import Row from './components/ui/Row.vue'
+import Toggle from './components/ui/Toggle.vue'
+import KeyCapture from './components/ui/KeyCapture.vue'
+import PathList from './components/ui/PathList.vue'
+
+interface SettingsData {
+  hotkey: string
+  theme: string
+  opacity: number
+  show_path: boolean
+  autostart: boolean
+  additional_paths: string[]
+  excluded_paths: string[]
+  reindex_interval: number
+  animation: string
+  system_tool_allowlist: string[]
+}
+
+interface SettingsResponse extends SettingsData {
+  data_dir: string
+  is_portable: boolean
+}
+
+const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window)
+const isPortable = ref(false)
+const reindexButtonText = ref('Re-index')
+
+const settings = ref<SettingsData>({
+  hotkey: 'Alt+Space',
+  theme: 'system',
+  opacity: 1.0,
+  show_path: false,
+  autostart: false,
+  additional_paths: [],
+  excluded_paths: [],
+  reindex_interval: 15,
+  animation: 'slide',
+  system_tool_allowlist: [],
+})
+
+onMounted(async () => {
+  if (!isTauriContext.value) return
+  try {
+    const response = await invoke<SettingsResponse>('get_settings_cmd')
+    isPortable.value = response.is_portable
+    settings.value = {
+      hotkey: response.hotkey,
+      theme: response.theme,
+      opacity: response.opacity,
+      show_path: response.show_path,
+      autostart: response.autostart,
+      additional_paths: response.additional_paths,
+      excluded_paths: response.excluded_paths,
+      reindex_interval: response.reindex_interval,
+      animation: response.animation,
+      system_tool_allowlist: response.system_tool_allowlist,
+    }
+
+    if (!isPortable.value) {
+      const { isEnabled } = await import('@tauri-apps/plugin-autostart')
+      settings.value.autostart = await isEnabled()
+    }
+
+    if (settings.value.theme !== 'system') {
+      document.documentElement.setAttribute('data-theme', settings.value.theme)
+    }
+  } catch (e) {
+    console.error('Failed to load settings:', e)
+  }
+})
+
+async function saveSettings() {
+  if (!isTauriContext.value) return
+  await invoke('set_settings_cmd', { settings: { ...settings.value } }).catch(console.error)
+}
+
+// General
+async function onAutostartChange(v: boolean) {
+  if (isPortable.value) return
+  try {
+    const { enable, disable } = await import('@tauri-apps/plugin-autostart')
+    if (v) {
+      await enable()
+    } else {
+      await disable()
+    }
+  } catch (e) {
+    console.error('Autostart change failed:', e)
+  }
+  await saveSettings()
+}
+
+// Hotkey
+async function onHotkeyChange(hotkey: string) {
+  await invoke('update_hotkey', { hotkey }).catch(console.error)
+  settings.value.hotkey = hotkey
+  await saveSettings()
+}
+
+// Search
+async function onPathsChange(field: 'additional_paths' | 'excluded_paths', paths: string[]) {
+  settings.value[field] = paths
+  await saveSettings()
+  await invoke('reindex').catch(console.error)
+}
+
+async function onIntervalChange(e: Event) {
+  const val = parseInt((e.target as HTMLSelectElement).value, 10)
+  settings.value.reindex_interval = val
+  await saveSettings()
+  await emitTo('launcher', 'settings-changed', { reindex_interval: val }).catch(console.error)
+}
+
+async function onReindexNow() {
+  reindexButtonText.value = 'Indexing\u2026'
+  await invoke('reindex').catch(console.error)
+  setTimeout(() => { reindexButtonText.value = 'Re-index' }, 1000)
+}
+
+// Appearance
+async function onThemeChange() {
+  const theme = settings.value.theme
+  if (theme === 'system') {
+    document.documentElement.removeAttribute('data-theme')
+  } else {
+    document.documentElement.setAttribute('data-theme', theme)
+  }
+  await saveSettings()
+  await emitTo('launcher', 'settings-changed', { theme }).catch(console.error)
+}
+
+async function onOpacityInput() {
+  await saveSettings()
+  await emitTo('launcher', 'settings-changed', { opacity: settings.value.opacity }).catch(console.error)
+}
+
+async function onShowPathChange(v: boolean) {
+  settings.value.show_path = v
+  await saveSettings()
+  await emitTo('launcher', 'settings-changed', { show_path: v }).catch(console.error)
+}
+
+async function closeWindow() {
+  await getCurrentWindow().close()
+}
+</script>
+
+<template>
+  <div class="settings-app" :data-theme="settings.theme === 'system' ? undefined : settings.theme">
+    <div class="settings-header" data-tauri-drag-region>
+      <span class="settings-title">Riftle Settings</span>
+      <button class="settings-close" type="button" @click="closeWindow">&times;</button>
+    </div>
+    <div class="settings-content">
+
+      <Section title="General">
+        <Row
+          label="Launch at startup"
+          :hint="isPortable ? 'Not available in portable mode' : undefined"
+        >
+          <Toggle
+            v-model="settings.autostart"
+            :disabled="isPortable"
+            @update:modelValue="onAutostartChange"
+          />
+        </Row>
+      </Section>
+
+      <Section title="Hotkey">
+        <Row label="Global shortcut">
+          <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
+        </Row>
+      </Section>
+
+      <Section title="Search">
+        <Row label="Additional paths">
+          <PathList
+            v-model="settings.additional_paths"
+            @change="onPathsChange('additional_paths', $event)"
+          />
+        </Row>
+        <Row label="Excluded paths">
+          <PathList
+            v-model="settings.excluded_paths"
+            @change="onPathsChange('excluded_paths', $event)"
+          />
+        </Row>
+        <Row label="Re-index interval">
+          <select :value="settings.reindex_interval" @change="onIntervalChange">
+            <option value="5">5 min</option>
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+            <option value="60">60 min</option>
+            <option value="0">Manual only</option>
+          </select>
+        </Row>
+        <Row label="Re-index now">
+          <button type="button" @click="onReindexNow">{{ reindexButtonText }}</button>
+        </Row>
+      </Section>
+
+      <Section title="Appearance">
+        <Row label="Theme">
+          <select v-model="settings.theme" @change="onThemeChange">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </Row>
+        <Row label="Opacity">
+          <input
+            type="range"
+            :min="0.85"
+            :max="1"
+            :step="0.01"
+            v-model.number="settings.opacity"
+            @input="onOpacityInput"
+          />
+          <span class="opacity-value">{{ Math.round(settings.opacity * 100) }}%</span>
+        </Row>
+        <Row label="Show path">
+          <Toggle v-model="settings.show_path" @update:modelValue="onShowPathChange" />
+        </Row>
+      </Section>
+
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.settings-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+}
+
+.settings-header {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md);
+  border-bottom: 1px solid var(--color-divider);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.settings-title {
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.settings-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: color var(--duration-fast);
+}
+
+.settings-close:hover {
+  color: var(--color-text);
+}
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+select,
+button {
+  background: var(--color-bg-darker);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+select:focus,
+button:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+input[type='range'] {
+  accent-color: var(--color-accent);
+}
+
+.opacity-value {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+</style>
+
+<style>
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+</style>
