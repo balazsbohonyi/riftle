@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-08T19:25:36.473Z"
+last_updated: "2026-03-08T21:14:15.001Z"
 last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
 progress:
   total_phases: 10
@@ -223,6 +223,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: settings-changed listener scoped to isTauriContext guard with top-level unlistenSettings variable for consistent onUnmounted cleanup
 - [Phase 08-settings-window]: @mousedown.stop on close button required: Tauri drag region intercepts mousedown on all children, preventing clicks from registering without explicit stop propagation
 - [Phase 08-settings-window]: Settings window width set to 450px — previous 800px was too wide for a settings panel
+- [Phase 08-settings-window]: Opacity setting removed — launcher opacity slider and --launcher-opacity CSS variable removed; plain opacity without backdrop-filter makes text unreadable, not a meaningful user setting
+- [Phase 08-settings-window]: Settings window uses hide() not close() — SettingsCentered(AtomicBool) managed state centers on first open only; subsequent opens restore last user-dragged position
+- [Phase 08-settings-window]: hotkey::register() returns actually-registered hotkey and falls back to Alt+Space when OS rejects requested key (e.g. Ctrl+Space blocked by Windows IME); fallback persisted to settings.json to avoid retry on next startup
+- [Phase 08-settings-window]: launcher-show is the unified show-and-focus signal — Settings.vue closeWindow() emits launcher-show before hiding; App.vue launcher-show handler calls show() + setFocus() handling both hotkey-path (Rust) and settings-close-path (Vue)
+- [Phase 08-settings-window]: Background gradient uses solid CSS color tokens (not rgba); opacity: 0→1 on the container is the only opacity transition — text and icons are always at full opacity
 
 ## Performance Metrics
 
