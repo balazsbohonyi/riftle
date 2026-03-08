@@ -291,8 +291,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 1 | Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename | 2026-03-06 | 9fc9f98 | [1-in-recent-commits-we-changed-some-paths-](./quick/1-in-recent-commits-we-changed-some-paths-/) |
 | 2 | Fix launcher search input focus — window steals OS focus on show, cursor ready for typing | 2026-03-07 | 502196a | [2-when-the-launcher-appears-it-does-not-ha](./quick/2-when-the-launcher-appears-it-does-not-ha/) |
 | 4 | the bottom border of the launcher is not visible - looks like the launcher is cut off or clipped - The border only becomes visible when showing the context menu | 2026-03-08 | 3ce3e0a | [4-the-bottom-border-of-the-launcher-is-not](./quick/4-the-bottom-border-of-the-launcher-is-not/) |
+| 5 | selected dropdown options should have the accent background color and white text, not that gray background color as now | 2026-03-08 | d72f4fe | [5-selected-dropdown-options-should-have-th](./quick/5-selected-dropdown-options-should-have-th/) |
 
-Last activity: 2026-03-08 - Completed quick task 4: the bottom border of the launcher is not visible
+Last activity: 2026-03-08 - Completed quick task 5: selected dropdown options accent color styling
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
