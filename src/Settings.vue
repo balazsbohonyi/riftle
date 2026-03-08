@@ -12,7 +12,7 @@ import PathList from './components/ui/PathList.vue'
 interface SettingsData {
   hotkey: string
   theme: string
-  opacity: number
+
   show_path: boolean
   autostart: boolean
   additional_paths: string[]
@@ -34,7 +34,7 @@ const reindexButtonText = ref('Re-index')
 const settings = ref<SettingsData>({
   hotkey: 'Alt+Space',
   theme: 'system',
-  opacity: 1.0,
+
   show_path: false,
   autostart: false,
   additional_paths: [],
@@ -53,7 +53,7 @@ onMounted(async () => {
     settings.value = {
       hotkey: response.hotkey,
       theme: response.theme,
-      opacity: response.opacity,
+
       show_path: response.show_path,
       autostart: response.autostart,
       additional_paths: response.additional_paths,
@@ -144,10 +144,6 @@ async function onThemeChange() {
   await emitTo('launcher', 'settings-changed', { theme }).catch(console.error)
 }
 
-async function onOpacityInput() {
-  await saveSettings()
-  await emitTo('launcher', 'settings-changed', { opacity: settings.value.opacity }).catch(console.error)
-}
 
 async function onShowPathChange(v: boolean) {
   settings.value.show_path = v
@@ -227,17 +223,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
             <option value="dark">Dark</option>
           </select>
         </Row>
-        <Row label="Opacity">
-          <input
-            type="range"
-            :min="0.5"
-            :max="1"
-            :step="0.01"
-            v-model.number="settings.opacity"
-            @input="onOpacityInput"
-          />
-          <span class="opacity-value">{{ Math.round(settings.opacity * 100) }}%</span>
-        </Row>
+
         <Row label="Show path">
           <Toggle v-model="settings.show_path" @update:modelValue="onShowPathChange" />
         </Row>
@@ -317,13 +303,6 @@ button:focus {
 
 input[type='range'] {
   accent-color: var(--color-accent);
-}
-
-.opacity-value {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  min-width: 36px;
-  text-align: right;
 }
 
 /* Custom scrollbar for settings content */

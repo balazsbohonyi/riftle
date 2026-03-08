@@ -19,7 +19,7 @@ interface SearchResult {
 
 interface SettingsPayload {
   theme?: string
-  opacity?: number
+
   show_path?: boolean
   reindex_interval?: number
 }
@@ -36,7 +36,7 @@ const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null) // RecycleScroller reference
 const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
-const launcherOpacity = ref(1.0)
+
 
 // ---- Context menu state ----
 const menuVisible  = ref(false)
@@ -286,7 +286,7 @@ onMounted(async () => {
       animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
       dataDir.value  = settings.data_dir
       if (settings.theme) applyTheme(settings.theme)
-      if (settings.opacity !== undefined) launcherOpacity.value = settings.opacity
+
       console.log('[App] settings loaded:', { dataDir: dataDir.value, showPath: showPath.value, animMode: animMode.value })
     } catch (e) {
       // Use defaults — dataDir stays empty, icons will not load but app still functions
@@ -353,7 +353,7 @@ onMounted(async () => {
   if (isTauriContext.value) {
     unlistenSettings = await listen<SettingsPayload>('settings-changed', ({ payload }) => {
       if (payload.theme !== undefined) applyTheme(payload.theme)
-      if (payload.opacity !== undefined) launcherOpacity.value = payload.opacity
+
       if (payload.show_path !== undefined) showPath.value = payload.show_path
     })
   }
@@ -367,7 +367,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" :style="{ '--launcher-opacity': launcherOpacity }" @contextmenu.prevent="onContextMenu">
+  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu">
 
     <!-- Search input area -->
     <div class="search-area">
@@ -483,17 +483,7 @@ html, body {
   width: 100%;
   height: auto;
 
-  /* Semi-transparent gradient using rgba() with --launcher-opacity so only
-     the background alpha changes — text/icons are unaffected */
-  background: linear-gradient(
-    180deg,
-    rgba(var(--color-bg-lighter-rgb), var(--launcher-opacity, 1)) 0%,
-    rgba(var(--color-bg-rgb),         var(--launcher-opacity, 1)) 40%,
-    rgba(var(--color-bg-darker-rgb),  var(--launcher-opacity, 1)) 100%
-  );
-  /* Frosted glass blur of content behind the window (visible when opacity < 1) */
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
 
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
@@ -503,8 +493,7 @@ html, body {
   transform: translateY(-6px);
 }
 
-/* Animation modes — container always reaches opacity:1 so children are unaffected;
-   background transparency is handled by rgba() in the gradient above */
+/* Animation modes */
 .anim-fade   { transition: opacity var(--duration-fast) ease; }
 .anim-fade.visible { opacity: 1; }
 
