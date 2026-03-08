@@ -187,13 +187,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
       <Section title="Hotkey">
         <Row label="Global shortcut">
           <div class="hotkey-row">
-            <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
             <button
               v-if="settings.hotkey !== 'Alt+Space'"
               type="button"
               class="reset-link"
               @click="onHotkeyChange('Alt+Space')"
             >Reset</button>
+            <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
           </div>
         </Row>
       </Section>
@@ -348,8 +348,7 @@ input[type='range'] {
   font-size: var(--font-size-sm);
   cursor: pointer;
   padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 
 .reset-link:focus {
