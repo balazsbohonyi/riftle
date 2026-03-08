@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-08T17:49:07.050Z"
+last_updated: "2026-03-08T19:25:36.473Z"
 last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
 progress:
   total_phases: 10
@@ -221,6 +221,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: emitTo('launcher', 'settings-changed') used (not emit()) to target launcher window and avoid self-handling
 - [Phase 08-settings-window]: Used CSS custom property --launcher-opacity instead of direct opacity style binding to avoid overriding animation transitions in App.vue
 - [Phase 08-settings-window]: settings-changed listener scoped to isTauriContext guard with top-level unlistenSettings variable for consistent onUnmounted cleanup
+- [Phase 08-settings-window]: @mousedown.stop on close button required: Tauri drag region intercepts mousedown on all children, preventing clicks from registering without explicit stop propagation
+- [Phase 08-settings-window]: Settings window width set to 450px — previous 800px was too wide for a settings panel
 
 ## Performance Metrics
 
@@ -250,6 +252,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 08-settings-window P02 | 3min | 2 tasks | 7 files |
 | Phase 08-settings-window P03 | 2min | 2 tasks | 2 files |
 | Phase 08-settings-window P04 | 3min | 1 tasks | 1 files |
+| Phase 08-settings-window P04 | 18min | 2 tasks | 3 files |
 
 ## Session Log
 
