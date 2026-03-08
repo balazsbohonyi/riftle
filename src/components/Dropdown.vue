@@ -111,7 +111,7 @@ onUnmounted(() => {
         v-for="(opt, index) in options"
         :key="opt.value"
         class="custom-select-option"
-        :class="{ selected: opt.value === modelValue, highlighted: index === highlightedIndex }"
+        :class="{ highlighted: index === highlightedIndex }"
         @click.stop="selectOption(opt.value)"
         @mouseenter="highlightedIndex = index"
       >{{ opt.label }}</div>
@@ -190,8 +190,4 @@ onUnmounted(() => {
   color: #ffffff;
 }
 
-.custom-select-option.selected {
-  background: var(--color-accent);
-  color: #ffffff;
-}
 </style>
