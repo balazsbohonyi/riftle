@@ -43,6 +43,7 @@ const menuVisible  = ref(false)
 const menuX        = ref(0)
 const menuY        = ref(0)
 const MENU_HEIGHT  = 80 // px — approximate height of 2-item context menu
+const BOTTOM_PAD   = 8  // px — extra transparent space below border so WebView2 renders the bottom 1px border
 
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
@@ -71,7 +72,7 @@ watch(results, () => {
 
 watch(menuVisible, async (visible) => {
   if (!visible && isTauriContext.value) {
-    const h = Math.max(56 + listHeight.value, 56)
+    const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
     await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
   }
 })
@@ -96,7 +97,7 @@ async function updateWindowHeight() {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
     return
   }
-  const h = Math.max(56 + listHeight.value, 56)
+  const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
   // Delay OS window resize until after the CSS height transition completes
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
@@ -202,7 +203,7 @@ async function onContextMenu(e: MouseEvent) {
   menuVisible.value = true
   // Resize Tauri window if the menu would extend beyond the current window height
   if (isTauriContext.value) {
-    const contentH = Math.max(56 + listHeight.value, 56)
+    const contentH = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
     const neededH = menuY.value + MENU_HEIGHT + 8
     if (neededH > contentH) {
       await getCurrentWindow().setSize(new LogicalSize(500, neededH)).catch(console.error)
@@ -338,7 +339,7 @@ onMounted(async () => {
       await getCurrentWindow().show().catch(console.error)
       await getCurrentWindow().setFocus().catch(console.error)
       // Resize OS window to empty height immediately (window is hidden — no animation delay needed)
-      await getCurrentWindow().setSize(new LogicalSize(500, 56)).catch(console.error)
+      await getCurrentWindow().setSize(new LogicalSize(500, 56 + BOTTOM_PAD)).catch(console.error)
       // Center after resize so the position is based on the correct (empty) height
       await getCurrentWindow().center().catch(console.error)
       // Wait for CSS to apply the hidden state
