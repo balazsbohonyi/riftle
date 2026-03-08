@@ -31,6 +31,23 @@ const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__
 const isPortable = ref(false)
 const reindexButtonText = ref('Re-index')
 
+const openDropdown = ref<string | null>(null)
+
+function toggleDropdown(id: string) {
+  openDropdown.value = openDropdown.value === id ? null : id
+}
+
+function closeAllDropdowns() {
+  openDropdown.value = null
+}
+
+function onDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.custom-select')) {
+    closeAllDropdowns()
+  }
+}
+
 const settings = ref<SettingsData>({
   hotkey: 'Alt+Space',
   theme: 'system',
@@ -46,6 +63,7 @@ const settings = ref<SettingsData>({
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
+  document.addEventListener('click', onDocumentClick)
   if (!isTauriContext.value) return
   try {
     const response = await invoke<SettingsResponse>('get_settings_cmd')
@@ -119,8 +137,7 @@ async function onPathsChange(field: 'additional_paths' | 'excluded_paths', paths
   await invoke('reindex').catch(console.error)
 }
 
-async function onIntervalChange(e: Event) {
-  const val = parseInt((e.target as HTMLSelectElement).value, 10)
+async function onIntervalChange(val: number) {
   settings.value.reindex_interval = val
   await saveSettings()
   await emitTo('launcher', 'settings-changed', { reindex_interval: val }).catch(console.error)
@@ -160,7 +177,10 @@ function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') closeWindow()
 }
 
-onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <template>
@@ -210,13 +230,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
           @change="onPathsChange('excluded_paths', $event)"
         />
         <Row label="Re-index interval">
-          <select :value="settings.reindex_interval" @change="onIntervalChange">
-            <option value="5">5 min</option>
-            <option value="15">15 min</option>
-            <option value="30">30 min</option>
-            <option value="60">60 min</option>
-            <option value="0">Manual only</option>
-          </select>
+          <div class="custom-select" :class="{ open: openDropdown === 'interval' }">
+            <button
+              type="button"
+              class="custom-select-trigger"
+              @click.stop="toggleDropdown('interval')"
+            >
+              <span>{{ { 5: '5 min', 15: '15 min', 30: '30 min', 60: '60 min', 0: 'Manual only' }[settings.reindex_interval] }}</span>
+              <span class="custom-select-arrow">&#9660;</span>
+            </button>
+            <div class="custom-select-dropdown" v-if="openDropdown === 'interval'">
+              <div
+                v-for="opt in [{ value: 5, label: '5 min' }, { value: 15, label: '15 min' }, { value: 30, label: '30 min' }, { value: 60, label: '60 min' }, { value: 0, label: 'Manual only' }]"
+                :key="opt.value"
+                class="custom-select-option"
+                :class="{ selected: settings.reindex_interval === opt.value }"
+                @click.stop="onIntervalChange(opt.value); closeAllDropdowns()"
+              >{{ opt.label }}</div>
+            </div>
+          </div>
         </Row>
         <Row label="Re-index now">
           <button type="button" @click="onReindexNow">{{ reindexButtonText }}</button>
@@ -225,11 +257,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 
       <Section title="Appearance">
         <Row label="Theme">
-          <select v-model="settings.theme" @change="onThemeChange">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <div class="custom-select" :class="{ open: openDropdown === 'theme' }">
+            <button
+              type="button"
+              class="custom-select-trigger"
+              @click.stop="toggleDropdown('theme')"
+            >
+              <span>{{ { system: 'System', light: 'Light', dark: 'Dark' }[settings.theme] }}</span>
+              <span class="custom-select-arrow">&#9660;</span>
+            </button>
+            <div class="custom-select-dropdown" v-if="openDropdown === 'theme'">
+              <div
+                v-for="opt in [{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]"
+                :key="opt.value"
+                class="custom-select-option"
+                :class="{ selected: settings.theme === opt.value }"
+                @click.stop="settings.theme = opt.value; onThemeChange(); closeAllDropdowns()"
+              >{{ opt.label }}</div>
+            </div>
+          </div>
         </Row>
 
         <Row label="Show path">
@@ -309,11 +355,6 @@ button:focus {
   border-color: var(--color-accent);
 }
 
-option:checked {
-  background: var(--color-accent);
-  color: #ffffff;
-}
-
 input[type='range'] {
   accent-color: var(--color-accent);
 }
@@ -363,6 +404,69 @@ input[type='range'] {
 
 .reset-link:hover {
   opacity: 0.7;
+}
+
+/* Custom dropdown */
+.custom-select {
+  position: relative;
+  display: inline-block;
+  min-width: 120px;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  width: 100%;
+  /* inherits button base styles from existing select, button rule */
+}
+
+.custom-select-arrow {
+  font-size: 10px;
+  opacity: 0.6;
+  pointer-events: none;
+  transition: transform var(--duration-fast);
+}
+
+.custom-select.open .custom-select-arrow {
+  transform: rotate(180deg);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background: var(--color-bg-darker);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.custom-select-option {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  color: var(--color-text);
+  transition: background var(--duration-fast);
+}
+
+.custom-select-option:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.custom-select-option.selected {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.custom-select-option.selected:hover {
+  background: var(--color-accent);
+  color: #ffffff;
 }
 </style>
 
