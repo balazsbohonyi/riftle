@@ -147,7 +147,7 @@ async function onShowPathChange(v: boolean) {
 }
 
 async function closeWindow() {
-  await getCurrentWindow().close()
+  await getCurrentWindow().hide()
 }
 </script>
 
@@ -179,18 +179,16 @@ async function closeWindow() {
       </Section>
 
       <Section title="Search">
-        <Row label="Additional paths">
-          <PathList
-            v-model="settings.additional_paths"
-            @change="onPathsChange('additional_paths', $event)"
-          />
-        </Row>
-        <Row label="Excluded paths">
-          <PathList
-            v-model="settings.excluded_paths"
-            @change="onPathsChange('excluded_paths', $event)"
-          />
-        </Row>
+        <PathList
+          label="Additional paths"
+          v-model="settings.additional_paths"
+          @change="onPathsChange('additional_paths', $event)"
+        />
+        <PathList
+          label="Excluded paths"
+          v-model="settings.excluded_paths"
+          @change="onPathsChange('excluded_paths', $event)"
+        />
         <Row label="Re-index interval">
           <select :value="settings.reindex_interval" @change="onIntervalChange">
             <option value="5">5 min</option>
