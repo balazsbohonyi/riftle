@@ -9,6 +9,7 @@ import Toggle from './components/ui/Toggle.vue'
 import KeyCapture from './components/ui/KeyCapture.vue'
 import PathList from './components/ui/PathList.vue'
 import Dropdown from './components/Dropdown.vue'
+import Button from './components/ui/Button.vue'
 
 interface SettingsData {
   hotkey: string
@@ -219,7 +220,7 @@ onUnmounted(() => {
           />
         </Row>
         <Row label="Re-index now">
-          <button type="button" @click="onReindexNow">{{ reindexButtonText }}</button>
+          <Button variant="accent" @click="onReindexNow">{{ reindexButtonText }}</Button>
         </Row>
       </Section>
 
@@ -289,24 +290,6 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-lg);
-}
-
-select,
-button {
-  background: var(--color-bg-darker);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: var(--radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
-
-select:focus,
-button:focus {
-  outline: none;
-  border-color: var(--color-accent);
 }
 
 input[type='range'] {

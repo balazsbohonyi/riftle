@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import Button from './Button.vue'
 const props = defineProps<{ modelValue: string[]; label?: string }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: string[]): void
@@ -29,7 +30,7 @@ function removePath(index: number) {
   <div class="path-list">
     <div class="path-list-header">
       <span class="path-list-label">{{ label }}</span>
-      <button class="add-btn" @click="addPath" type="button">+ Add folder</button>
+      <Button variant="default" @click="addPath">+ Add folder</Button>
     </div>
     <div v-for="(p, i) in modelValue" :key="p" class="path-row">
       <span class="path-text" :title="p">{{ p }}</span>
@@ -89,15 +90,4 @@ function removePath(index: number) {
   transition: color var(--duration-fast);
 }
 .remove-btn:hover { color: var(--color-text); }
-.add-btn {
-  background: none;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  transition: border-color var(--duration-fast), color var(--duration-fast);
-}
-.add-btn:hover { border-color: var(--color-accent); color: var(--color-text); }
 </style>
