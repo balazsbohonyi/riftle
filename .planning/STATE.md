@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-08T00:08:45.563Z"
+last_updated: "2026-03-08T17:36:30.466Z"
 last_activity: "2026-03-08 - Completed plan 07-02: Human verified context menu (MENU-01/02/03) — Phase 7 complete"
 progress:
   total_phases: 10
   completed_phases: 6
-  total_plans: 22
-  completed_plans: 21
+  total_plans: 26
+  completed_plans: 22
 ---
 
 ---
@@ -212,6 +212,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 07-context-menu]: @mousedown.prevent on menu items prevents focus-loss auto-hide race (not @click)
 - [Phase 07-context-menu]: Menu state reset in both hideWindow() and launcher-show listener — menu never reappears with launcher on next summon
 - [Phase 07-context-menu]: position: fixed on .context-menu prevents OS window clipping; height: auto on .launcher-app prevents stretch; @contextmenu.prevent on result rows suppresses native menu
+- [Phase 08-settings-window]: settings-main.ts created as minimal stub — full settings Vue component is Plan 03's responsibility; stub needed for Vite multi-page build to resolve entry point
+- [Phase 08-settings-window]: tauri-plugin-dialog added with caret range '2' consistent with tauri-plugin-opener pattern
+- [Phase 08-settings-window]: open_settings_window placed inline in lib.rs — single-function commands don't warrant a new module file
 
 ## Performance Metrics
 
@@ -237,6 +240,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 06-launch-actions P01 | 45min | 3 tasks | 4 files |
 | Phase 07-context-menu P01 | 2min | 2 tasks | 3 files |
 | Phase 07-context-menu P02 | 5min | 1 tasks | 1 files |
+| Phase 08-settings-window P01 | 3min | 2 tasks | 9 files |
 
 ## Session Log
 

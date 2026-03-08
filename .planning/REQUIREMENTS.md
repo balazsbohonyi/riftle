@@ -71,8 +71,8 @@
 
 ### Settings Window
 
-- [ ] **SETT-01**: Separate Tauri window (label: settings), normal framed, min size 600×400px
-- [ ] **SETT-02**: Single-instance: open_settings_window() focuses existing window if already open
+- [x] **SETT-01**: Separate Tauri window (label: settings), normal framed, min size 600×400px
+- [x] **SETT-02**: Single-instance: open_settings_window() focuses existing window if already open
 - [ ] **SETT-03**: Accessible via context menu → Settings and Ctrl+, when launcher focused
 - [ ] **SETT-04**: General section: launch at startup toggle (disabled/hidden in portable mode)
 - [ ] **SETT-05**: Hotkey section: key-capture input to rebind; takes effect immediately
@@ -167,8 +167,8 @@
 | MENU-01 | Phase 7 | Complete |
 | MENU-02 | Phase 7 | Complete |
 | MENU-03 | Phase 7 | Complete |
-| SETT-01 | Phase 8 | Pending |
-| SETT-02 | Phase 8 | Pending |
+| SETT-01 | Phase 8 | Complete |
+| SETT-02 | Phase 8 | Complete |
 | SETT-03 | Phase 8 | Pending |
 | SETT-04 | Phase 8 | Pending |
 | SETT-05 | Phase 8 | Pending |
