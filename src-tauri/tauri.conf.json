@@ -33,8 +33,9 @@
         "height": 600,
         "minWidth": 600,
         "minHeight": 400,
-        "decorations": true,
-        "visible": false
+        "decorations": false,
+        "visible": false,
+        "url": "settings.html"
       }
     ],
     "security": {

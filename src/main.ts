@@ -1,3 +1,4 @@
+import './styles/tokens.css';
 import { createApp } from "vue";
 import App from "./App.vue";
 import '@fontsource/inter/400.css';
