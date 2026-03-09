@@ -60,7 +60,12 @@ Copy the release exe alongside a `launcher.portable` marker file. All settings a
 
 ```
 src/
-└── App.vue                — entire launcher UI (search input, result list, keyboard nav)
+├── App.vue                — launcher UI (search input, result list, keyboard nav, context menu)
+├── Settings.vue           — settings window (General, Hotkey, Search, Appearance)
+├── main.ts                — launcher app mount
+├── settings-main.ts       — settings app mount (multi-page build)
+├── components/ui/         — settings UI primitives (Toggle, KeyCapture, PathList, …)
+└── styles/tokens.css      — CSS design tokens
 
 src-tauri/src/
 ├── lib.rs                 — app entry point, startup sequence, plugin registration
@@ -69,8 +74,8 @@ src-tauri/src/
 ├── store.rs               — settings persistence (portable-aware)
 ├── indexer.rs             — Windows path crawl + user-defined paths + background re-index
 ├── search.rs              — Nucleo fuzzy/prefix/acronym search with MRU ranking
-├── hotkey.rs              — global shortcut registration
-├── commands.rs            — Tauri #[command] IPC handlers (launch, launch_elevated)
+├── hotkey.rs              — global shortcut registration + update_hotkey command
+├── commands.rs            — Tauri #[command] IPC handlers (launch, launch_elevated, quit_app)
 └── system_commands.rs     — lock / shutdown / restart / sleep
 ```
 
