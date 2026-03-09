@@ -12,6 +12,7 @@
     "core:window:allow-close",
     "core:window:allow-set-focus",
     "core:window:allow-center",
+    "core:tray:allow-new",
     "opener:default",
     "store:default",
     "global-shortcut:default",
