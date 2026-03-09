@@ -224,15 +224,15 @@ Plans:
 
 | # | Phase | Requirements | Status |
 |---|-------|--------------|--------|
-| 1 | 2/2 | Complete   | 2026-03-05 |
-| 2 | 3/3 | Complete   | 2026-03-06 |
-| 3 | 5/5 | Complete    | 2026-03-06 |
-| 4 | 3/3 | Complete   | 2026-03-06 |
-| 5 | 4/5 | In Progress|  |
-| 6 | 1/1 | Complete   | 2026-03-07 |
-| 7 | 1/2 | In Progress|  |
-| 8 | 4/4 | Complete   | 2026-03-08 |
-| 9 | Global Hotkey | HKEY-01–03 | Pending |
+| 1 | Project Scaffold & Configuration | SCAF-02–04 | Complete |
+| 2 | Data Layer | DATA-01–07 | Complete |
+| 3 | Indexer | INDX-01–08 | Complete |
+| 4 | Search Engine | SRCH-01–05 | Complete |
+| 5 | Launcher Window UI | LWND-01–12 | Complete |
+| 6 | Launch Actions | LAUN-01–04 | Complete |
+| 7 | Context Menu | MENU-01–03 | Complete |
+| 8 | Settings Window | SETT-01–07 | Complete |
+| 9 | Global Hotkey | HKEY-01–03 | Complete |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **10 phases** | **51 requirements** | All v1 requirements covered ✓
