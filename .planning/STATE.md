@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-10T20:28:50.199Z"
+last_updated: "2026-03-10T20:32:54.045Z"
 last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
 progress:
   total_phases: 13
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 32
-  completed_plans: 28
+  completed_plans: 29
   percent: 84
 ---
 
@@ -274,6 +274,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.2-01]: Wave 0 TDD: 6 contract tests added before any production code changes; timer and live-settings tests pass immediately via inline logic; they lock in contracts and catch regressions in Plans 02-04
 - [Phase 09.2-02]: lib.rs app.manage(Arc::new(Mutex::new(timer_tx))) infers Arc<Mutex<mpsc::Sender<TimerMsg>>> from start_background_tasks return type — no explicit annotation required
 - [Phase 09.2-02]: TimerMsg::Reset re-arms deadline only when interval_mins > 0 — Reset while timer is disabled is a no-op, preventing accidental enable
+- [Phase 09.2-03]: use tauri::Manager imported locally inside set_settings_cmd body to access try_state without widening store.rs import footprint
+- [Phase 09.2-03]: try_state used instead of State parameter in set_settings_cmd — safe in non-desktop builds where timer may not be managed
 
 ## Performance Metrics
 
@@ -307,6 +309,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.1-system-tray P01 | 12min | 3 tasks | 3 files |
 | Phase 09.2-settings-indexer-contract-reliability P01 | 3 | 2 tasks | 2 files |
 | Phase 09.2-settings-indexer-contract-reliability P02 | 2 | 2 tasks | 1 files |
+| Phase 09.2-settings-indexer-contract-reliability P03 | 5min | 2 tasks | 1 files |
 
 ## Session Log
 

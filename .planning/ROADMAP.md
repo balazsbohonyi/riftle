@@ -240,7 +240,7 @@ Plans:
 **Goal:** Fix four concrete bugs in the Rust backend: reindex command uses live settings instead of Settings::default(), background timer interval updates when settings are saved, interval_mins=0 disables timer-triggered indexing, and get_settings_cmd includes system_tool_allowlist in its JSON round-trip. Automated tests required.
 **Requirements**: SIC-01, SIC-02, SIC-03, SIC-04, SIC-05
 **Depends on:** Phase 9, Phase 09.1
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 09.2-01-PLAN.md — Wave 0: Write all 6 failing test stubs in indexer.rs (4) and store.rs (2) — TDD RED state
@@ -285,7 +285,7 @@ Plans:
 | 8 | Settings Window | SETT-01–07 | Complete |
 | 9 | Global Hotkey | HKEY-01–03 | Complete |
 | 09.1 | System Tray | PHASE-09.1 | Complete |
-| 09.2 | 2/3 | In Progress|  |
+| 09.2 | 3/3 | Complete   | 2026-03-10 |
 | 09.3 | Asset Protocol Security Hardening | APSH-01–03 | Pending |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
