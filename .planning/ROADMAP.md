@@ -205,9 +205,9 @@ Plans:
 
 ---
 
-### Phase 09.1: We need to show the app in the system tray. Use the app's default icon for the tray icon. On right click on the tray icon, a context menu is shown with the same options as the launcher context menu. The context menu should be a normal OS context menu. (INSERTED)
+### Phase 09.1: System Tray Icon with context menu
 
-**Goal:** [Urgent work - to be planned]
+**Goal:** Add a system tray icon with a context menu that allows opening the settings window and quitting the app.
 **Requirements**: TBD
 **Depends on:** Phase 9
 **Plans:** 1/1 plans complete
