@@ -4,10 +4,26 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
+last_updated: "2026-03-10T20:24:03.060Z"
+last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
+progress:
+  total_phases: 13
+  completed_phases: 8
+  total_plans: 32
+  completed_plans: 27
+  percent: 84
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
 last_updated: "2026-03-10T00:15:38.108Z"
 last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
 progress:
-  total_phases: 11
+  [████████░░] 84%
   completed_phases: 8
   total_plans: 27
   completed_plans: 26
@@ -254,6 +270,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: Background gradient uses solid CSS color tokens (not rgba); opacity: 0→1 on the container is the only opacity transition — text and icons are always at full opacity
 - [Phase 09.1-system-tray]: Use explicit post-double-click suppression window to prevent click-up toggle side effects.
 - [Phase 09.1-system-tray]: Preserve single-click toggle while enforcing double-click show/focus-only behavior.
+- [Phase 09.2-01]: test_get_settings_cmd_json_includes_allowlist_field constructs the correct json!() shape rather than calling the Tauri command directly — documents what production code must emit without requiring AppHandle
+- [Phase 09.2-01]: Wave 0 TDD: 6 contract tests added before any production code changes; timer and live-settings tests pass immediately via inline logic; they lock in contracts and catch regressions in Plans 02-04
 
 ## Performance Metrics
 
@@ -285,6 +303,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 08-settings-window P04 | 3min | 1 tasks | 1 files |
 | Phase 08-settings-window P04 | 18min | 2 tasks | 3 files |
 | Phase 09.1-system-tray P01 | 12min | 3 tasks | 3 files |
+| Phase 09.2-settings-indexer-contract-reliability P01 | 3 | 2 tasks | 2 files |
 
 ## Session Log
 
