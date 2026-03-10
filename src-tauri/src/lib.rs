@@ -170,6 +170,8 @@ pub fn run() {
 
                 let pending_left_click = Arc::new(Mutex::new(None::<Instant>));
                 let pending_left_click_for_handler = Arc::clone(&pending_left_click);
+                let suppress_left_click_until = Arc::new(Mutex::new(None::<Instant>));
+                let suppress_left_click_until_for_handler = Arc::clone(&suppress_left_click_until);
                 let app_handle = app.handle().clone();
                 let icon = app.default_window_icon().cloned();
 
@@ -197,12 +199,23 @@ pub fn run() {
                         .on_tray_icon_event(move |_tray, event| match event {
                             TrayIconEvent::DoubleClick { button, .. } if button == MouseButton::Left => {
                                 *pending_left_click_for_handler.lock().unwrap() = None;
+                                *suppress_left_click_until_for_handler.lock().unwrap() =
+                                    Some(Instant::now() + Duration::from_millis(350));
                                 show_launcher_window(&app_handle);
                             }
                             TrayIconEvent::Click { button, button_state, .. }
                                 if button == MouseButton::Left && button_state == MouseButtonState::Up =>
                             {
                                 let stamp = Instant::now();
+                                {
+                                    let mut suppress = suppress_left_click_until_for_handler.lock().unwrap();
+                                    if let Some(until) = *suppress {
+                                        if stamp <= until {
+                                            return;
+                                        }
+                                        *suppress = None;
+                                    }
+                                }
                                 *pending_left_click_for_handler.lock().unwrap() = Some(stamp);
 
                                 let pending = Arc::clone(&pending_left_click_for_handler);
