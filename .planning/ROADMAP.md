@@ -215,6 +215,29 @@ Plans:
 Plans:
 - [x] TBD (run /gsd:plan-phase 09.1 to break down) (completed 2026-03-10)
 
+---
+
+### Phase 09.2: Settings + Indexer Contract Reliability (INSERTED)
+
+**Goal:** Fix four concrete bugs in the Rust backend: reindex command uses live settings instead of Settings::default(), background timer interval updates when settings are saved, interval_mins=0 disables timer-triggered indexing, and get_settings_cmd includes system_tool_allowlist in its JSON round-trip. Automated tests required.
+**Requirements**: SIC-01, SIC-02, SIC-03, SIC-04, SIC-05
+**Depends on:** Phase 9, Phase 09.1
+**Plans:** 3 plans
+
+Plans:
+- [ ] 09.2-01-PLAN.md — Wave 0: Write all 6 failing test stubs in indexer.rs (4) and store.rs (2) — TDD RED state
+- [ ] 09.2-02-PLAN.md — Fix indexer.rs: add TimerMsg enum, rewrite timer loop with Option<Instant> deadline, fix reindex() to call get_settings()
+- [ ] 09.2-03-PLAN.md — Fix store.rs: add system_tool_allowlist to get_settings_cmd JSON, wire set_settings_cmd to send TimerMsg::SetInterval
+
+**Success Criteria:**
+1. Manual Re-index button respects additional_paths and excluded_paths from current settings
+2. Setting reindex_interval to 0 stops background auto-indexing (no continuous loop)
+3. Changing reindex_interval in Settings takes effect without restarting the app
+4. Settings round-trip through the frontend preserves system_tool_allowlist
+5. All 6 new automated tests GREEN, all pre-existing tests remain GREEN
+
+---
+
 ## Phase 10: Packaging & Distribution
 
 **Goal:** Configure tauri build to produce NSIS and MSI installers. Document and verify the portable build. Confirm installers work on a clean Windows machine.
@@ -243,6 +266,8 @@ Plans:
 | 7 | Context Menu | MENU-01–03 | Complete |
 | 8 | Settings Window | SETT-01–07 | Complete |
 | 9 | Global Hotkey | HKEY-01–03 | Complete |
+| 09.1 | System Tray | PHASE-09.1 | Complete |
+| 09.2 | Settings + Indexer Contract Reliability | SIC-01–05 | Pending |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
-**10 phases** | **51 requirements** | All v1 requirements covered ✓
+**12 phases** | **56 requirements** | All v1 requirements covered
