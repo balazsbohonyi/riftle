@@ -145,6 +145,8 @@ progress:
 ### Roadmap Evolution
 
 - Phase 09.1 inserted after Phase 9: We need to show the app in the system tray. Use the app's default icon for the tray icon. On right click on the tray icon, a context menu is shown with the same options as the launcher context menu. The context menu should be a normal OS context menu. (URGENT)
+- Phase 09.2 inserted after Phase 9: Settings + Indexer Contract Reliability — fix reindex using Settings::default() instead of live settings, timer interval not updating after settings save, interval_mins=0 causing continuous indexing, and system_tool_allowlist missing from get_settings_cmd round-trip. Automated tests required. (URGENT)
+- Phase 09.3 inserted after Phase 9: Asset Protocol Security Hardening — constrain assetProtocol.scope from ["**"] to app-owned data roots (icons dir), add server-side icon filename validation. Automated tests required. (URGENT)
 
 ## Project Reference
 
