@@ -11,6 +11,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 /// Tracks whether the settings window has been centered this session.
 /// First open: center then show. Subsequent opens: show at current position.
 struct SettingsCentered(AtomicBool);
+struct SettingsCloseBehavior(AtomicBool);
 
 fn show_launcher_window(app: &tauri::AppHandle) {
     let Some(win) = app.get_webview_window("launcher") else {
@@ -49,6 +50,11 @@ fn show_settings_window(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn set_restore_launcher_on_settings_close(app: &tauri::AppHandle, restore: bool) {
+    let state = app.state::<SettingsCloseBehavior>();
+    state.0.store(restore, Ordering::Relaxed);
+}
+
 mod db;           // Phase 2: SQLite database layer
 mod store;        // Phase 2: Settings persistence via tauri-plugin-store
 mod paths;        // Phase 2: Portable-aware data directory resolution
@@ -62,7 +68,14 @@ mod system_commands; // Phase 6: System commands (lock, shutdown, restart, sleep
 fn open_settings_window(
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    set_restore_launcher_on_settings_close(&app, true);
     show_settings_window(&app)
+}
+
+#[tauri::command]
+fn consume_restore_launcher_on_settings_close(app: tauri::AppHandle) -> bool {
+    let state = app.state::<SettingsCloseBehavior>();
+    state.0.swap(true, Ordering::Relaxed)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -146,6 +159,7 @@ pub fn run() {
 
             // Settings window: centered on first open, position remembered within session
             app.manage(SettingsCentered(AtomicBool::new(false)));
+            app.manage(SettingsCloseBehavior(AtomicBool::new(true)));
 
             // Phase 09.1: Native system tray icon + native context menu.
             #[cfg(desktop)]
@@ -168,6 +182,11 @@ pub fn run() {
                         .on_menu_event(move |app, event| {
                             let id = event.id.as_ref();
                             if id == "settings" {
+                                let launcher_visible = app
+                                    .get_webview_window("launcher")
+                                    .and_then(|win| win.is_visible().ok())
+                                    .unwrap_or(false);
+                                set_restore_launcher_on_settings_close(app, !launcher_visible);
                                 if let Err(e) = show_settings_window(app) {
                                     eprintln!("[tray] failed to open settings: {}", e);
                                 }
@@ -248,6 +267,7 @@ pub fn run() {
             crate::hotkey::update_hotkey,
             crate::commands::quit_app,   // Phase 7: context menu quit action
             open_settings_window,        // Phase 8: open settings window
+            consume_restore_launcher_on_settings_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
