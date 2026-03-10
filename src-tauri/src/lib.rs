@@ -186,7 +186,7 @@ pub fn run() {
                                     .get_webview_window("launcher")
                                     .and_then(|win| win.is_visible().ok())
                                     .unwrap_or(false);
-                                set_restore_launcher_on_settings_close(app, !launcher_visible);
+                                set_restore_launcher_on_settings_close(app, launcher_visible);
                                 if let Err(e) = show_settings_window(app) {
                                     eprintln!("[tray] failed to open settings: {}", e);
                                 }
