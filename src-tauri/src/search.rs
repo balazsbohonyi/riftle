@@ -97,10 +97,17 @@ pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
                         result: SearchResult {
                             id: app.id.clone(),
                             name: app.name.clone(),
-                            icon_path: app
-                                .icon_path
-                                .clone()
-                                .unwrap_or_else(|| "generic.png".to_string()),
+                            icon_path: {
+                                let raw = app
+                                    .icon_path
+                                    .clone()
+                                    .unwrap_or_else(|| "generic.png".to_string());
+                                if validate_icon_filename(&raw) {
+                                    raw
+                                } else {
+                                    "generic.png".to_string()
+                                }
+                            },
                             path: app.path.clone(),
                             kind: "app".to_string(),
                             requires_elevation: false,
@@ -167,6 +174,18 @@ pub fn search(query: String, index_state: tauri::State<SearchIndexState>) -> Vec
     }
     let index = index_state.0.read().unwrap_or_else(|e| e.into_inner());
     score_and_rank(&query, &index.apps)
+}
+
+
+pub fn validate_icon_filename(filename: &str) -> bool {
+    if filename == "generic.png" || filename == "system_command.png" {
+        return true;
+    }
+    if filename.len() != 20 {
+        return false;
+    }
+    let (hex_part, ext) = filename.split_at(16);
+    ext == ".png" && hex_part.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
 }
 
 #[cfg(test)]
@@ -368,4 +387,53 @@ mod tests {
         // Second call should be idempotent
         ensure_system_command_icon(&tmp).expect("Second call should also succeed");
     }
+
+    #[test]
+    fn test_validate_icon_rejects_path_traversal() {
+        assert!(!validate_icon_filename("../etc/passwd.png"));
+        assert!(!validate_icon_filename("../../etc/passwd"));
+        assert!(!validate_icon_filename("..\\system32\\evil.exe"));
+    }
+
+    #[test]
+    fn test_validate_icon_rejects_absolute_path() {
+        assert!(!validate_icon_filename("/etc/passwd"));
+        assert!(!validate_icon_filename("C:\\Windows\\System32\\cmd.exe"));
+    }
+
+    #[test]
+    fn test_validate_icon_rejects_wrong_extension() {
+        assert!(!validate_icon_filename("abc1234567890defg.exe"));
+        assert!(!validate_icon_filename("abc1234567890defg.jpg"));
+        assert!(!validate_icon_filename("abc1234567890defg"));
+    }
+
+    #[test]
+    fn test_validate_icon_rejects_uppercase_hex() {
+        assert!(!validate_icon_filename("ABC1234567890DEF0.png"));
+    }
+
+    #[test]
+    fn test_validate_icon_rejects_wrong_length() {
+        assert!(!validate_icon_filename("abc.png"));
+        assert!(!validate_icon_filename("abc1234567890defghij.png"));
+    }
+
+    #[test]
+    fn test_validate_icon_accepts_valid_hex() {
+        assert!(validate_icon_filename("0123456789abcdef.png"));
+        assert!(validate_icon_filename("0000000000000000.png"));
+        assert!(validate_icon_filename("ffffffffffffffff.png"));
+    }
+
+    #[test]
+    fn test_validate_icon_accepts_generic() {
+        assert!(validate_icon_filename("generic.png"));
+    }
+
+    #[test]
+    fn test_validate_icon_accepts_system_command() {
+        assert!(validate_icon_filename("system_command.png"));
+    }
 }
+
