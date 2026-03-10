@@ -150,6 +150,7 @@ pub fn get_settings_cmd(
         "excluded_paths": settings.excluded_paths,
         "reindex_interval": settings.reindex_interval,
         "animation": settings.animation,
+        "system_tool_allowlist": settings.system_tool_allowlist,
         "data_dir": data_dir.to_string_lossy(),
         "is_portable": is_portable,
     })
@@ -162,6 +163,17 @@ pub fn set_settings_cmd(
     settings: Settings,
 ) -> Result<(), String> {
     set_settings(&app, &data_dir, &settings);
+    // Notify the background timer thread of the new interval.
+    // Uses try_state (not State parameter) so this command is safe in all build targets,
+    // even if the timer was not started (e.g. mobile builds or tests).
+    // Pattern matches existing app.try_state usage in search.rs.
+    use std::sync::{Arc, Mutex};
+    use tauri::Manager;
+    if let Some(timer_state) = app.try_state::<Arc<Mutex<std::sync::mpsc::Sender<crate::indexer::TimerMsg>>>>() {
+        if let Ok(tx) = timer_state.lock() {
+            let _ = tx.send(crate::indexer::TimerMsg::SetInterval(settings.reindex_interval));
+        }
+    }
     Ok(())
 }
 
