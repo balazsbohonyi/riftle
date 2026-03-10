@@ -4,10 +4,26 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
+last_updated: "2026-03-10T00:15:38.108Z"
+last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
+progress:
+  total_phases: 11
+  completed_phases: 8
+  total_plans: 27
+  completed_plans: 26
+  percent: 96
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: Not started
+status: planning
 last_updated: "2026-03-09T00:00:00.000Z"
 last_activity: "2026-03-09 - Corrected GSD tracking: Phases 1-9 all complete; Phase 9 (Global Hotkey) was implemented before Phase 7 but tracking artifacts were missing"
 progress:
-  total_phases: 10
+  [██████████] 96%
   completed_phases: 9
   total_plans: 26
   completed_plans: 26
@@ -124,6 +140,12 @@ progress:
 
 # Project State
 
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 09.1 inserted after Phase 9: We need to show the app in the system tray. Use the app's default icon for the tray icon. On right click on the tray icon, a context menu is shown with the same options as the launcher context menu. The context menu should be a normal OS context menu. (URGENT)
+
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-05)
@@ -228,6 +250,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: hotkey::register() returns actually-registered hotkey and falls back to Alt+Space when OS rejects requested key (e.g. Ctrl+Space blocked by Windows IME); fallback persisted to settings.json to avoid retry on next startup
 - [Phase 08-settings-window]: launcher-show is the unified show-and-focus signal — Settings.vue closeWindow() emits launcher-show before hiding; App.vue launcher-show handler calls show() + setFocus() handling both hotkey-path (Rust) and settings-close-path (Vue)
 - [Phase 08-settings-window]: Background gradient uses solid CSS color tokens (not rgba); opacity: 0→1 on the container is the only opacity transition — text and icons are always at full opacity
+- [Phase 09.1-we-need-to-show-the-app-in-the-system-tray-use-the-app-s-default-icon-for-the-tray-icon-on-right-click-on-the-tray-icon-a-context-menu-is-shown-with-the-same-options-as-the-launcher-context-menu-the-context-menu-should-be-a-normal-os-context-menu]: Use explicit post-double-click suppression window to prevent click-up toggle side effects.
+- [Phase 09.1-we-need-to-show-the-app-in-the-system-tray-use-the-app-s-default-icon-for-the-tray-icon-on-right-click-on-the-tray-icon-a-context-menu-is-shown-with-the-same-options-as-the-launcher-context-menu-the-context-menu-should-be-a-normal-os-context-menu]: Preserve single-click toggle while enforcing double-click show/focus-only behavior.
 
 ## Performance Metrics
 
@@ -258,6 +282,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 08-settings-window P03 | 2min | 2 tasks | 2 files |
 | Phase 08-settings-window P04 | 3min | 1 tasks | 1 files |
 | Phase 08-settings-window P04 | 18min | 2 tasks | 3 files |
+| Phase 09.1-we-need-to-show-the-app-in-the-system-tray-use-the-app-s-default-icon-for-the-tray-icon-on-right-click-on-the-tray-icon-a-context-menu-is-shown-with-the-same-options-as-the-launcher-context-menu-the-context-menu-should-be-a-normal-os-context-menu P01 | 12min | 3 tasks | 3 files |
 
 ## Session Log
 

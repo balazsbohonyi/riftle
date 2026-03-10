@@ -205,6 +205,16 @@ Plans:
 
 ---
 
+### Phase 09.1: We need to show the app in the system tray. Use the app's default icon for the tray icon. On right click on the tray icon, a context menu is shown with the same options as the launcher context menu. The context menu should be a normal OS context menu. (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] TBD (run /gsd:plan-phase 09.1 to break down) (completed 2026-03-10)
+
 ## Phase 10: Packaging & Distribution
 
 **Goal:** Configure tauri build to produce NSIS and MSI installers. Document and verify the portable build. Confirm installers work on a clean Windows machine.
