@@ -205,6 +205,16 @@ Plans:
 
 ---
 
+### Phase 09.1: System Tray Icon with context menu
+
+**Goal:** Add a system tray icon with a context menu that allows opening the settings window and quitting the app.
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] TBD (run /gsd:plan-phase 09.1 to break down) (completed 2026-03-10)
+
 ## Phase 10: Packaging & Distribution
 
 **Goal:** Configure tauri build to produce NSIS and MSI installers. Document and verify the portable build. Confirm installers work on a clean Windows machine.

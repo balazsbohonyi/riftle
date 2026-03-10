@@ -85,6 +85,10 @@
 - [x] **HKEY-02**: Hotkey toggles launcher visibility; on show: bring to front, clear input, focus
 - [x] **HKEY-03**: Hotkey change in Settings: deregister old, register new immediately
 
+### System Tray
+
+- [x] **PHASE-09.1**: App provides a native system tray icon with default app icon, native OS context menu (Settings, Quit Launcher), single-click toggle behavior, and double-click show/focus behavior
+
 ### Packaging
 
 - [ ] **PACK-01**: pnpm tauri build produces NSIS (.exe) and MSI (.msi) installers
@@ -177,6 +181,7 @@
 | HKEY-01 | Phase 9 | Complete |
 | HKEY-02 | Phase 9 | Complete |
 | HKEY-03 | Phase 9 | Complete |
+| PHASE-09.1 | Phase 9.1 | Complete |
 | PACK-01 | Phase 10 | Pending |
 | PACK-02 | Phase 10 | Pending |
 | PACK-03 | Phase 10 | Pending |
@@ -184,10 +189,10 @@
 | PACK-05 | Phase 10 | Pending |
 
 **Coverage:**
-- v1 requirements: 52 total
-- Mapped to phases: 52
+- v1 requirements: 53 total
+- Mapped to phases: 53
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after initial definition*
+*Last updated: 2026-03-10 after adding Phase 9.1 system tray requirement traceability*

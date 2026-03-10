@@ -153,7 +153,15 @@ async function onShowPathChange(v: boolean) {
 }
 
 async function closeWindow() {
-  await emitTo('launcher', 'launcher-show').catch(console.error)
+  let shouldRestoreLauncher = true
+  if (isTauriContext.value) {
+    shouldRestoreLauncher = await invoke<boolean>('consume_restore_launcher_on_settings_close')
+      .catch(() => true)
+  }
+
+  if (shouldRestoreLauncher) {
+    await emitTo('launcher', 'launcher-show').catch(console.error)
+  }
   await getCurrentWindow().hide()
 }
 

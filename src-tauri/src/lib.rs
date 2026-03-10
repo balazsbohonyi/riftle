@@ -3,11 +3,57 @@
 
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::Manager;
+use std::time::{Duration, Instant};
+use tauri::{Emitter, Manager};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 /// Tracks whether the settings window has been centered this session.
 /// First open: center then show. Subsequent opens: show at current position.
 struct SettingsCentered(AtomicBool);
+struct SettingsCloseBehavior(AtomicBool);
+
+fn show_launcher_window(app: &tauri::AppHandle) {
+    let Some(win) = app.get_webview_window("launcher") else {
+        eprintln!("[tray] launcher window not found");
+        return;
+    };
+
+    let _ = win.show();
+    let _ = win.set_focus();
+    let _ = win.emit("launcher-show", ());
+}
+
+fn toggle_launcher_window(app: &tauri::AppHandle) {
+    let Some(win) = app.get_webview_window("launcher") else {
+        eprintln!("[tray] launcher window not found");
+        return;
+    };
+
+    if win.is_visible().unwrap_or(false) {
+        let _ = win.hide();
+    } else {
+        show_launcher_window(app);
+    }
+}
+
+fn show_settings_window(app: &tauri::AppHandle) -> Result<(), String> {
+    let centered = app.state::<SettingsCentered>();
+    let win = app
+        .get_webview_window("settings")
+        .ok_or_else(|| "settings window not found".to_string())?;
+    if !centered.0.swap(true, Ordering::Relaxed) {
+        win.center().map_err(|e| e.to_string())?;
+    }
+    win.show().map_err(|e| e.to_string())?;
+    win.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn set_restore_launcher_on_settings_close(app: &tauri::AppHandle, restore: bool) {
+    let state = app.state::<SettingsCloseBehavior>();
+    state.0.store(restore, Ordering::Relaxed);
+}
 
 mod db;           // Phase 2: SQLite database layer
 mod store;        // Phase 2: Settings persistence via tauri-plugin-store
@@ -21,16 +67,15 @@ mod system_commands; // Phase 6: System commands (lock, shutdown, restart, sleep
 #[tauri::command]
 fn open_settings_window(
     app: tauri::AppHandle,
-    centered: tauri::State<SettingsCentered>,
 ) -> Result<(), String> {
-    let win = app.get_webview_window("settings")
-        .ok_or_else(|| "settings window not found".to_string())?;
-    if !centered.0.swap(true, Ordering::Relaxed) {
-        win.center().map_err(|e| e.to_string())?;
-    }
-    win.show().map_err(|e| e.to_string())?;
-    win.set_focus().map_err(|e| e.to_string())?;
-    Ok(())
+    set_restore_launcher_on_settings_close(&app, true);
+    show_settings_window(&app)
+}
+
+#[tauri::command]
+fn consume_restore_launcher_on_settings_close(app: tauri::AppHandle) -> bool {
+    let state = app.state::<SettingsCloseBehavior>();
+    state.0.swap(true, Ordering::Relaxed)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -114,6 +159,87 @@ pub fn run() {
 
             // Settings window: centered on first open, position remembered within session
             app.manage(SettingsCentered(AtomicBool::new(false)));
+            app.manage(SettingsCloseBehavior(AtomicBool::new(true)));
+
+            // Phase 09.1: Native system tray icon + native context menu.
+            #[cfg(desktop)]
+            {
+                let settings_item = MenuItem::with_id(app, "settings", "Settings", true, Option::<&str>::None)?;
+                let quit_item = MenuItem::with_id(app, "quit", "Quit Launcher", true, Option::<&str>::None)?;
+                let tray_menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
+
+                let pending_left_click = Arc::new(Mutex::new(None::<Instant>));
+                let pending_left_click_for_handler = Arc::clone(&pending_left_click);
+                let suppress_left_click_until = Arc::new(Mutex::new(None::<Instant>));
+                let suppress_left_click_until_for_handler = Arc::clone(&suppress_left_click_until);
+                let app_handle = app.handle().clone();
+                let icon = app.default_window_icon().cloned();
+
+                if let Some(icon) = icon {
+                    if let Err(e) = TrayIconBuilder::with_id("main-tray")
+                        .icon(icon)
+                        .tooltip("Riftle Launcher")
+                        .menu(&tray_menu)
+                        .show_menu_on_left_click(false)
+                        .on_menu_event(move |app, event| {
+                            let id = event.id.as_ref();
+                            if id == "settings" {
+                                let launcher_visible = app
+                                    .get_webview_window("launcher")
+                                    .and_then(|win| win.is_visible().ok())
+                                    .unwrap_or(false);
+                                set_restore_launcher_on_settings_close(app, launcher_visible);
+                                if let Err(e) = show_settings_window(app) {
+                                    eprintln!("[tray] failed to open settings: {}", e);
+                                }
+                            } else if id == "quit" {
+                                crate::commands::quit_app(app.clone());
+                            }
+                        })
+                        .on_tray_icon_event(move |_tray, event| match event {
+                            TrayIconEvent::DoubleClick { button, .. } if button == MouseButton::Left => {
+                                *pending_left_click_for_handler.lock().unwrap() = None;
+                                *suppress_left_click_until_for_handler.lock().unwrap() =
+                                    Some(Instant::now() + Duration::from_millis(350));
+                                show_launcher_window(&app_handle);
+                            }
+                            TrayIconEvent::Click { button, button_state, .. }
+                                if button == MouseButton::Left && button_state == MouseButtonState::Up =>
+                            {
+                                let stamp = Instant::now();
+                                {
+                                    let mut suppress = suppress_left_click_until_for_handler.lock().unwrap();
+                                    if let Some(until) = *suppress {
+                                        if stamp <= until {
+                                            return;
+                                        }
+                                        *suppress = None;
+                                    }
+                                }
+                                *pending_left_click_for_handler.lock().unwrap() = Some(stamp);
+
+                                let pending = Arc::clone(&pending_left_click_for_handler);
+                                let app_for_toggle = app_handle.clone();
+                                std::thread::spawn(move || {
+                                    std::thread::sleep(Duration::from_millis(280));
+                                    let mut guard = pending.lock().unwrap();
+                                    if guard.map(|s| s == stamp).unwrap_or(false) {
+                                        *guard = None;
+                                        drop(guard);
+                                        toggle_launcher_window(&app_for_toggle);
+                                    }
+                                });
+                            }
+                            _ => {}
+                        })
+                        .build(app)
+                    {
+                        eprintln!("[tray] failed to create tray icon: {}", e);
+                    }
+                } else {
+                    eprintln!("[tray] failed to create tray icon: default window icon missing");
+                }
+            }
 
             // Make launcher window fully invisible to DWM: no border, no rounding, no shadow.
             // The window is a transparent canvas — CSS handles all visuals (border-radius, shadow).
@@ -154,6 +280,7 @@ pub fn run() {
             crate::hotkey::update_hotkey,
             crate::commands::quit_app,   // Phase 7: context menu quit action
             open_settings_window,        // Phase 8: open settings window
+            consume_restore_launcher_on_settings_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
