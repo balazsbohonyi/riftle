@@ -1,6 +1,7 @@
 // Phase 6: Launch commands — launch(id), launch_elevated(id) via ShellExecuteW
 
 use tauri::Manager;
+use std::time::Duration;
 
 #[tauri::command]
 pub fn launch(id: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -114,11 +115,25 @@ pub fn launch_elevated(id: String, app: tauri::AppHandle) -> Result<(), String> 
     Ok(())
 }
 
-/// Phase 7: Quit the launcher process cleanly via AppHandle::exit(0).
-/// No Result wrapper needed — exit(0) does not return.
+/// Phase 7: Quit the launcher process cleanly.
+/// Explicit cleanup helps WebView teardown finish before process exit.
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle) {
-    app.exit(0);
+    // Ask webviews to close first, then exit shortly after to reduce
+    // WebView2/Chromium teardown race noise on Windows shutdown.
+    for label in ["settings", "launcher"] {
+        if let Some(win) = app.get_webview_window(label) {
+            let _ = win.hide();
+            let _ = win.close();
+        }
+    }
+
+    let app_for_exit = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(120));
+        app_for_exit.cleanup_before_exit();
+        app_for_exit.exit(0);
+    });
 }
 
 /// Converts a Rust &str to a null-terminated wide string (Vec<u16>) for Win32 API calls.
