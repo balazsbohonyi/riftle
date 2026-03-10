@@ -210,11 +210,12 @@ Plans:
 **Goal:** Constrain assetProtocol.scope from ["**"] to the two app-owned icons directories and add server-side icon filename validation in Rust to prevent path traversal via the asset:// scheme.
 **Requirements**: APSH-01, APSH-02, APSH-03
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 09.3-01-PLAN.md — Wave 0: add validate_icon_filename() stub + 8 failing test stubs to search.rs (RED state)
-- [ ] 09.3-02-PLAN.md — Implement validate_icon_filename(), wire into score_and_rank(), constrain assetProtocol.scope in tauri.conf.json
+- [x] 09.3-01-PLAN.md — Wave 0: add validate_icon_filename() stub + 8 failing test stubs to search.rs (RED state) (completed 2026-03-10)
+- [x] 09.3-02-PLAN.md — Implement validate_icon_filename(), wire into score_and_rank(), constrain assetProtocol.scope in tauri.conf.json (completed 2026-03-10)
+- [x] 09.3-03-PLAN.md — Gap closure: replace brittle portable asset:// icon loading with validated Rust-served icon bytes plus frontend cache (completed 2026-03-11)
 
 **Success Criteria:**
 1. assetProtocol.scope is ["$DATA/riftle-launcher/icons/**", "$EXE/../data/icons/**"] — no longer ["**"]
@@ -286,7 +287,7 @@ Plans:
 | 9 | Global Hotkey | HKEY-01–03 | Complete |
 | 09.1 | System Tray | PHASE-09.1 | Complete |
 | 09.2 | 3/3 | Complete   | 2026-03-10 |
-| 09.3 | Asset Protocol Security Hardening | APSH-01–03 | Pending |
+| 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **13 phases** | **59 requirements** | All v1 requirements covered

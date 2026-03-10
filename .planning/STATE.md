@@ -2,158 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-10T20:35:10.025Z"
-last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
+current_plan: 09.3 verification pending
+status: human_verification_required
+last_updated: "2026-03-11T01:50:00.000Z"
+last_activity: "2026-03-11 - Completed Phase 09.3 gap-closure plan 03; awaiting installed/dev and portable icon smoke tests"
 progress:
   total_phases: 13
   completed_phases: 9
   total_plans: 32
-  completed_plans: 29
-  percent: 84
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-10T00:15:38.108Z"
-last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
-progress:
-  [████████░░] 84%
-  completed_phases: 8
-  total_plans: 27
-  completed_plans: 26
-  percent: 96
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-09T00:00:00.000Z"
-last_activity: "2026-03-09 - Corrected GSD tracking: Phases 1-9 all complete; Phase 9 (Global Hotkey) was implemented before Phase 7 but tracking artifacts were missing"
-progress:
-  [██████████] 96%
-  completed_phases: 9
-  total_plans: 26
-  completed_plans: 26
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-08T00:05:28.312Z"
-last_activity: "2026-03-07 - Completed quick task 2: Fix launcher search input focus on window show"
-progress:
-  total_phases: 10
-  completed_phases: 6
-  total_plans: 22
-  completed_plans: 21
-  percent: 91
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-07T16:39:55.109Z"
-last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
-progress:
-  [█████████░] 91%
-  completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
+  completed_plans: 32
   percent: 100
 ---
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-07T01:41:21.099Z"
-last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
-progress:
-  [██████████] 100%
-  completed_phases: 4
-  total_plans: 18
-  completed_plans: 18
-  percent: 94
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-06T20:59:32.344Z"
-last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
-progress:
-  [█████████░] 94%
-  completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
-  percent: 94
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-06T18:35:31.459Z"
-last_activity: "2026-03-06 - Completed quick task 1: Update Phase 1 & 2 GSD docs to conform to riftle-launcher path rename"
-progress:
-  [█████████░] 94%
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 14
-  percent: 92
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-06T09:39:39.225Z"
-progress:
-  [█████████░] 92%
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: 5 of 5 complete
-status: complete
-last_updated: "2026-03-06T09:33:00Z"
-progress:
-  total_phases: 10
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
----
-
 # Project State
 
 ## Accumulated Context
@@ -169,13 +28,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 3 (Indexer) complete. Phase 4 (Search Engine) is next.
+**Current focus:** Phase 09.3 gap closure implemented; waiting on installed/dev and portable icon smoke tests to close human verification.
 
 ## Current Position
 
-**Phase:** 03-indexer
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 09.3-asset-protocol-security-hardening
+**Current Plan:** Human verification for installed/dev and portable icon rendering
+**Status:** Awaiting manual smoke tests
 
 ## Progress
 
@@ -186,12 +45,15 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 1 | Project Scaffold & Configuration | Complete |
 | 2 | Data Layer | Complete |
 | 3 | Indexer | Complete |
-| 4 | Search Engine | Pending |
-| 5 | Launcher Window UI | Pending |
-| 6 | Launch Actions | Pending |
-| 7 | Context Menu | Pending |
-| 8 | Settings Window | Pending |
-| 9 | Global Hotkey | Pending |
+| 4 | Search Engine | Complete |
+| 5 | Launcher Window UI | Complete |
+| 6 | Launch Actions | Complete |
+| 7 | Context Menu | Complete |
+| 8 | Settings Window | Complete |
+| 9 | Global Hotkey | Complete |
+| 09.1 | System Tray | Complete |
+| 09.2 | Settings + Indexer Contract Reliability | Complete |
+| 09.3 | Asset Protocol Security Hardening | Human verification required |
 | 10 | Packaging & Distribution | Pending |
 
 ## Decisions
@@ -276,6 +138,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.2-02]: TimerMsg::Reset re-arms deadline only when interval_mins > 0 — Reset while timer is disabled is a no-op, preventing accidental enable
 - [Phase 09.2-03]: use tauri::Manager imported locally inside set_settings_cmd body to access try_state without widening store.rs import footprint
 - [Phase 09.2-03]: try_state used instead of State parameter in set_settings_cmd — safe in non-desktop builds where timer may not be managed
+- [Phase 09.3-03]: app-managed icons now load through Rust get_icon_bytes + blob URLs, removing the unsupported Windows `$EXE` asset scope dependency while keeping validate_icon_filename() on both search output and file reads
 
 ## Performance Metrics
 
