@@ -205,6 +205,24 @@ Plans:
 
 ---
 
+### Phase 09.3: Asset Protocol Security Hardening (INSERTED)
+
+**Goal:** Constrain assetProtocol.scope from ["**"] to the two app-owned icons directories and add server-side icon filename validation in Rust to prevent path traversal via the asset:// scheme.
+**Requirements**: APSH-01, APSH-02, APSH-03
+**Depends on:** Phase 9
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09.3-01-PLAN.md — Wave 0: add validate_icon_filename() stub + 8 failing test stubs to search.rs (RED state)
+- [ ] 09.3-02-PLAN.md — Implement validate_icon_filename(), wire into score_and_rank(), constrain assetProtocol.scope in tauri.conf.json
+
+**Success Criteria:**
+1. assetProtocol.scope is ["$DATA/riftle-launcher/icons/**", "$EXE/../data/icons/**"] — no longer ["**"]
+2. validate_icon_filename() rejects path traversal, absolute paths, wrong extensions, uppercase hex, wrong-length filenames
+3. score_and_rank() substitutes generic.png for any icon_path that fails validation
+4. All 8 validate_icon tests GREEN, all pre-existing tests remain GREEN
+5. Icons still render in the launcher after the scope change (manual smoke test)
+
 ### Phase 09.1: System Tray Icon with context menu
 
 **Goal:** Add a system tray icon with a context menu that allows opening the settings window and quitting the app.
@@ -268,6 +286,7 @@ Plans:
 | 9 | Global Hotkey | HKEY-01–03 | Complete |
 | 09.1 | System Tray | PHASE-09.1 | Complete |
 | 09.2 | Settings + Indexer Contract Reliability | SIC-01–05 | Pending |
+| 09.3 | Asset Protocol Security Hardening | APSH-01–03 | Pending |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
-**12 phases** | **56 requirements** | All v1 requirements covered
+**13 phases** | **59 requirements** | All v1 requirements covered
