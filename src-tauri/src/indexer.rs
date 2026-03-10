@@ -20,6 +20,17 @@ use crate::store::Settings;
 // Generic icon bundled at compile time — path relative to this source file
 static GENERIC_ICON: &[u8] = include_bytes!("../icons/generic.png");
 
+/// Messages sent to the background timer thread to control its behavior.
+/// Defined here (next to the timer) and imported by store.rs via crate::indexer::TimerMsg.
+#[derive(Debug)]
+pub enum TimerMsg {
+    /// Manual reindex completed — reset deadline to now + current interval.
+    /// No-op when interval_mins == 0 (timer is disabled).
+    Reset,
+    /// Settings changed — update the interval. 0 = disabled (no auto-reindex).
+    SetInterval(u32),
+}
+
 // ---- Public API (called from lib.rs) ----
 
 /// Run a full blocking index. Called synchronously in setup() before app is ready.
@@ -107,11 +118,11 @@ pub fn start_background_tasks(
     data_dir: PathBuf,
     settings: &Settings,
     is_indexing: Arc<AtomicBool>,
-) -> mpsc::Sender<()> {
+) -> mpsc::Sender<TimerMsg> {
     let interval_mins = settings.reindex_interval;
 
     // --- Timer thread (INDX-06) ---
-    let (timer_tx, timer_rx) = mpsc::channel::<()>();
+    let (timer_tx, timer_rx) = mpsc::channel::<TimerMsg>();
     {
         let db = Arc::clone(&db);
         let data_dir = data_dir.clone();
@@ -120,22 +131,41 @@ pub fn start_background_tasks(
         std::thread::spawn(move || {
             use std::time::{Duration, Instant};
             use std::sync::mpsc::TryRecvError;
-            let interval = Duration::from_secs(interval_mins as u64 * 60);
-            let mut deadline = Instant::now() + interval;
+
+            let mut interval_mins = settings.reindex_interval;
+            let mut deadline: Option<Instant> = if interval_mins == 0 {
+                None
+            } else {
+                Some(Instant::now() + Duration::from_secs(interval_mins as u64 * 60))
+            };
+
             loop {
                 std::thread::sleep(Duration::from_secs(1));
                 match timer_rx.try_recv() {
-                    Ok(()) => {
-                        // Manual reindex completed — reset timer deadline
-                        deadline = Instant::now() + interval;
+                    Ok(TimerMsg::Reset) => {
+                        // Reset deadline only if timer is enabled (interval > 0)
+                        if interval_mins > 0 {
+                            deadline = Some(Instant::now() + Duration::from_secs(interval_mins as u64 * 60));
+                        }
                     }
-                    Err(TryRecvError::Disconnected) => break, // App shutting down
+                    Ok(TimerMsg::SetInterval(n)) => {
+                        interval_mins = n;
+                        deadline = if n == 0 {
+                            None
+                        } else {
+                            Some(Instant::now() + Duration::from_secs(n as u64 * 60))
+                        };
+                    }
+                    Err(TryRecvError::Disconnected) => break,
                     Err(TryRecvError::Empty) => {}
                 }
-                if Instant::now() >= deadline {
-                    try_start_index(&is_indexing, &db, &data_dir, &settings);
-                    deadline = Instant::now() + interval;
+                if let Some(dl) = deadline {
+                    if Instant::now() >= dl {
+                        try_start_index(&is_indexing, &db, &data_dir, &settings);
+                        deadline = Some(Instant::now() + Duration::from_secs(interval_mins as u64 * 60));
+                    }
                 }
+                // If deadline is None (interval_mins == 0): skip deadline check entirely
             }
         });
     }
@@ -206,30 +236,27 @@ pub fn reindex(
     app: tauri::AppHandle,
     db_state: tauri::State<crate::db::DbState>,
     is_indexing: tauri::State<Arc<AtomicBool>>,
-    timer_tx: tauri::State<Arc<Mutex<mpsc::Sender<()>>>>,
+    timer_tx: tauri::State<Arc<Mutex<mpsc::Sender<TimerMsg>>>>,
     data_dir_state: tauri::State<PathBuf>,
 ) {
     let db = Arc::clone(&db_state.0);
     let flag = Arc::clone(&is_indexing);
     let tx = Arc::clone(&timer_tx);
     let data_dir = data_dir_state.inner().clone();
+    let app_for_thread = app.clone();
 
     std::thread::spawn(move || {
         if flag
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
             .is_ok()
         {
-            // Re-read settings at index time (user may have changed them)
-            // Settings are not stored as managed state — derive data_dir from state
-            // For now: use Settings::default() — lib.rs will pass real settings in future
-            // Phase 8 will wire set_settings changes to trigger reindex via this command
-            let settings = crate::store::Settings::default();
+            let settings = crate::store::get_settings(&app_for_thread, &data_dir);
             run_full_index(&db, &data_dir, &settings);
             // Phase 4: Rebuild search index with fresh DB contents
-            crate::search::rebuild_index(&app);
+            crate::search::rebuild_index(&app_for_thread);
             flag.store(false, Ordering::Release);
             // Reset timer so next auto-index is interval minutes from now
-            let _ = tx.lock().unwrap().send(());
+            let _ = tx.lock().unwrap().send(TimerMsg::Reset);
         }
     });
 }
