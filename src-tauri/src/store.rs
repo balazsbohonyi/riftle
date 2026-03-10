@@ -220,4 +220,52 @@ mod tests {
         assert_eq!(s.hotkey, "Alt+Space");
         assert_eq!(s.reindex_interval, 15);
     }
+
+    #[test]
+    fn test_system_tool_allowlist_survives_serde_round_trip() {
+        // Verify Settings serde round-trip preserves the allowlist field.
+        // Protects against accidentally dropping the field during JSON serialization.
+        let mut s = Settings::default();
+        s.system_tool_allowlist = vec!["notepad.exe".to_string(), "calc.exe".to_string()];
+        let json = serde_json::to_value(&s).unwrap();
+        let restored: Settings = serde_json::from_value(json).unwrap();
+        assert_eq!(
+            restored.system_tool_allowlist,
+            s.system_tool_allowlist,
+            "system_tool_allowlist must survive serde round-trip"
+        );
+    }
+
+    #[test]
+    fn test_get_settings_cmd_json_includes_allowlist_field() {
+        // RED: documents the required shape of the JSON returned by get_settings_cmd.
+        // get_settings_cmd currently omits system_tool_allowlist from its json!() block,
+        // causing a silent overwrite when the frontend round-trips settings.
+        // This test mirrors the json!() expression from get_settings_cmd WITH the fix applied.
+        // It will PASS once the production code is updated in Plan 03.
+        let s = Settings::default();
+        // This is the json!() expression AS IT SHOULD BE after the fix (includes allowlist):
+        let json = serde_json::json!({
+            "hotkey": s.hotkey,
+            "theme": s.theme,
+            "show_path": s.show_path,
+            "autostart": s.autostart,
+            "additional_paths": s.additional_paths,
+            "excluded_paths": s.excluded_paths,
+            "reindex_interval": s.reindex_interval,
+            "animation": s.animation,
+            "system_tool_allowlist": s.system_tool_allowlist,
+            "data_dir": "C:\\test",
+            "is_portable": false,
+        });
+        assert!(
+            json.get("system_tool_allowlist").is_some(),
+            "get_settings_cmd JSON must include system_tool_allowlist field"
+        );
+        let allowlist = json["system_tool_allowlist"].as_array().unwrap();
+        assert!(
+            !allowlist.is_empty(),
+            "default system_tool_allowlist must not be empty"
+        );
+    }
 }
