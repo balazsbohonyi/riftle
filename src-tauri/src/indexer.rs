@@ -378,7 +378,7 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
     use windows::{
         core::{Interface, PCWSTR},
-        Win32::Foundation::{HWND, MAX_PATH},
+        Win32::Foundation::HWND,
         Win32::Storage::FileSystem::WIN32_FIND_DATAW,
         Win32::System::Com::{
             CoCreateInstance, CoInitializeEx, IPersistFile,
@@ -409,7 +409,11 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
         let _ = shell_link.Resolve(HWND(std::ptr::null_mut()), 0x1);
 
         // Get target path — 4 = SLGP_RAWPATH (returns stored path without env-var expansion)
-        let mut buf = vec![0u16; MAX_PATH as usize];
+        // IShellLinkW::GetPath is documented as MAX_PATH-limited, but 32,767 is the extended-path
+        // maximum and future-proofs against any relaxation of the API constraint.
+        // A larger buffer also prevents silent truncation for \\?\ prefixed target paths.
+        const EXTENDED_MAX_PATH: usize = 32_767;
+        let mut buf = vec![0u16; EXTENDED_MAX_PATH];
         let mut find_data: WIN32_FIND_DATAW = std::mem::zeroed();
         shell_link
             .GetPath(&mut buf, &mut find_data, 4u32)
