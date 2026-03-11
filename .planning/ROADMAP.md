@@ -321,7 +321,7 @@ Plans:
 | 09.2 | 3/3 | Complete   | 2026-03-10 |
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 09.4 | Indexer hardening | Inserted | Planned |
-| 09.5 | 5/5 | Human Needed | 2026-03-12 |
+| 09.5 | 5/5 | Complete    | 2026-03-11 |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
