@@ -73,7 +73,12 @@ pub(crate) fn spawn_com_worker() -> std::sync::mpsc::SyncSender<LnkQuery> {
 
 /// Run a full blocking index. Called synchronously in setup() before app is ready.
 /// Crawls all source dirs, upserts apps, extracts icons async, prunes stale entries.
-pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &Settings) {
+pub fn run_full_index(
+    db: &Arc<Mutex<Connection>>,
+    data_dir: &Path,
+    settings: &Settings,
+    com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
+) {
     // 1. Ensure {data_dir}/icons/ exists and generic.png is present
     if let Err(e) = ensure_generic_icon(data_dir) {
         eprintln!("[indexer] failed to write generic icon: {}", e);
@@ -87,8 +92,20 @@ pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &S
     // 3. Crawl each directory, upsert each app, spawn icon extraction thread
     let mut discovered_ids: HashSet<String> = HashSet::new();
 
+    // Bounded thread pool for icon extraction — caps concurrent GDI calls at 4 threads.
+    // The pool lives for the duration of run_full_index. rayon::ThreadPool::spawn() is
+    // non-blocking (queues work), but the pool's Drop impl blocks until all queued closures
+    // complete. This means run_full_index blocks until icons are extracted — which is the
+    // same observable behavior as the previous std::thread::spawn approach (both are
+    // "best-effort before prune_stale"). The difference is that this caps concurrency at 4.
+    let icon_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .thread_name(|i| format!("riftle-icon-{}", i))
+        .build()
+        .unwrap_or_else(|_| rayon::ThreadPoolBuilder::new().build().unwrap());
+
     for (dir, source) in &source_dirs {
-        let apps = crawl_dir(dir, source, &settings.excluded_paths, &settings.system_tool_allowlist);
+        let apps = crawl_dir(dir, source, &settings.excluded_paths, &settings.system_tool_allowlist, com_tx);
         for app in apps {
             // Deduplicate by path: same exe can appear via multiple .lnk files or
             // in both user and all-users Start Menu. HashSet::insert returns false
@@ -120,7 +137,7 @@ pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &S
                 let db_clone = Arc::clone(db);
                 let exe_path = PathBuf::from(&app.path);
                 let app_id = app.id.clone();
-                std::thread::spawn(move || {
+                icon_pool.spawn(move || {
                     match extract_icon_png(&exe_path) {
                         Some(bytes) => {
                             if std::fs::write(&icon_file, &bytes).is_ok() {
@@ -156,6 +173,7 @@ pub fn start_background_tasks(
     data_dir: PathBuf,
     settings: &Settings,
     is_indexing: Arc<AtomicBool>,
+    com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) -> mpsc::Sender<TimerMsg> {
     let interval_mins = settings.reindex_interval;
 
@@ -166,6 +184,7 @@ pub fn start_background_tasks(
         let data_dir = data_dir.clone();
         let is_indexing = Arc::clone(&is_indexing);
         let settings = settings.clone();
+        let com_tx_timer = com_tx.clone();
         std::thread::spawn(move || {
             use std::time::{Duration, Instant};
             use std::sync::mpsc::TryRecvError;
@@ -199,7 +218,7 @@ pub fn start_background_tasks(
                 }
                 if let Some(dl) = deadline {
                     if Instant::now() >= dl {
-                        try_start_index(&is_indexing, &db, &data_dir, &settings);
+                        try_start_index(&is_indexing, &db, &data_dir, &settings, com_tx_timer.clone());
                         deadline = Some(Instant::now() + Duration::from_secs(interval_mins as u64 * 60));
                     }
                 }
@@ -257,7 +276,7 @@ pub fn start_background_tasks(
             for result in rx {
                 if result.is_ok() {
                     // AtomicBool guard inside try_start_index suppresses events during full re-index
-                    try_start_index(&is_indexing, &db, &data_dir, &settings);
+                    try_start_index(&is_indexing, &db, &data_dir, &settings, com_tx.clone());
                 }
             }
             // Loop ends when tx is dropped (debouncer goes out of scope on thread exit)
@@ -276,12 +295,14 @@ pub fn reindex(
     is_indexing: tauri::State<Arc<AtomicBool>>,
     timer_tx: tauri::State<Arc<Mutex<mpsc::Sender<TimerMsg>>>>,
     data_dir_state: tauri::State<PathBuf>,
+    com_tx_state: tauri::State<Arc<std::sync::mpsc::SyncSender<LnkQuery>>>,
 ) {
     let db = Arc::clone(&db_state.0);
     let flag = Arc::clone(&is_indexing);
     let tx = Arc::clone(&timer_tx);
     let data_dir = data_dir_state.inner().clone();
     let app_for_thread = app.clone();
+    let com_tx = Arc::clone(&com_tx_state);
 
     std::thread::spawn(move || {
         if flag
@@ -289,7 +310,7 @@ pub fn reindex(
             .is_ok()
         {
             let settings = crate::store::get_settings(&app_for_thread, &data_dir);
-            run_full_index(&db, &data_dir, &settings);
+            run_full_index(&db, &data_dir, &settings, &com_tx);
             // Phase 4: Rebuild search index with fresh DB contents
             crate::search::rebuild_index(&app_for_thread);
             flag.store(false, Ordering::Release);
@@ -361,7 +382,13 @@ fn normalize_for_exclusion(p: &Path) -> String {
 /// Walk a directory, resolve .lnk shortcuts, return AppRecords.
 /// source: "start_menu" | "desktop" | "path" | "additional"
 /// PATH source: .exe only, no .lnk resolution, max_depth 1.
-pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String], allowlist: &[String]) -> Vec<AppRecord> {
+pub(crate) fn crawl_dir(
+    root: &Path,
+    source: &'static str,
+    excluded: &[String],
+    allowlist: &[String],
+    com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
+) -> Vec<AppRecord> {
     let mut apps = vec![];
 
     // Pre-normalize excluded list once (not per WalkDir entry) for performance.
@@ -387,7 +414,13 @@ pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String], 
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         match ext {
             "lnk" => {
-                if let Some(target) = resolve_lnk(path, allowlist) {
+                let (reply_tx, reply_rx) = std::sync::mpsc::sync_channel(1);
+                let _ = com_tx.send(LnkQuery {
+                    path: path.to_path_buf(),
+                    allowlist: allowlist.to_vec(),
+                    reply: reply_tx,
+                });
+                if let Some(target) = reply_rx.recv().unwrap_or(None) {
                     // Use the .lnk filename as display name — it's already the human-readable
                     // name the user sees in the Start Menu (e.g. "Google Chrome.lnk" → "Google Chrome")
                     let name = path
@@ -418,18 +451,11 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
         core::{Interface, PCWSTR},
         Win32::Foundation::HWND,
         Win32::Storage::FileSystem::WIN32_FIND_DATAW,
-        Win32::System::Com::{
-            CoCreateInstance, CoInitializeEx, IPersistFile,
-            CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, STGM,
-        },
+        Win32::System::Com::{CoCreateInstance, IPersistFile, CLSCTX_INPROC_SERVER, STGM},
         Win32::UI::Shell::{IShellLinkW, ShellLink},
     };
 
     unsafe {
-        // CoInitializeEx is idempotent per thread: S_FALSE = already initialized = OK.
-        // We intentionally don't call CoUninitialize — COM lifetime matches process lifetime.
-        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
-
         // Create IShellLinkW instance
         let shell_link: IShellLinkW =
             CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
@@ -725,6 +751,7 @@ pub(crate) fn try_start_index(
     db: &Arc<Mutex<Connection>>,
     data_dir: &Path,
     settings: &Settings,
+    com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) {
     // compare_exchange: atomically flip false → true; only one thread wins
     if is_indexing
@@ -736,7 +763,7 @@ pub(crate) fn try_start_index(
         let data_dir = data_dir.to_path_buf();
         let settings = settings.clone();
         std::thread::spawn(move || {
-            run_full_index(&db, &data_dir, &settings);
+            run_full_index(&db, &data_dir, &settings, &com_tx);
             flag.store(false, Ordering::Release);
         });
     }
