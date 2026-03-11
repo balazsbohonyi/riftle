@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Human verification for installed/dev and portable icon rendering
 status: Awaiting manual smoke tests
-last_updated: "2026-03-11T20:55:12.162Z"
+last_updated: "2026-03-11T21:04:03.303Z"
 last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
 progress:
   total_phases: 14
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 36
-  completed_plans: 34
+  completed_plans: 35
   percent: 92
 ---
 
@@ -160,6 +160,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.4-02]: normalize_for_exclusion uses canonicalize() with raw PathBuf fallback — handles non-existent excluded dirs gracefully
 - [Phase 09.4-02]: WalkDir changed to max_depth(8).follow_links(false) — 8 levels covers Start Menu structures; follow_root_links still true for root symlink traversal
 - [Phase 09.4-02]: EXTENDED_MAX_PATH = 32_767 declared as inline const in resolve_lnk to future-proof against extended-length (\?\) target paths
+- [Phase 09.4-03]: rayon ThreadPool for icon extraction caps concurrent GDI calls at 4 threads; pool Drop blocks run_full_index exit — same observable behavior as thread::spawn, better concurrency control
+- [Phase 09.4-03]: COM worker thread isolated via spawn_com_worker(); CoInitializeEx/CoUninitialize balanced on the worker thread; resolve_lnk no longer calls CoInitializeEx
+- [Phase 09.4-03]: Per-request allowlist inside LnkQuery: allowlist carried per-request rather than baked into spawn_com_worker so settings changes take effect without restarting the worker
 
 ## Performance Metrics
 
@@ -196,6 +199,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.2-settings-indexer-contract-reliability P03 | 5min | 2 tasks | 1 files |
 | Phase 09.4-indexer-hardening P01 | 7min | 1 tasks | 1 files |
 | Phase 09.4-indexer-hardening P02 | 6min | 2 tasks | 1 files |
+| Phase 09.4-indexer-hardening P03 | 6min | 3 tasks | 3 files |
 
 ## Session Log
 
