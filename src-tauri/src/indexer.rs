@@ -31,11 +31,54 @@ pub enum TimerMsg {
     SetInterval(u32),
 }
 
+/// Request sent to the COM worker thread for .lnk resolution.
+/// The caller sends this and then blocks on the reply channel.
+/// allowlist is carried per-request (not baked into the worker at startup) so that
+/// settings changes are always reflected in the next crawl without restarting the thread.
+pub(crate) struct LnkQuery {
+    pub path: PathBuf,
+    pub allowlist: Vec<String>,
+    pub reply: std::sync::mpsc::SyncSender<Option<PathBuf>>,
+}
+
+/// Spawn a dedicated thread that owns the COM apartment for all .lnk resolution.
+/// CoInitializeEx is called once on thread start; CoUninitialize is called before thread exit.
+/// All resolve_lnk calls are routed through this thread to ensure balanced COM init/uninit.
+/// The allowlist is not baked in here — each LnkQuery carries the current allowlist.
+pub(crate) fn spawn_com_worker() -> std::sync::mpsc::SyncSender<LnkQuery> {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<LnkQuery>(128);
+    std::thread::Builder::new()
+        .name("riftle-com-lnk".into())
+        .spawn(move || {
+            use windows::Win32::System::Com::{
+                CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED,
+            };
+            // S_OK (0) or S_FALSE (1) = success; negative = failure (e.g. RPC_E_CHANGED_MODE)
+            let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+            let com_ok = hr.0 >= 0;
+            for query in rx {
+                let result = resolve_lnk(&query.path, &query.allowlist);
+                let _ = query.reply.send(result);
+            }
+            // rx is dropped when channel closes (all senders gone) — loop exits cleanly
+            if com_ok {
+                unsafe { CoUninitialize(); }
+            }
+        })
+        .expect("failed to spawn COM lnk worker thread");
+    tx
+}
+
 // ---- Public API (called from lib.rs) ----
 
 /// Run a full blocking index. Called synchronously in setup() before app is ready.
 /// Crawls all source dirs, upserts apps, extracts icons async, prunes stale entries.
-pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &Settings) {
+pub fn run_full_index(
+    db: &Arc<Mutex<Connection>>,
+    data_dir: &Path,
+    settings: &Settings,
+    com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
+) {
     // 1. Ensure {data_dir}/icons/ exists and generic.png is present
     if let Err(e) = ensure_generic_icon(data_dir) {
         eprintln!("[indexer] failed to write generic icon: {}", e);
@@ -49,8 +92,20 @@ pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &S
     // 3. Crawl each directory, upsert each app, spawn icon extraction thread
     let mut discovered_ids: HashSet<String> = HashSet::new();
 
+    // Bounded thread pool for icon extraction — caps concurrent GDI calls at 4 threads.
+    // The pool lives for the duration of run_full_index. rayon::ThreadPool::spawn() is
+    // non-blocking (queues work), but the pool's Drop impl blocks until all queued closures
+    // complete. This means run_full_index blocks until icons are extracted — which is the
+    // same observable behavior as the previous std::thread::spawn approach (both are
+    // "best-effort before prune_stale"). The difference is that this caps concurrency at 4.
+    let icon_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .thread_name(|i| format!("riftle-icon-{}", i))
+        .build()
+        .unwrap_or_else(|_| rayon::ThreadPoolBuilder::new().build().unwrap());
+
     for (dir, source) in &source_dirs {
-        let apps = crawl_dir(dir, source, &settings.excluded_paths, &settings.system_tool_allowlist);
+        let apps = crawl_dir(dir, source, &settings.excluded_paths, &settings.system_tool_allowlist, com_tx);
         for app in apps {
             // Deduplicate by path: same exe can appear via multiple .lnk files or
             // in both user and all-users Start Menu. HashSet::insert returns false
@@ -82,7 +137,7 @@ pub fn run_full_index(db: &Arc<Mutex<Connection>>, data_dir: &Path, settings: &S
                 let db_clone = Arc::clone(db);
                 let exe_path = PathBuf::from(&app.path);
                 let app_id = app.id.clone();
-                std::thread::spawn(move || {
+                icon_pool.spawn(move || {
                     match extract_icon_png(&exe_path) {
                         Some(bytes) => {
                             if std::fs::write(&icon_file, &bytes).is_ok() {
@@ -118,6 +173,7 @@ pub fn start_background_tasks(
     data_dir: PathBuf,
     settings: &Settings,
     is_indexing: Arc<AtomicBool>,
+    com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) -> mpsc::Sender<TimerMsg> {
     let interval_mins = settings.reindex_interval;
 
@@ -128,6 +184,7 @@ pub fn start_background_tasks(
         let data_dir = data_dir.clone();
         let is_indexing = Arc::clone(&is_indexing);
         let settings = settings.clone();
+        let com_tx_timer = com_tx.clone();
         std::thread::spawn(move || {
             use std::time::{Duration, Instant};
             use std::sync::mpsc::TryRecvError;
@@ -161,7 +218,7 @@ pub fn start_background_tasks(
                 }
                 if let Some(dl) = deadline {
                     if Instant::now() >= dl {
-                        try_start_index(&is_indexing, &db, &data_dir, &settings);
+                        try_start_index(&is_indexing, &db, &data_dir, &settings, com_tx_timer.clone());
                         deadline = Some(Instant::now() + Duration::from_secs(interval_mins as u64 * 60));
                     }
                 }
@@ -219,7 +276,7 @@ pub fn start_background_tasks(
             for result in rx {
                 if result.is_ok() {
                     // AtomicBool guard inside try_start_index suppresses events during full re-index
-                    try_start_index(&is_indexing, &db, &data_dir, &settings);
+                    try_start_index(&is_indexing, &db, &data_dir, &settings, com_tx.clone());
                 }
             }
             // Loop ends when tx is dropped (debouncer goes out of scope on thread exit)
@@ -238,12 +295,14 @@ pub fn reindex(
     is_indexing: tauri::State<Arc<AtomicBool>>,
     timer_tx: tauri::State<Arc<Mutex<mpsc::Sender<TimerMsg>>>>,
     data_dir_state: tauri::State<PathBuf>,
+    com_tx_state: tauri::State<Arc<std::sync::mpsc::SyncSender<LnkQuery>>>,
 ) {
     let db = Arc::clone(&db_state.0);
     let flag = Arc::clone(&is_indexing);
     let tx = Arc::clone(&timer_tx);
     let data_dir = data_dir_state.inner().clone();
     let app_for_thread = app.clone();
+    let com_tx = Arc::clone(&com_tx_state);
 
     std::thread::spawn(move || {
         if flag
@@ -251,7 +310,7 @@ pub fn reindex(
             .is_ok()
         {
             let settings = crate::store::get_settings(&app_for_thread, &data_dir);
-            run_full_index(&db, &data_dir, &settings);
+            run_full_index(&db, &data_dir, &settings, &com_tx);
             // Phase 4: Rebuild search index with fresh DB contents
             crate::search::rebuild_index(&app_for_thread);
             flag.store(false, Ordering::Release);
@@ -308,25 +367,60 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
     paths
 }
 
+/// Normalize a path for exclusion comparison: canonicalize (resolves symlinks, normalizes
+/// separators), fall back to raw path if the path does not exist (deleted excluded dirs),
+/// then lowercase. Pre-normalize the excluded list once; normalize each WalkDir entry inline.
+fn normalize_for_exclusion(p: &Path) -> String {
+    let canonical = p.canonicalize()
+        .unwrap_or_else(|_| p.to_path_buf())
+        .to_string_lossy()
+        .to_lowercase();
+    // Strip trailing path separators so "C:\foo\" and "C:\foo" compare equal
+    canonical.trim_end_matches(['/', '\\']).to_string()
+}
+
 /// Walk a directory, resolve .lnk shortcuts, return AppRecords.
 /// source: "start_menu" | "desktop" | "path" | "additional"
 /// PATH source: .exe only, no .lnk resolution, max_depth 1.
-pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String], allowlist: &[String]) -> Vec<AppRecord> {
+pub(crate) fn crawl_dir(
+    root: &Path,
+    source: &'static str,
+    excluded: &[String],
+    allowlist: &[String],
+    com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
+) -> Vec<AppRecord> {
     let mut apps = vec![];
-    let walker = walkdir::WalkDir::new(root).follow_links(true);
+
+    // Pre-normalize excluded list once (not per WalkDir entry) for performance.
+    // canonicalize resolves separators and case; fallback to raw+lowercase for non-existent paths.
+    let normalized_excluded: Vec<String> = excluded
+        .iter()
+        .map(|ex| normalize_for_exclusion(Path::new(ex)))
+        .collect();
+
+    let walker = walkdir::WalkDir::new(root)
+        .max_depth(8)         // 8 levels covers all real Start Menu structures; prevents runaway on NTFS junctions
+        .follow_links(false); // do not follow symlinks encountered during traversal; follow_root_links defaults to true
 
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
 
-        // Skip if under any excluded path
-        if excluded.iter().any(|ex| path.starts_with(ex)) {
+        // Skip if under any excluded path — compare normalized strings for case/separator safety
+        let norm_path = normalize_for_exclusion(path);
+        if normalized_excluded.iter().any(|ex| norm_path.starts_with(ex.as_str())) {
             continue;
         }
 
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         match ext {
             "lnk" => {
-                if let Some(target) = resolve_lnk(path, allowlist) {
+                let (reply_tx, reply_rx) = std::sync::mpsc::sync_channel(1);
+                let _ = com_tx.send(LnkQuery {
+                    path: path.to_path_buf(),
+                    allowlist: allowlist.to_vec(),
+                    reply: reply_tx,
+                });
+                if let Some(target) = reply_rx.recv().unwrap_or(None) {
                     // Use the .lnk filename as display name — it's already the human-readable
                     // name the user sees in the Start Menu (e.g. "Google Chrome.lnk" → "Google Chrome")
                     let name = path
@@ -355,20 +449,13 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
     use windows::{
         core::{Interface, PCWSTR},
-        Win32::Foundation::{HWND, MAX_PATH},
+        Win32::Foundation::HWND,
         Win32::Storage::FileSystem::WIN32_FIND_DATAW,
-        Win32::System::Com::{
-            CoCreateInstance, CoInitializeEx, IPersistFile,
-            CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, STGM,
-        },
+        Win32::System::Com::{CoCreateInstance, IPersistFile, CLSCTX_INPROC_SERVER, STGM},
         Win32::UI::Shell::{IShellLinkW, ShellLink},
     };
 
     unsafe {
-        // CoInitializeEx is idempotent per thread: S_FALSE = already initialized = OK.
-        // We intentionally don't call CoUninitialize — COM lifetime matches process lifetime.
-        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
-
         // Create IShellLinkW instance
         let shell_link: IShellLinkW =
             CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
@@ -386,7 +473,11 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
         let _ = shell_link.Resolve(HWND(std::ptr::null_mut()), 0x1);
 
         // Get target path — 4 = SLGP_RAWPATH (returns stored path without env-var expansion)
-        let mut buf = vec![0u16; MAX_PATH as usize];
+        // IShellLinkW::GetPath is documented as MAX_PATH-limited, but 32,767 is the extended-path
+        // maximum and future-proofs against any relaxation of the API constraint.
+        // A larger buffer also prevents silent truncation for \\?\ prefixed target paths.
+        const EXTENDED_MAX_PATH: usize = 32_767;
+        let mut buf = vec![0u16; EXTENDED_MAX_PATH];
         let mut find_data: WIN32_FIND_DATAW = std::mem::zeroed();
         shell_link
             .GetPath(&mut buf, &mut find_data, 4u32)
@@ -660,6 +751,7 @@ pub(crate) fn try_start_index(
     db: &Arc<Mutex<Connection>>,
     data_dir: &Path,
     settings: &Settings,
+    com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) {
     // compare_exchange: atomically flip false → true; only one thread wins
     if is_indexing
@@ -671,7 +763,7 @@ pub(crate) fn try_start_index(
         let data_dir = data_dir.to_path_buf();
         let settings = settings.clone();
         std::thread::spawn(move || {
-            run_full_index(&db, &data_dir, &settings);
+            run_full_index(&db, &data_dir, &settings, &com_tx);
             flag.store(false, Ordering::Release);
         });
     }
@@ -701,10 +793,16 @@ mod tests {
         (dir, exe_path)
     }
 
+    fn test_com_tx() -> std::sync::mpsc::SyncSender<LnkQuery> {
+        // Minimal COM worker for unit tests — all .lnk paths in tests are fake so
+        // resolve_lnk returns None; the worker still needs to respond to each query.
+        spawn_com_worker()
+    }
+
     #[test]
     fn test_crawl_discovers_exe() {
         let (dir, _exe) = temp_dir_with_exe("foo.exe");
-        let apps = crawl_dir(dir.path(), "additional", &[], &[]);
+        let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
         assert_eq!(apps.len(), 1);
         assert!(apps[0].path.ends_with("foo.exe"));
     }
@@ -760,7 +858,7 @@ mod tests {
         fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
         fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
         let excluded = vec![excluded_sub.to_string_lossy().to_string()];
-        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
         // Only visible.exe should appear
         assert_eq!(apps.len(), 1);
         assert!(apps[0].path.contains("visible.exe"));
@@ -800,7 +898,7 @@ mod tests {
         let settings = Settings::default();
 
         // try_start_index with flag=false should flip it to true and spawn a thread
-        try_start_index(&flag, &db, dir.path(), &settings);
+        try_start_index(&flag, &db, dir.path(), &settings, test_com_tx());
         // Give thread a moment to start and set the flag
         std::thread::sleep(Duration::from_millis(50));
         // The spawned thread may have already finished (empty index) and reset flag to false
@@ -837,7 +935,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let settings = Settings::default();
 
-        try_start_index(&flag_clone, &db, dir.path(), &settings);
+        try_start_index(&flag_clone, &db, dir.path(), &settings, test_com_tx());
         // Flag should still be true — no thread was spawned to reset it
         assert!(flag_clone.load(Ordering::SeqCst), "flag should remain true (second call was dropped)");
 
@@ -929,6 +1027,86 @@ mod tests {
         assert!(
             !default_strings.iter().any(|p| p == &dir.path().to_string_lossy().to_string()),
             "Settings::default() must NOT include the custom path"
+        );
+    }
+
+    #[test]
+    fn test_crawl_excludes_normalized() {
+        // RED: current crawl_dir uses raw starts_with — case-sensitive.
+        // An excluded path supplied in uppercase does NOT exclude the lowercase filesystem entry.
+        // This test will FAIL until Plan 02 adds normalize_for_exclusion().
+        let dir = tempdir().unwrap();
+        let excluded_sub = dir.path().join("excluded");
+        fs::create_dir_all(&excluded_sub).unwrap();
+        fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
+        fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
+
+        // Supply excluded path with uppercase final component to trigger case mismatch
+        let excluded_upper = excluded_sub.to_string_lossy().to_uppercase();
+        let excluded = vec![excluded_upper];
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
+
+        // After normalization, hidden.exe must be excluded → only visible.exe
+        assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite case difference");
+        assert!(apps[0].path.contains("visible.exe"), "visible.exe must be present");
+    }
+
+    #[test]
+    fn test_crawl_excludes_trailing_slash() {
+        // RED: current crawl_dir uses raw Path::starts_with on user-supplied strings.
+        // When the excluded path combines a case difference (UPPERCASE subdirectory) with
+        // a trailing separator, the raw comparison fails on BOTH counts.
+        // Plan 02's normalize_for_exclusion() (canonicalize + to_lowercase + separator strip)
+        // will handle both issues together. This test will FAIL until Plan 02 lands.
+        let dir = tempdir().unwrap();
+        let excluded_sub = dir.path().join("excluded");
+        fs::create_dir_all(&excluded_sub).unwrap();
+        fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
+        fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
+
+        // Excluded path: uppercase directory component + trailing backslash separator.
+        // Simulates a user typing "C:\Users\Me\EXCLUDED\" in the settings path field.
+        let excluded_upper_with_slash = format!(
+            "{}\\",
+            excluded_sub.to_string_lossy().to_uppercase()
+        );
+        let excluded = vec![excluded_upper_with_slash];
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
+
+        // After normalization: both sides lowercase, no trailing separator →
+        // hidden.exe is excluded → only visible.exe remains
+        assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite uppercase + trailing separator");
+        assert!(apps[0].path.contains("visible.exe"), "visible.exe must be present");
+    }
+
+    #[test]
+    fn test_crawl_respects_max_depth() {
+        // RED: current WalkDir has no max_depth — descends arbitrarily deep.
+        // A directory 9 levels deep will be traversed. This test will FAIL until
+        // Plan 02 adds .max_depth(8) to the WalkDir builder.
+        let dir = tempdir().unwrap();
+
+        // Build a chain of 9 nested directories
+        let mut deep = dir.path().to_path_buf();
+        for i in 1..=9 {
+            deep = deep.join(format!("depth_{}", i));
+        }
+        fs::create_dir_all(&deep).unwrap();
+        fs::write(deep.join("deep.exe"), b"MZ").unwrap();
+        fs::write(dir.path().join("shallow.exe"), b"MZ").unwrap();
+
+        let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
+
+        // With max_depth(8), depth-9 directory is not traversed → deep.exe absent
+        let paths: Vec<&str> = apps.iter().map(|a| a.path.as_str()).collect();
+        assert!(
+            !paths.iter().any(|p| p.contains("deep.exe")),
+            "deep.exe at depth 9 must NOT be discovered when max_depth is 8; found: {:?}",
+            paths
+        );
+        assert!(
+            paths.iter().any(|p| p.contains("shallow.exe")),
+            "shallow.exe at root must still be discovered"
         );
     }
 }

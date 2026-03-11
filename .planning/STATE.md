@@ -2,12 +2,28 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_plan: Not started
+status: planning
+last_updated: "2026-03-11T21:07:40.922Z"
+last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
+progress:
+  total_phases: 14
+  completed_phases: 11
+  total_plans: 36
+  completed_plans: 35
+  percent: 92
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
 current_plan: 09.3 verification pending
 status: human_verification_required
 last_updated: "2026-03-11T01:50:00.000Z"
 last_activity: "2026-03-11 - Completed Phase 09.3 gap-closure plan 03; awaiting installed/dev and portable icon smoke tests"
 progress:
-  total_phases: 13
+  [█████████░] 92%
   completed_phases: 9
   total_plans: 32
   completed_plans: 32
@@ -22,6 +38,9 @@ progress:
 - Phase 09.1 inserted after Phase 9: We need to show the app in the system tray. Use the app's default icon for the tray icon. On right click on the tray icon, a context menu is shown with the same options as the launcher context menu. The context menu should be a normal OS context menu. (URGENT)
 - Phase 09.2 inserted after Phase 9: Settings + Indexer Contract Reliability — fix reindex using Settings::default() instead of live settings, timer interval not updating after settings save, interval_mins=0 causing continuous indexing, and system_tool_allowlist missing from get_settings_cmd round-trip. Automated tests required. (URGENT)
 - Phase 09.3 inserted after Phase 9: Asset Protocol Security Hardening — constrain assetProtocol.scope from ["**"] to app-owned data roots (icons dir), add server-side icon filename validation. Automated tests required. (URGENT)
+- Phase 09.4 inserted after Phase 9: Indexer Hardening — bounded worker pool for icon extraction, path normalization for exclusion comparison, WalkDir max-depth + opt-in symlink guards, COM init/uninit isolation in dedicated thread, extended-length path support in .lnk resolution. (URGENT)
+
+- Phase 09.5 inserted after Phase 9: Backend resilience - replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` paths with recoverable handling in `commands.rs`, `search.rs`, and `lib.rs`; add `launcher.db.bak` / `settings.json.bak` plus surfaced frontend warnings before silent reset paths in `db.rs` and `store.rs`. (URGENT)
 
 ## Project Reference
 
@@ -33,8 +52,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 **Phase:** 09.3-asset-protocol-security-hardening
-**Current Plan:** Human verification for installed/dev and portable icon rendering
-**Status:** Awaiting manual smoke tests
+**Current Plan:** Not started
+**Status:** Ready to plan
 
 ## Progress
 
@@ -139,6 +158,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.2-03]: use tauri::Manager imported locally inside set_settings_cmd body to access try_state without widening store.rs import footprint
 - [Phase 09.2-03]: try_state used instead of State parameter in set_settings_cmd — safe in non-desktop builds where timer may not be managed
 - [Phase 09.3-03]: app-managed icons now load through Rust get_icon_bytes + blob URLs, removing the unsupported Windows `$EXE` asset scope dependency while keeping validate_icon_filename() on both search output and file reads
+- [Phase 09.4-indexer-hardening]: test_crawl_excludes_trailing_slash revised: plan's forward-slash-only RED premise was wrong (Path::starts_with handles separators on Windows); revised to uppercase-dir + trailing-backslash combination to expose genuine case-sensitivity bug
+- [Phase 09.4-02]: normalize_for_exclusion uses canonicalize() with raw PathBuf fallback — handles non-existent excluded dirs gracefully
+- [Phase 09.4-02]: WalkDir changed to max_depth(8).follow_links(false) — 8 levels covers Start Menu structures; follow_root_links still true for root symlink traversal
+- [Phase 09.4-02]: EXTENDED_MAX_PATH = 32_767 declared as inline const in resolve_lnk to future-proof against extended-length (\?\) target paths
+- [Phase 09.4-03]: rayon ThreadPool for icon extraction caps concurrent GDI calls at 4 threads; pool Drop blocks run_full_index exit — same observable behavior as thread::spawn, better concurrency control
+- [Phase 09.4-03]: COM worker thread isolated via spawn_com_worker(); CoInitializeEx/CoUninitialize balanced on the worker thread; resolve_lnk no longer calls CoInitializeEx
+- [Phase 09.4-03]: Per-request allowlist inside LnkQuery: allowlist carried per-request rather than baked into spawn_com_worker so settings changes take effect without restarting the worker
 
 ## Performance Metrics
 
@@ -173,6 +199,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.2-settings-indexer-contract-reliability P01 | 3 | 2 tasks | 2 files |
 | Phase 09.2-settings-indexer-contract-reliability P02 | 2 | 2 tasks | 1 files |
 | Phase 09.2-settings-indexer-contract-reliability P03 | 5min | 2 tasks | 1 files |
+| Phase 09.4-indexer-hardening P01 | 7min | 1 tasks | 1 files |
+| Phase 09.4-indexer-hardening P02 | 6min | 2 tasks | 1 files |
+| Phase 09.4-indexer-hardening P03 | 6min | 3 tasks | 3 files |
 
 ## Session Log
 

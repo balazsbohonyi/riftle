@@ -118,8 +118,12 @@ pub fn run() {
                 let db_arc = Arc::clone(&app.state::<crate::db::DbState>().0);
                 let is_indexing = Arc::new(AtomicBool::new(false));
 
+                // Spawn COM worker thread — owns the COM apartment for all .lnk resolution.
+                // Must be created before run_full_index and start_background_tasks.
+                let com_tx = crate::indexer::spawn_com_worker();
+
                 // Run full index synchronously (window is hidden — startup latency OK)
-                crate::indexer::run_full_index(&db_arc, &data_dir, &settings);
+                crate::indexer::run_full_index(&db_arc, &data_dir, &settings, &com_tx);
 
                 // Phase 4: Ensure system command icon exists
                 if let Err(e) = crate::search::ensure_system_command_icon(&data_dir) {
@@ -145,12 +149,16 @@ pub fn run() {
                 // Store is_indexing flag as managed state
                 app.manage(Arc::clone(&is_indexing));
 
+                // Store COM worker SyncSender as managed state for reindex() command
+                app.manage(Arc::new(com_tx.clone()));
+
                 // Start background timer + watcher; get timer reset Sender
                 let timer_tx = crate::indexer::start_background_tasks(
                     Arc::clone(&db_arc),
                     data_dir.clone(),
                     &settings,
                     Arc::clone(&is_indexing),
+                    com_tx,
                 );
 
                 // Store timer Sender as managed state (reindex() command resets the timer via this)

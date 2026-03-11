@@ -205,12 +205,31 @@ Plans:
 
 ---
 
+### Phase 09.5: Backend resilience (INSERTED)
+
+**Goal:** Fix two medium-risk backend resilience issues from `.planning/codebase/CONCERNS.md` items 7 and 8: replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` calls in `src-tauri/src/commands.rs`, `search.rs`, and `lib.rs` with fallible handling, and add backup-plus-user-warning behavior before any silent DB/settings reset in `src-tauri/src/db.rs` and `store.rs`.
+**Requirements**: none (urgent internal hardening, no formal req IDs)
+**Depends on:** Phase 9
+**Plans:** 4 plans
+
+Plans:
+- [ ] 09.5-01-PLAN.md - Wave 0: add backend warning model, pending-warning queue, `take_backend_warnings`, and launcher warning banner
+- [ ] 09.5-02-PLAN.md - Wave 1: make settings recovery backup-first with explicit load outcomes and surfaced warnings
+- [ ] 09.5-03-PLAN.md - Wave 1: make DB init recovery backup-first and surface launch-history reset warnings
+- [ ] 09.5-04-PLAN.md - Wave 2: replace targeted panic-prone unwraps in `commands.rs`, `search.rs`, and `lib.rs`
+
+**Success Criteria:**
+1. Rare mutex poison / window handle failures in `commands.rs`, `search.rs`, and `lib.rs` become logged recoverable failures instead of process crashes
+2. `db.rs` creates `launcher.db.bak` before any init-failure reset and surfaces a warning event or toast to the frontend
+3. `store.rs` creates `settings.json.bak` before returning defaults after settings load failure and surfaces a warning event or toast to the frontend
+4. The new warning path is visible to users so data loss is not silent
+
 ### Phase 09.4: Indexer Hardening (INSERTED)
 
 **Goal:** Harden indexer.rs against five robustness concerns: bounded icon extraction thread pool (rayon, item 6), path normalization for exclusion comparison (item 9), WalkDir max-depth + symlink guards (item 10), COM init/uninit isolation in dedicated thread (item 11), extended-length path buffer in .lnk resolution (item 12).
 **Requirements**: none (urgent internal hardening, no formal req IDs)
 **Depends on:** Phase 9
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 09.4-01-PLAN.md — Wave 0: add 3 RED test stubs for path normalization and max-depth guards
@@ -300,6 +319,8 @@ Plans:
 | 09.1 | System Tray | PHASE-09.1 | Complete |
 | 09.2 | 3/3 | Complete   | 2026-03-10 |
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
+| 09.4 | Indexer hardening | Inserted | Planned |
+| 09.5 | Backend resilience | Inserted | Planned |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
-**13 phases** | **59 requirements** | All v1 requirements covered
+**14 phases** | **59 requirements** | All v1 requirements covered
