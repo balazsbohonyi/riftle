@@ -2,6 +2,7 @@
 // Phase 1: plugin registration scaffold; command handlers added in later phases
 
 use std::sync::{Arc, Mutex};
+use std::sync::PoisonError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
@@ -92,6 +93,16 @@ fn show_settings_window(app: &tauri::AppHandle) -> Result<(), String> {
 fn set_restore_launcher_on_settings_close(app: &tauri::AppHandle, restore: bool) {
     let state = app.state::<SettingsCloseBehavior>();
     state.0.store(restore, Ordering::Relaxed);
+}
+
+fn recover_mutex_guard<'a, T>(
+    mutex: &'a Mutex<T>,
+    context: &str,
+) -> std::sync::MutexGuard<'a, T> {
+    mutex.lock().unwrap_or_else(|err: PoisonError<_>| {
+        eprintln!("[{context}] recovering from poisoned mutex");
+        err.into_inner()
+    })
 }
 
 mod db;           // Phase 2: SQLite database layer
@@ -273,8 +284,14 @@ pub fn run() {
                         })
                         .on_tray_icon_event(move |_tray, event| match event {
                             TrayIconEvent::DoubleClick { button, .. } if button == MouseButton::Left => {
-                                *pending_left_click_for_handler.lock().unwrap() = None;
-                                *suppress_left_click_until_for_handler.lock().unwrap() =
+                                *recover_mutex_guard(
+                                    &pending_left_click_for_handler,
+                                    "tray.pending_left_click",
+                                ) = None;
+                                *recover_mutex_guard(
+                                    &suppress_left_click_until_for_handler,
+                                    "tray.suppress_left_click_until",
+                                ) =
                                     Some(Instant::now() + Duration::from_millis(350));
                                 show_launcher_window(&app_handle);
                             }
@@ -283,7 +300,10 @@ pub fn run() {
                             {
                                 let stamp = Instant::now();
                                 {
-                                    let mut suppress = suppress_left_click_until_for_handler.lock().unwrap();
+                                    let mut suppress = recover_mutex_guard(
+                                        &suppress_left_click_until_for_handler,
+                                        "tray.suppress_left_click_until",
+                                    );
                                     if let Some(until) = *suppress {
                                         if stamp <= until {
                                             return;
@@ -291,13 +311,19 @@ pub fn run() {
                                         *suppress = None;
                                     }
                                 }
-                                *pending_left_click_for_handler.lock().unwrap() = Some(stamp);
+                                *recover_mutex_guard(
+                                    &pending_left_click_for_handler,
+                                    "tray.pending_left_click",
+                                ) = Some(stamp);
 
                                 let pending = Arc::clone(&pending_left_click_for_handler);
                                 let app_for_toggle = app_handle.clone();
                                 std::thread::spawn(move || {
                                     std::thread::sleep(Duration::from_millis(280));
-                                    let mut guard = pending.lock().unwrap();
+                                    let mut guard = recover_mutex_guard(
+                                        &pending,
+                                        "tray.pending_left_click",
+                                    );
                                     if guard.map(|s| s == stamp).unwrap_or(false) {
                                         *guard = None;
                                         drop(guard);
@@ -325,20 +351,30 @@ pub fn run() {
                 use windows::Win32::Foundation::HWND;
                 const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE; // no accent border
                 const DWMWCP_DONOTROUND: u32 = 1;          // no DWM rounding — CSS owns border-radius
-                let hwnd = HWND(launcher.hwnd().unwrap().0 as *mut std::ffi::c_void);
-                unsafe {
-                    let _ = DwmSetWindowAttribute(
-                        hwnd,
-                        DWMWA_BORDER_COLOR,
-                        &DWMWA_COLOR_NONE as *const u32 as *const _,
-                        std::mem::size_of::<u32>() as u32,
-                    );
-                    let _ = DwmSetWindowAttribute(
-                        hwnd,
-                        DWMWA_WINDOW_CORNER_PREFERENCE,
-                        &DWMWCP_DONOTROUND as *const u32 as *const _,
-                        std::mem::size_of::<u32>() as u32,
-                    );
+                match launcher.hwnd() {
+                    Ok(raw_hwnd) => {
+                        let hwnd = HWND(raw_hwnd.0 as *mut std::ffi::c_void);
+                        unsafe {
+                            let _ = DwmSetWindowAttribute(
+                                hwnd,
+                                DWMWA_BORDER_COLOR,
+                                &DWMWA_COLOR_NONE as *const u32 as *const _,
+                                std::mem::size_of::<u32>() as u32,
+                            );
+                            let _ = DwmSetWindowAttribute(
+                                hwnd,
+                                DWMWA_WINDOW_CORNER_PREFERENCE,
+                                &DWMWCP_DONOTROUND as *const u32 as *const _,
+                                std::mem::size_of::<u32>() as u32,
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "[startup] failed to acquire launcher HWND for DWM customization: {}",
+                            err
+                        );
+                    }
                 }
             }
 
