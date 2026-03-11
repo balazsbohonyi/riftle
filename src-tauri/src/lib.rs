@@ -45,10 +45,7 @@ fn startup_db_warning(backup_path: &std::path::Path) -> warnings::BackendWarning
     warnings::BackendWarning {
         kind: "db-reset".to_string(),
         title: "Launch history was reset".to_string(),
-        message: format!(
-            "Riftle could not read the existing launch history database and recreated it. A backup was saved to {}.",
-            backup_path.display()
-        ),
+        message: "Riftle could not read the existing launch history database and recreated it.".to_string(),
         backup_path: Some(backup_path.to_string_lossy().into_owned()),
     }
 }
@@ -479,7 +476,9 @@ mod tests {
 
         assert_eq!(warning.kind, "db-reset");
         assert_eq!(warning.title, "Launch history was reset");
-        assert!(warning.message.contains("launcher.db.bak"));
+        assert!(warning.message.contains("recreated it"));
+        assert!(!warning.message.contains("launcher.db.bak"));
+        assert!(!warning.message.contains("C:\\data\\launcher.db.bak"));
         assert_eq!(warning.backup_path.as_deref(), Some("C:\\data\\launcher.db.bak"));
     }
 }

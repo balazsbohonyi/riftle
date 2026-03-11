@@ -167,10 +167,9 @@ pub fn load_settings_outcome(data_dir: &Path) -> SettingsLoadOutcome {
                 warning: BackendWarning {
                     kind: "settings-reset".to_string(),
                     title: "Settings were reset".to_string(),
-                    message: format!(
-                        "Riftle could not read your existing settings and restored defaults. A backup was saved to {}.",
-                        backup_path.display()
-                    ),
+                    message:
+                        "Riftle could not read your existing settings and restored defaults."
+                            .to_string(),
                     backup_path: Some(backup_path.to_string_lossy().into_owned()),
                 },
             }
@@ -428,6 +427,9 @@ mod tests {
             SettingsLoadOutcome::RecoveredWithDefaults { settings, warning } => {
                 assert_eq!(settings, Settings::default());
                 assert_eq!(warning.kind, "settings-reset");
+                assert!(warning.message.contains("restored defaults"));
+                assert!(!warning.message.contains("settings.json.bak"));
+                assert!(!warning.message.contains(backup.to_string_lossy().as_ref()));
                 assert_eq!(warning.backup_path.as_deref(), Some(backup.to_string_lossy().as_ref()));
             }
             other => panic!("expected recovery outcome, got {:?}", other),
