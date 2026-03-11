@@ -6,7 +6,7 @@ current_phase_name: backend resilience
 current_plan: verification
 status: human_verification_required
 stopped_at: Awaiting Phase 09.5 manual verification
-last_updated: "2026-03-12T00:40:00.000Z"
+last_updated: "2026-03-11T23:35:04.000Z"
 last_activity: 2026-03-12
 progress:
   total_phases: 15
@@ -34,17 +34,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 09.5 backend resilience is code-complete and awaiting manual runtime verification for backup warnings, tray behavior, and DWM-skip startup.
+**Current focus:** Phase 09.5 backend resilience is code-complete and awaiting targeted manual runtime re-verification of the warning-banner backup-path gap closure, plus the remaining tray and DWM startup checks.
 
 ## Current Position
 
 **Phase:** 09.5-backend-resilience
 **Current Phase Name:** backend resilience
 **Current Plan:** verification
-**Total Plans in Phase:** 4
+**Total Plans in Phase:** 5
 **Status:** Human verification required
 **Last Activity:** 2026-03-12
-**Last Activity Description:** Completed Phase 09.5 execution and automated verification; awaiting manual runtime checks from 09.5-VERIFICATION.md
+**Last Activity Description:** Completed 09.5-05 gap closure for duplicate recovery backup-path copy; automated tests/build passed and the phase remains in manual verification for targeted runtime recheck
 
 ## Progress
 
@@ -165,6 +165,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.5-backend-resilience]: Database recovery prefers same-directory rename into launcher.db.bak, with copy-then-delete fallback only after backup success.
 - [Phase 09.5-backend-resilience]: DB startup returns an explicit recovered outcome so lib.rs can queue a launcher warning without widening the DB API further.
 - [Phase 09.5-backend-resilience]: Launcher HWND acquisition for DWM customization is cosmetic-only; failures log and skip the DWM branch without affecting startup.
+- [Phase 09.5-05]: Recovery warnings keep explanation in `message` and expose the backup path only through `backup_path`; App.vue renders that path once as a lighter labeled detail row.
 
 ## Performance Metrics
 
@@ -205,11 +206,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.5-backend-resilience P01 | 3min | 2 tasks | 3 files |
 | Phase 09.5-backend-resilience P02 | 17min | 2 tasks | 2 files |
 | Phase 09.5-backend-resilience P03 | 10min | 2 tasks | 2 files |
+| Phase 09.5-backend-resilience P05 | 7min | 2 tasks | 4 files |
 
 ## Session
 
 **Last Date:** 2026-03-11T22:33:31.283Z
-**Stopped At:** Completed 09.5-04-PLAN.md
+**Stopped At:** Completed 09.5-05-PLAN.md
 **Resume File:** None
 
 ## Session Log
@@ -260,4 +262,6 @@ Last activity: 2026-03-09 - Completed quick task 8: Button.vue component with de
 - Executed plan 09.5-01: added backend warning queue infrastructure in Rust and a launcher warning banner in App.vue
 - Verification: `cargo test backend_warning_`, `cargo test take_backend_warnings`, `cargo test`, and `pnpm.cmd build` all passed
 - State tooling parse failed because STATE.md contained duplicate frontmatter; file normalized manually while preserving accumulated context
+- Executed plan 09.5-05: removed duplicate recovery backup-path copy from backend warning payloads and restyled the launcher warning path detail
+- Verification: `cargo test startup_db_warning`, `cargo test settings_`, `cargo test`, and `pnpm.cmd build` all passed; targeted runtime recheck still pending
 

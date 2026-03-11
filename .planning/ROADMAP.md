@@ -210,13 +210,14 @@ Plans:
 **Goal:** Fix two medium-risk backend resilience issues from `.planning/codebase/CONCERNS.md` items 7 and 8: replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` calls in `src-tauri/src/commands.rs`, `search.rs`, and `lib.rs` with fallible handling, and add backup-plus-user-warning behavior before any silent DB/settings reset in `src-tauri/src/db.rs` and `store.rs`.
 **Requirements**: none (urgent internal hardening, no formal req IDs)
 **Depends on:** Phase 9
-**Plans:** 4/4 plans complete
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 09.5-01-PLAN.md - Wave 0: add backend warning model, pending-warning queue, `take_backend_warnings`, and launcher warning banner (completed 2026-03-11)
 - [x] 09.5-02-PLAN.md - Wave 1: make settings recovery backup-first with explicit load outcomes and surfaced warnings (completed 2026-03-12)
 - [x] 09.5-03-PLAN.md - Wave 1: make DB init recovery backup-first and surface launch-history reset warnings (completed 2026-03-12)
 - [x] 09.5-04-PLAN.md - Wave 2: replace targeted panic-prone unwraps in `commands.rs`, `search.rs`, and `lib.rs` (completed 2026-03-12)
+- [x] 09.5-05-PLAN.md - Wave 4 gap closure: remove duplicate recovery backup-path copy and restyle the launcher warning path presentation (completed 2026-03-12)
 
 **Success Criteria:**
 1. Rare mutex poison / window handle failures in `commands.rs`, `search.rs`, and `lib.rs` become logged recoverable failures instead of process crashes
@@ -320,7 +321,7 @@ Plans:
 | 09.2 | 3/3 | Complete   | 2026-03-10 |
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 09.4 | Indexer hardening | Inserted | Planned |
-| 09.5 | 4/4 | Human Needed | 2026-03-12 |
+| 09.5 | 5/5 | Human Needed | 2026-03-12 |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
