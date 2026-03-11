@@ -2,16 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 09.5-02 planned
-status: ready_to_execute
-last_updated: "2026-03-11T22:06:17.6392346Z"
-last_activity: "2026-03-11 - Completed Phase 09.5 backend resilience plan 01; warning queue and launcher banner are ready for recovery flows"
+current_phase_name: backend resilience
+current_plan: 3
+status: executing
+stopped_at: Completed 09.5-backend-resilience-02-PLAN.md
+last_updated: "2026-03-11T22:20:04.671Z"
+last_activity: 2026-03-11
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 11
   total_plans: 40
-  completed_plans: 36
-  percent: 90
+  completed_plans: 37
+  percent: 93
 ---
 
   [█████████░] 92%
@@ -38,8 +40,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 **Phase:** 09.5-backend-resilience
-**Current Plan:** 02 planned
+**Current Phase Name:** backend resilience
+**Current Plan:** 3
+**Total Plans in Phase:** 4
 **Status:** Ready to execute
+**Last Activity:** 2026-03-11
+**Last Activity Description:** Executed plan 09.5-02 with backup-first settings recovery and startup warning branching
 
 ## Progress
 
@@ -156,6 +162,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.5-01]: PendingBackendWarnings is managed before DB and settings startup so early recovery warnings can be queued immediately
 - [Phase 09.5-01]: App.vue listens for backend-warning before draining take_backend_warnings and deduplicates payloads to avoid startup race duplicates
 - [Phase 09.5-01]: Launcher height measures the rendered warning stack so the inline banner stays visible without a broader notification subsystem
+- [Phase 09.5-backend-resilience]: lib.rs only persists defaults on missing-file or backed-up recovery paths; clean settings loads are left untouched and recovery warnings are queued first.
 
 ## Performance Metrics
 
@@ -194,6 +201,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.4-indexer-hardening P02 | 6min | 2 tasks | 1 files |
 | Phase 09.4-indexer-hardening P03 | 6min | 3 tasks | 3 files |
 | Phase 09.5-backend-resilience P01 | 3min | 2 tasks | 3 files |
+| Phase 09.5-backend-resilience P02 | 17min | 2 tasks | 2 files |
+
+## Session
+
+**Last Date:** 2026-03-11T22:20:04.643Z
+**Stopped At:** Completed 09.5-backend-resilience-02-PLAN.md
+**Resume File:** None
 
 ## Session Log
 
