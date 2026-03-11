@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase_name: backend resilience
-current_plan: 4
-status: verifying
-stopped_at: Completed 09.5-04-PLAN.md
-last_updated: "2026-03-11T22:33:31.291Z"
-last_activity: 2026-03-11
+current_plan: verification
+status: human_verification_required
+stopped_at: Awaiting Phase 09.5 manual verification
+last_updated: "2026-03-12T00:40:00.000Z"
+last_activity: 2026-03-12
 progress:
   total_phases: 15
   completed_phases: 12
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
 ---
 
   [█████████░] 92%
@@ -34,17 +34,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 09.5 backend resilience is in progress; plan 01 warning delivery is complete and plan 02 can build settings recovery on top of it.
+**Current focus:** Phase 09.5 backend resilience is code-complete and awaiting manual runtime verification for backup warnings, tray behavior, and DWM-skip startup.
 
 ## Current Position
 
 **Phase:** 09.5-backend-resilience
 **Current Phase Name:** backend resilience
-**Current Plan:** 4
+**Current Plan:** verification
 **Total Plans in Phase:** 4
-**Status:** Phase complete — ready for verification
-**Last Activity:** 2026-03-11
-**Last Activity Description:** Executed plan 09.5-02 with backup-first settings recovery and startup warning branching
+**Status:** Human verification required
+**Last Activity:** 2026-03-12
+**Last Activity Description:** Completed Phase 09.5 execution and automated verification; awaiting manual runtime checks from 09.5-VERIFICATION.md
 
 ## Progress
 
@@ -65,7 +65,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 09.2 | Settings + Indexer Contract Reliability | Complete |
 | 09.3 | Asset Protocol Security Hardening | Human verification required |
 | 09.4 | Indexer Hardening | Planned |
-| 09.5 | Backend Resilience | In progress |
+| 09.5 | Backend Resilience | Human verification required |
 | 10 | Packaging & Distribution | Pending |
 
 ## Decisions
@@ -260,3 +260,4 @@ Last activity: 2026-03-09 - Completed quick task 8: Button.vue component with de
 - Executed plan 09.5-01: added backend warning queue infrastructure in Rust and a launcher warning banner in App.vue
 - Verification: `cargo test backend_warning_`, `cargo test take_backend_warnings`, `cargo test`, and `pnpm.cmd build` all passed
 - State tooling parse failed because STATE.md contained duplicate frontmatter; file normalized manually while preserving accumulated context
+
