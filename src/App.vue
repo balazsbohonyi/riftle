@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
 import { LogicalSize } from '@tauri-apps/api/dpi'
@@ -19,10 +19,11 @@ interface SearchResult {
 
 interface SettingsPayload {
   theme?: string
-
   show_path?: boolean
   reindex_interval?: number
 }
+
+const GENERIC_ICON_FILENAME = 'generic.png'
 
 // ---- State ----
 const query         = ref('')
@@ -31,19 +32,20 @@ const selectedIndex = ref(0)
 const adminMode     = ref(false)
 const showPath      = ref(false)
 const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
-const dataDir       = ref('')
 const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
-const scrollerRef   = ref<any>(null) // RecycleScroller reference
-const isTauriContext = ref(false) // true when running inside Tauri app, false in browser dev
+const scrollerRef   = ref<any>(null)
+const isTauriContext = ref(false)
+const iconUrls      = ref<Record<string, string>>({})
 
+const iconRequests = new Map<string, Promise<string>>()
 
 // ---- Context menu state ----
 const menuVisible  = ref(false)
 const menuX        = ref(0)
 const menuY        = ref(0)
-const MENU_HEIGHT  = 80 // px — approximate height of 2-item context menu
-const BOTTOM_PAD   = 8  // px — extra transparent space below border so WebView2 renders the bottom 1px border
+const MENU_HEIGHT  = 80
+const BOTTOM_PAD   = 8
 
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
@@ -54,6 +56,58 @@ let launchInProgress = false
 const listHeight = computed(() =>
   Math.min(results.value.length, 5) * 48
 )
+
+function setIconUrl(iconPath: string, url: string) {
+  if (!url || iconUrls.value[iconPath] === url) return
+  iconUrls.value = {
+    ...iconUrls.value,
+    [iconPath]: url,
+  }
+}
+
+function createIconUrl(bytes: number[]): string {
+  const payload = Uint8Array.from(bytes)
+  return URL.createObjectURL(new Blob([payload], { type: 'image/png' }))
+}
+
+async function loadIconUrl(iconPath: string): Promise<string> {
+  if (!iconPath) return ''
+
+  const cached = iconUrls.value[iconPath]
+  if (cached) return cached
+
+  const pending = iconRequests.get(iconPath)
+  if (pending) return pending
+
+  const request = (async () => {
+    try {
+      const bytes = await invoke<number[]>('get_icon_bytes', { iconPath })
+      const url = createIconUrl(bytes)
+      setIconUrl(iconPath, url)
+      return url
+    } catch (error) {
+      if (iconPath !== GENERIC_ICON_FILENAME) {
+        return loadIconUrl(GENERIC_ICON_FILENAME)
+      }
+      console.warn('[launcher] get_icon_bytes failed for generic icon:', error)
+      return ''
+    }
+  })()
+
+  iconRequests.set(iconPath, request)
+  try {
+    return await request
+  } finally {
+    iconRequests.delete(iconPath)
+  }
+}
+
+function primeIconUrl(iconPath: string) {
+  if (!isTauriContext.value || !iconPath) return
+  if (iconUrls.value[iconPath] || iconRequests.has(iconPath)) return
+
+  void loadIconUrl(iconPath)
+}
 
 // ---- Watchers ----
 watch(query, async (q) => {
@@ -66,8 +120,13 @@ watch(query, async (q) => {
   console.log('[App] window height updated')
 })
 
-watch(results, () => {
+watch(results, (items) => {
   selectedIndex.value = 0
+  if (isTauriContext.value) {
+    for (const item of items) {
+      primeIconUrl(item.icon_path)
+    }
+  }
 })
 
 watch(menuVisible, async (visible) => {
@@ -78,13 +137,11 @@ watch(menuVisible, async (visible) => {
 })
 
 watch(selectedIndex, () => {
-  // Scroll only when selection is at edge of visible items
   if (scrollerRef.value && results.value.length > 5) {
     const visibleRows = 5
     const firstVisible = Math.floor((scrollerRef.value.$el?.scrollTop || 0) / 48)
     const lastVisible = firstVisible + visibleRows - 1
 
-    // Scroll if selection is above first visible or below last visible
     if (selectedIndex.value < firstVisible || selectedIndex.value > lastVisible) {
       scrollerRef.value.scrollToItem(selectedIndex.value)
     }
@@ -99,7 +156,6 @@ async function updateWindowHeight() {
   }
   const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
-  // Delay OS window resize until after the CSS height transition completes
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
   if (delay > 0) {
     await new Promise(resolve => setTimeout(resolve, delay))
@@ -110,12 +166,11 @@ async function updateWindowHeight() {
 // ---- Icon URL ----
 function getIconUrl(iconPath: string): string {
   if (!iconPath) return ''
-  // icon_path is a filename (e.g. "notepad.png"); construct absolute path
-  const sep = dataDir.value.includes('\\') ? '\\' : '/'
-  const fullPath = dataDir.value + sep + 'icons' + sep + iconPath
-  const url = convertFileSrc(fullPath)
-  console.log('[App] icon URL:', { iconPath, dataDir: dataDir.value, fullPath, url })
-  return url
+  if (isTauriContext.value) {
+    primeIconUrl(iconPath)
+    return iconUrls.value[iconPath] ?? iconUrls.value[GENERIC_ICON_FILENAME] ?? ''
+  }
+  return ''
 }
 
 // ---- Launch stubs (Phase 6 implements commands) ----
@@ -133,7 +188,7 @@ async function launchItem(item: SearchResult) {
 async function launchElevated(item: SearchResult) {
   launchInProgress = true
   await invoke('launch_elevated', { id: item.id }).catch(console.error)
-  // Do NOT call hideWindow() here — the Rust command owns the hide decision.
+  // Do NOT call hideWindow() here - the Rust command owns the hide decision.
   // On success: Rust hides the window and the process launches elevated.
   // On UAC cancel: Rust returns Ok(()) without hiding, so the launcher stays open.
   setTimeout(() => { launchInProgress = false }, 500)
@@ -195,13 +250,10 @@ function closeMenu() {
 }
 
 async function onContextMenu(e: MouseEvent) {
-  // Right-click on result rows is reserved for future per-result menu — ignore
   if ((e.target as HTMLElement).closest('.result-row')) return
-  // Clamp X so menu (min-width 160px) does not overflow the 500px window
   menuX.value = Math.min(e.clientX, 500 - 170)
   menuY.value = e.clientY
   menuVisible.value = true
-  // Resize Tauri window if the menu would extend beyond the current window height
   if (isTauriContext.value) {
     const contentH = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
     const neededH = menuY.value + MENU_HEIGHT + 8
@@ -231,10 +283,10 @@ async function quitApp() {
 }
 
 // ---- Window show/hide ----
-// showWindow is kept for Phase 8 Settings window — not called by launcher path (Phase 9 owns show via hotkey)
+// showWindow is kept for Phase 8 Settings window - not called by launcher path (Phase 9 owns show via hotkey)
 // @ts-ignore: reserved for Phase 8 Settings window show logic
 async function showWindow() {
-  if (!isTauriContext.value) return // Skip in browser dev mode
+  if (!isTauriContext.value) return
   try {
     console.log('[App] showWindow called')
     const win = getCurrentWindow()
@@ -268,52 +320,41 @@ async function hideWindow() {
 onMounted(async () => {
   console.log('[App] onMounted called')
 
-  // Detect if we're in Tauri context (not in browser dev mode)
-  // Tauri v2 exposes __TAURI_INTERNALS__ on the window object
   isTauriContext.value = '__TAURI_INTERNALS__' in window
   console.log('[App] Tauri context available:', isTauriContext.value)
 
-  // Load settings from Rust (only works in Tauri context)
   if (isTauriContext.value) {
     try {
       const settings = await invoke<{
         show_path: boolean
         animation: string
-        data_dir: string
         theme: string
-        opacity: number
       }>('get_settings_cmd')
       showPath.value = settings.show_path
       animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
-      dataDir.value  = settings.data_dir
       if (settings.theme) applyTheme(settings.theme)
+      await loadIconUrl(GENERIC_ICON_FILENAME)
 
-      console.log('[App] settings loaded:', { dataDir: dataDir.value, showPath: showPath.value, animMode: animMode.value })
+      console.log('[App] settings loaded:', { showPath: showPath.value, animMode: animMode.value })
     } catch (e) {
-      // Use defaults — dataDir stays empty, icons will not load but app still functions
       console.warn('[launcher] get_settings_cmd failed, using defaults:', e)
     }
   }
 
-  // Set initial window height (no results yet)
   await updateWindowHeight()
 
-  // In Tauri context: launcher stays hidden until first hotkey press (Phase 9 handles show).
-  // In browser dev mode: show immediately so the dev workflow continues to work.
   if (isTauriContext.value) {
     const win = getCurrentWindow()
     if (win.label === 'launcher') {
-      // Hotkey (Alt+Space) owns show/hide — do NOT call showWindow() here.
+      // Hotkey (Alt+Space) owns show/hide - do NOT call showWindow() here.
       // isVisible stays false until the 'launcher-show' event fires.
     }
   } else {
-    // Browser dev mode: show immediately and focus the input
     isVisible.value = true
     await nextTick()
     inputRef.value?.focus()
   }
 
-  // Auto-hide on focus loss (only in Tauri context)
   if (isTauriContext.value) {
     console.log('[App] setting up focus listener')
     unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
@@ -326,25 +367,17 @@ onMounted(async () => {
     console.log('[App] focus listener registered')
   }
 
-  // Listen for 'launcher-show' event from hotkey.rs — replay animation, clear query, focus
   if (isTauriContext.value) {
     unlistenShow = await listen('launcher-show', async () => {
       menuVisible.value = false
-      // Reset animation to hidden state, clear results and query
       isVisible.value = false
       results.value = []
       query.value = ''
-      // Ensure the OS window is visible (hotkey.rs does this before emitting, but
-      // Settings.vue also emits launcher-show when closing, without going through Rust)
       await getCurrentWindow().show().catch(console.error)
       await getCurrentWindow().setFocus().catch(console.error)
-      // Resize OS window to empty height immediately (window is hidden — no animation delay needed)
       await getCurrentWindow().setSize(new LogicalSize(500, 56 + BOTTOM_PAD)).catch(console.error)
-      // Center after resize so the position is based on the correct (empty) height
       await getCurrentWindow().center().catch(console.error)
-      // Wait for CSS to apply the hidden state
       await nextTick()
-      // Trigger the appear animation
       isVisible.value = true
       await nextTick()
       inputRef.value?.focus()
@@ -354,7 +387,6 @@ onMounted(async () => {
   if (isTauriContext.value) {
     unlistenSettings = await listen<SettingsPayload>('settings-changed', ({ payload }) => {
       if (payload.theme !== undefined) applyTheme(payload.theme)
-
       if (payload.show_path !== undefined) showPath.value = payload.show_path
     })
   }
@@ -364,6 +396,10 @@ onUnmounted(() => {
   unlistenFocus?.()
   unlistenShow?.()
   unlistenSettings?.()
+  for (const url of Object.values(iconUrls.value)) {
+    URL.revokeObjectURL(url)
+  }
+  iconRequests.clear()
 })
 </script>
 
@@ -381,7 +417,7 @@ onUnmounted(() => {
         autocorrect="off"
         autocapitalize="off"
         spellcheck="false"
-        placeholder="Search apps, or > for system commands…"
+        placeholder="Search apps, or > for system commands..."
         @keydown="onKeyDown"
         @keyup="onKeyUp"
       />
@@ -524,7 +560,7 @@ html, body {
   font-weight: 400;
   caret-color: var(--color-accent);
   padding: 0;
-  padding-right: 28px; /* room for magnifier icon */
+  padding-right: 28px;
 }
 
 .search-input::placeholder {
@@ -555,7 +591,7 @@ html, body {
 .result-list {
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
   transition: height var(--duration-normal) ease;
 }
 .result-list::-webkit-scrollbar { display: none; }
@@ -588,7 +624,7 @@ html, body {
 .result-text {
   display: flex;
   flex-direction: column;
-  min-width: 0; /* enables text-overflow: ellipsis in children */
+  min-width: 0;
   flex: 1;
 }
 
