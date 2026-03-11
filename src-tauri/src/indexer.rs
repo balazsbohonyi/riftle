@@ -31,6 +31,44 @@ pub enum TimerMsg {
     SetInterval(u32),
 }
 
+/// Request sent to the COM worker thread for .lnk resolution.
+/// The caller sends this and then blocks on the reply channel.
+/// allowlist is carried per-request (not baked into the worker at startup) so that
+/// settings changes are always reflected in the next crawl without restarting the thread.
+pub(crate) struct LnkQuery {
+    pub path: PathBuf,
+    pub allowlist: Vec<String>,
+    pub reply: std::sync::mpsc::SyncSender<Option<PathBuf>>,
+}
+
+/// Spawn a dedicated thread that owns the COM apartment for all .lnk resolution.
+/// CoInitializeEx is called once on thread start; CoUninitialize is called before thread exit.
+/// All resolve_lnk calls are routed through this thread to ensure balanced COM init/uninit.
+/// The allowlist is not baked in here — each LnkQuery carries the current allowlist.
+pub(crate) fn spawn_com_worker() -> std::sync::mpsc::SyncSender<LnkQuery> {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<LnkQuery>(128);
+    std::thread::Builder::new()
+        .name("riftle-com-lnk".into())
+        .spawn(move || {
+            use windows::Win32::System::Com::{
+                CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED,
+            };
+            // S_OK (0) or S_FALSE (1) = success; negative = failure (e.g. RPC_E_CHANGED_MODE)
+            let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+            let com_ok = hr.0 >= 0;
+            for query in rx {
+                let result = resolve_lnk(&query.path, &query.allowlist);
+                let _ = query.reply.send(result);
+            }
+            // rx is dropped when channel closes (all senders gone) — loop exits cleanly
+            if com_ok {
+                unsafe { CoUninitialize(); }
+            }
+        })
+        .expect("failed to spawn COM lnk worker thread");
+    tx
+}
+
 // ---- Public API (called from lib.rs) ----
 
 /// Run a full blocking index. Called synchronously in setup() before app is ready.
