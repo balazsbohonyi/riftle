@@ -308,18 +308,41 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
     paths
 }
 
+/// Normalize a path for exclusion comparison: canonicalize (resolves symlinks, normalizes
+/// separators), fall back to raw path if the path does not exist (deleted excluded dirs),
+/// then lowercase. Pre-normalize the excluded list once; normalize each WalkDir entry inline.
+fn normalize_for_exclusion(p: &Path) -> String {
+    let canonical = p.canonicalize()
+        .unwrap_or_else(|_| p.to_path_buf())
+        .to_string_lossy()
+        .to_lowercase();
+    // Strip trailing path separators so "C:\foo\" and "C:\foo" compare equal
+    canonical.trim_end_matches(['/', '\\']).to_string()
+}
+
 /// Walk a directory, resolve .lnk shortcuts, return AppRecords.
 /// source: "start_menu" | "desktop" | "path" | "additional"
 /// PATH source: .exe only, no .lnk resolution, max_depth 1.
 pub(crate) fn crawl_dir(root: &Path, source: &'static str, excluded: &[String], allowlist: &[String]) -> Vec<AppRecord> {
     let mut apps = vec![];
-    let walker = walkdir::WalkDir::new(root).follow_links(true);
+
+    // Pre-normalize excluded list once (not per WalkDir entry) for performance.
+    // canonicalize resolves separators and case; fallback to raw+lowercase for non-existent paths.
+    let normalized_excluded: Vec<String> = excluded
+        .iter()
+        .map(|ex| normalize_for_exclusion(Path::new(ex)))
+        .collect();
+
+    let walker = walkdir::WalkDir::new(root)
+        .max_depth(8)         // 8 levels covers all real Start Menu structures; prevents runaway on NTFS junctions
+        .follow_links(false); // do not follow symlinks encountered during traversal; follow_root_links defaults to true
 
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
 
-        // Skip if under any excluded path
-        if excluded.iter().any(|ex| path.starts_with(ex)) {
+        // Skip if under any excluded path — compare normalized strings for case/separator safety
+        let norm_path = normalize_for_exclusion(path);
+        if normalized_excluded.iter().any(|ex| norm_path.starts_with(ex.as_str())) {
             continue;
         }
 
