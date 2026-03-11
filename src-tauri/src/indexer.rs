@@ -931,4 +931,84 @@ mod tests {
             "Settings::default() must NOT include the custom path"
         );
     }
+
+    #[test]
+    fn test_crawl_excludes_normalized() {
+        // RED: current crawl_dir uses raw starts_with — case-sensitive.
+        // An excluded path supplied in uppercase does NOT exclude the lowercase filesystem entry.
+        // This test will FAIL until Plan 02 adds normalize_for_exclusion().
+        let dir = tempdir().unwrap();
+        let excluded_sub = dir.path().join("excluded");
+        fs::create_dir_all(&excluded_sub).unwrap();
+        fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
+        fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
+
+        // Supply excluded path with uppercase final component to trigger case mismatch
+        let excluded_upper = excluded_sub.to_string_lossy().to_uppercase();
+        let excluded = vec![excluded_upper];
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
+
+        // After normalization, hidden.exe must be excluded → only visible.exe
+        assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite case difference");
+        assert!(apps[0].path.contains("visible.exe"), "visible.exe must be present");
+    }
+
+    #[test]
+    fn test_crawl_excludes_trailing_slash() {
+        // RED: current crawl_dir uses raw Path::starts_with on user-supplied strings.
+        // When the excluded path combines a case difference (UPPERCASE subdirectory) with
+        // a trailing separator, the raw comparison fails on BOTH counts.
+        // Plan 02's normalize_for_exclusion() (canonicalize + to_lowercase + separator strip)
+        // will handle both issues together. This test will FAIL until Plan 02 lands.
+        let dir = tempdir().unwrap();
+        let excluded_sub = dir.path().join("excluded");
+        fs::create_dir_all(&excluded_sub).unwrap();
+        fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
+        fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
+
+        // Excluded path: uppercase directory component + trailing backslash separator.
+        // Simulates a user typing "C:\Users\Me\EXCLUDED\" in the settings path field.
+        let excluded_upper_with_slash = format!(
+            "{}\\",
+            excluded_sub.to_string_lossy().to_uppercase()
+        );
+        let excluded = vec![excluded_upper_with_slash];
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
+
+        // After normalization: both sides lowercase, no trailing separator →
+        // hidden.exe is excluded → only visible.exe remains
+        assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite uppercase + trailing separator");
+        assert!(apps[0].path.contains("visible.exe"), "visible.exe must be present");
+    }
+
+    #[test]
+    fn test_crawl_respects_max_depth() {
+        // RED: current WalkDir has no max_depth — descends arbitrarily deep.
+        // A directory 9 levels deep will be traversed. This test will FAIL until
+        // Plan 02 adds .max_depth(8) to the WalkDir builder.
+        let dir = tempdir().unwrap();
+
+        // Build a chain of 9 nested directories
+        let mut deep = dir.path().to_path_buf();
+        for i in 1..=9 {
+            deep = deep.join(format!("depth_{}", i));
+        }
+        fs::create_dir_all(&deep).unwrap();
+        fs::write(deep.join("deep.exe"), b"MZ").unwrap();
+        fs::write(dir.path().join("shallow.exe"), b"MZ").unwrap();
+
+        let apps = crawl_dir(dir.path(), "additional", &[], &[]);
+
+        // With max_depth(8), depth-9 directory is not traversed → deep.exe absent
+        let paths: Vec<&str> = apps.iter().map(|a| a.path.as_str()).collect();
+        assert!(
+            !paths.iter().any(|p| p.contains("deep.exe")),
+            "deep.exe at depth 9 must NOT be discovered when max_depth is 8; found: {:?}",
+            paths
+        );
+        assert!(
+            paths.iter().any(|p| p.contains("shallow.exe")),
+            "shallow.exe at root must still be discovered"
+        );
+    }
 }
