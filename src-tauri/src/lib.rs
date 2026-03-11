@@ -63,6 +63,7 @@ mod indexer;      // Phase 3: Windows application indexer
 mod search;       // Phase 4: Nucleo fuzzy search engine
 mod commands;     // Phase 6: Launch commands (launch, launch_elevated)
 mod system_commands; // Phase 6: System commands (lock, shutdown, restart, sleep)
+mod warnings;     // Phase 09.5: startup-safe backend warning delivery
 
 #[tauri::command]
 fn open_settings_window(
@@ -98,6 +99,9 @@ pub fn run() {
 
             // Phase 2: Resolve data directory (portable or installed mode)
             let data_dir = crate::paths::data_dir(app.handle());
+
+            // Phase 09.5: queue warnings produced before the launcher listener mounts.
+            app.manage(crate::warnings::PendingBackendWarnings::default());
 
             // Phase 2: Initialize SQLite database and register as managed state
             let db_path = data_dir.join("launcher.db");
@@ -288,6 +292,7 @@ pub fn run() {
             crate::system_commands::run_system_command,
             crate::hotkey::update_hotkey,
             crate::commands::quit_app,   // Phase 7: context menu quit action
+            crate::warnings::take_backend_warnings,
             open_settings_window,        // Phase 8: open settings window
             consume_restore_launcher_on_settings_close,
         ])
