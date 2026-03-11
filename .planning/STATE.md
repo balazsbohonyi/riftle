@@ -2,33 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-11T21:07:40.922Z"
-last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
+current_plan: 09.5-02 planned
+status: ready_to_execute
+last_updated: "2026-03-11T22:06:17.6392346Z"
+last_activity: "2026-03-11 - Completed Phase 09.5 backend resilience plan 01; warning queue and launcher banner are ready for recovery flows"
 progress:
   total_phases: 14
   completed_phases: 11
-  total_plans: 36
-  completed_plans: 35
-  percent: 92
+  total_plans: 40
+  completed_plans: 36
+  percent: 90
 ---
 
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: 09.3 verification pending
-status: human_verification_required
-last_updated: "2026-03-11T01:50:00.000Z"
-last_activity: "2026-03-11 - Completed Phase 09.3 gap-closure plan 03; awaiting installed/dev and portable icon smoke tests"
-progress:
   [█████████░] 92%
-  completed_phases: 9
-  total_plans: 32
-  completed_plans: 32
-  percent: 100
----
 # Project State
 
 ## Accumulated Context
@@ -47,13 +33,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sub-100ms hotkey-to-visible response time with zero mouse required
-**Current focus:** Phase 09.3 gap closure implemented; waiting on installed/dev and portable icon smoke tests to close human verification.
+**Current focus:** Phase 09.5 backend resilience is in progress; plan 01 warning delivery is complete and plan 02 can build settings recovery on top of it.
 
 ## Current Position
 
-**Phase:** 09.3-asset-protocol-security-hardening
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 09.5-backend-resilience
+**Current Plan:** 02 planned
+**Status:** Ready to execute
 
 ## Progress
 
@@ -73,6 +59,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 09.1 | System Tray | Complete |
 | 09.2 | Settings + Indexer Contract Reliability | Complete |
 | 09.3 | Asset Protocol Security Hardening | Human verification required |
+| 09.4 | Indexer Hardening | Planned |
+| 09.5 | Backend Resilience | In progress |
 | 10 | Packaging & Distribution | Pending |
 
 ## Decisions
@@ -165,6 +153,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.4-03]: rayon ThreadPool for icon extraction caps concurrent GDI calls at 4 threads; pool Drop blocks run_full_index exit — same observable behavior as thread::spawn, better concurrency control
 - [Phase 09.4-03]: COM worker thread isolated via spawn_com_worker(); CoInitializeEx/CoUninitialize balanced on the worker thread; resolve_lnk no longer calls CoInitializeEx
 - [Phase 09.4-03]: Per-request allowlist inside LnkQuery: allowlist carried per-request rather than baked into spawn_com_worker so settings changes take effect without restarting the worker
+- [Phase 09.5-01]: PendingBackendWarnings is managed before DB and settings startup so early recovery warnings can be queued immediately
+- [Phase 09.5-01]: App.vue listens for backend-warning before draining take_backend_warnings and deduplicates payloads to avoid startup race duplicates
+- [Phase 09.5-01]: Launcher height measures the rendered warning stack so the inline banner stays visible without a broader notification subsystem
 
 ## Performance Metrics
 
@@ -202,6 +193,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.4-indexer-hardening P01 | 7min | 1 tasks | 1 files |
 | Phase 09.4-indexer-hardening P02 | 6min | 2 tasks | 1 files |
 | Phase 09.4-indexer-hardening P03 | 6min | 3 tasks | 3 files |
+| Phase 09.5-backend-resilience P01 | 3min | 2 tasks | 3 files |
 
 ## Session Log
 
@@ -246,3 +238,8 @@ Last activity: 2026-03-09 - Completed quick task 8: Button.vue component with de
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
 - Implementation adjustments during verification: position:fixed on .context-menu, height:auto on .launcher-app, @contextmenu.prevent on result rows, async onContextMenu with overflow handling, menuVisible watcher for height restore
 - Phase 7 (Context Menu) fully complete
+
+### 2026-03-11
+- Executed plan 09.5-01: added backend warning queue infrastructure in Rust and a launcher warning banner in App.vue
+- Verification: `cargo test backend_warning_`, `cargo test take_backend_warnings`, `cargo test`, and `pnpm.cmd build` all passed
+- State tooling parse failed because STATE.md contained duplicate frontmatter; file normalized manually while preserving accumulated context

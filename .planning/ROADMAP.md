@@ -210,10 +210,10 @@ Plans:
 **Goal:** Fix two medium-risk backend resilience issues from `.planning/codebase/CONCERNS.md` items 7 and 8: replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` calls in `src-tauri/src/commands.rs`, `search.rs`, and `lib.rs` with fallible handling, and add backup-plus-user-warning behavior before any silent DB/settings reset in `src-tauri/src/db.rs` and `store.rs`.
 **Requirements**: none (urgent internal hardening, no formal req IDs)
 **Depends on:** Phase 9
-**Plans:** 4 plans
+**Plans:** 1/4 plans complete
 
 Plans:
-- [ ] 09.5-01-PLAN.md - Wave 0: add backend warning model, pending-warning queue, `take_backend_warnings`, and launcher warning banner
+- [x] 09.5-01-PLAN.md - Wave 0: add backend warning model, pending-warning queue, `take_backend_warnings`, and launcher warning banner (completed 2026-03-11)
 - [ ] 09.5-02-PLAN.md - Wave 1: make settings recovery backup-first with explicit load outcomes and surfaced warnings
 - [ ] 09.5-03-PLAN.md - Wave 1: make DB init recovery backup-first and surface launch-history reset warnings
 - [ ] 09.5-04-PLAN.md - Wave 2: replace targeted panic-prone unwraps in `commands.rs`, `search.rs`, and `lib.rs`
@@ -320,7 +320,7 @@ Plans:
 | 09.2 | 3/3 | Complete   | 2026-03-10 |
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 09.4 | Indexer hardening | Inserted | Planned |
-| 09.5 | Backend resilience | Inserted | Planned |
+| 09.5 | 1/4 | In progress | 2026-03-11 |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
