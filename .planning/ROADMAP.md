@@ -205,6 +205,18 @@ Plans:
 
 ---
 
+### Phase 09.4: Indexer Hardening (INSERTED)
+
+**Goal:** Harden indexer.rs against five robustness concerns: bounded icon extraction thread pool (rayon, item 6), path normalization for exclusion comparison (item 9), WalkDir max-depth + symlink guards (item 10), COM init/uninit isolation in dedicated thread (item 11), extended-length path buffer in .lnk resolution (item 12).
+**Requirements**: none (urgent internal hardening, no formal req IDs)
+**Depends on:** Phase 9
+**Plans:** 3 plans
+
+Plans:
+- [ ] 09.4-01-PLAN.md — Wave 0: add 3 RED test stubs for path normalization and max-depth guards
+- [ ] 09.4-02-PLAN.md — Implement items 9 (path normalization), 10 (WalkDir guards), 12 (extended path buffer)
+- [ ] 09.4-03-PLAN.md — Implement item 6 (rayon bounded icon pool) and item 11 (COM worker thread isolation)
+
 ### Phase 09.3: Asset Protocol Security Hardening (INSERTED)
 
 **Goal:** Constrain assetProtocol.scope from ["**"] to the two app-owned icons directories and add server-side icon filename validation in Rust to prevent path traversal via the asset:// scheme.
