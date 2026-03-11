@@ -4,6 +4,7 @@
   --color-bg-darker: #181818;
 
   --color-text: #f0f0f0;
+  --color-text-soft: #e2e2e5;
   --color-text-muted: #888;
   --color-text-dim: #555558;
   --color-accent: #0A84FF;
@@ -32,6 +33,7 @@
   --color-bg-darker: #e0e0e0;
 
   --color-text: #1c1c1e;
+  --color-text-soft: #45454d;
   --color-text-muted: #666;
   --color-text-dim: #aaaaaa;
   --color-border: rgba(0, 0, 0, 0.12);
@@ -45,6 +47,7 @@
     --color-bg-darker: #e0e0e0;
 
     --color-text: #1c1c1e;
+    --color-text-soft: #45454d;
     --color-text-muted: #666;
     --color-text-dim: #aaaaaa;
     --color-border: rgba(0, 0, 0, 0.12);

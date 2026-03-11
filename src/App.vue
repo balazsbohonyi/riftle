@@ -473,7 +473,10 @@ onUnmounted(() => {
         <div class="warning-copy">
           <strong class="warning-title">{{ warning.title }}</strong>
           <span class="warning-message">{{ warning.message }}</span>
-          <span v-if="warning.backup_path" class="warning-path">{{ warning.backup_path }}</span>
+          <div v-if="warning.backup_path" class="warning-path-row">
+            <span class="warning-path-label">Backup:</span>
+            <span class="warning-path">{{ warning.backup_path }}</span>
+          </div>
         </div>
         <button
           class="warning-dismiss"
@@ -641,7 +644,7 @@ html, body {
 .warning-copy {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -659,11 +662,28 @@ html, body {
   line-height: 1.35;
 }
 
-.warning-path {
-  font-family: var(--font-mono);
+.warning-path-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  align-items: baseline;
+}
+
+.warning-path-label {
+  font-family: var(--font-sans);
   font-size: var(--font-size-xs);
-  color: var(--color-text-dim);
-  word-break: break-all;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.warning-path {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-soft);
+  line-height: 1.35;
+  word-break: break-word;
 }
 
 .warning-dismiss {
