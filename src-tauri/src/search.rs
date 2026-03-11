@@ -3,7 +3,7 @@
 use nucleo_matcher::{Matcher, Config, Utf32String, pattern::{Pattern, CaseMatching, Normalization}};
 use serde::Serialize;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 use tauri::Manager;
 use crate::db::{AppRecord, get_all_apps};
 
@@ -32,6 +32,40 @@ pub struct SearchIndex {
 
 pub struct SearchIndexState(pub Arc<RwLock<SearchIndex>>);
 
+fn lock_db<'a>(
+    db_state: &'a crate::db::DbState,
+    context: &str,
+) -> MutexGuard<'a, rusqlite::Connection> {
+    db_state.0.lock().unwrap_or_else(|err: PoisonError<_>| {
+        eprintln!("[search::{context}] recovering from poisoned DB mutex");
+        err.into_inner()
+    })
+}
+
+fn load_apps_for_index(
+    db_state: &crate::db::DbState,
+    context: &str,
+) -> Result<Vec<AppRecord>, rusqlite::Error> {
+    let conn = lock_db(db_state, context);
+    get_all_apps(&conn)
+}
+
+fn replace_index_apps(
+    state: &SearchIndexState,
+    apps: Option<Vec<AppRecord>>,
+) -> bool {
+    let Some(apps) = apps else {
+        return false;
+    };
+
+    let mut guard = state
+        .0
+        .write()
+        .unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner());
+    guard.apps = apps;
+    true
+}
+
 pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
     let icons_dir = data_dir.join("icons");
     std::fs::create_dir_all(&icons_dir)?;
@@ -44,24 +78,25 @@ pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
 
 pub fn init_search_index(app: &tauri::AppHandle) {
     let db_state = app.state::<crate::db::DbState>();
-    let apps = {
-        let conn = db_state.0.lock().unwrap();
-        get_all_apps(&conn).unwrap_or_default()
-    };
+    let apps = load_apps_for_index(&db_state, "init_search_index").unwrap_or_else(|err| {
+        eprintln!("[search::init_search_index] failed to load apps from DB: {}", err);
+        Vec::new()
+    });
     let index = SearchIndex { apps };
     app.manage(SearchIndexState(Arc::new(RwLock::new(index))));
 }
 
 pub fn rebuild_index(app: &tauri::AppHandle) {
     let db_state = app.state::<crate::db::DbState>();
-    let apps = {
-        let conn = db_state.0.lock().unwrap();
-        get_all_apps(&conn).unwrap_or_default()
+    let apps = match load_apps_for_index(&db_state, "rebuild_index") {
+        Ok(apps) => Some(apps),
+        Err(err) => {
+            eprintln!("[search::rebuild_index] failed to refresh apps from DB: {}", err);
+            None
+        }
     };
-    let new_index = SearchIndex { apps };
     if let Some(state) = app.try_state::<SearchIndexState>() {
-        let mut guard = state.0.write().unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner());
-        *guard = new_index;
+        let _ = replace_index_apps(&state, apps);
     }
 }
 
@@ -202,6 +237,20 @@ mod tests {
             last_launched: None,
             launch_count,
         }
+    }
+
+    #[test]
+    fn test_replace_index_apps_preserves_existing_entries_on_failed_refresh() {
+        let state = SearchIndexState(Arc::new(RwLock::new(SearchIndex {
+            apps: vec![make_app("chrome", "Chrome", 5)],
+        })));
+
+        let replaced = replace_index_apps(&state, None);
+
+        assert!(!replaced, "failed refresh should not replace the in-memory index");
+        let guard = state.0.read().unwrap();
+        assert_eq!(guard.apps.len(), 1);
+        assert_eq!(guard.apps[0].name, "Chrome");
     }
 
     #[test]

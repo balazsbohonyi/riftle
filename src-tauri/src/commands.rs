@@ -1,10 +1,21 @@
 // Phase 6: Launch commands - launch(id), launch_elevated(id) via ShellExecuteW
 
 use std::path::{Path, PathBuf};
+use std::sync::{MutexGuard, PoisonError};
 use std::time::Duration;
 use tauri::Manager;
 
 const GENERIC_ICON_FILENAME: &str = "generic.png";
+
+fn lock_db<'a>(
+    db_state: &'a crate::db::DbState,
+    context: &str,
+) -> MutexGuard<'a, rusqlite::Connection> {
+    db_state.0.lock().unwrap_or_else(|err: PoisonError<_>| {
+        eprintln!("[{context}] recovering from poisoned DB mutex");
+        err.into_inner()
+    })
+}
 
 #[tauri::command]
 pub fn launch(id: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -12,7 +23,7 @@ pub fn launch(id: String, app: tauri::AppHandle) -> Result<(), String> {
     // Bind state to a local variable first to satisfy the borrow checker (temporary lifetime).
     let path = {
         let db_state = app.state::<crate::db::DbState>();
-        let conn = db_state.0.lock().unwrap();
+        let conn = lock_db(&db_state, "launch");
         conn.query_row(
             "SELECT path FROM apps WHERE id = ?1",
             rusqlite::params![id],
@@ -47,7 +58,7 @@ pub fn launch(id: String, app: tauri::AppHandle) -> Result<(), String> {
         // Success - increment launch count then rebuild search index
         {
             let db_state = app.state::<crate::db::DbState>();
-            let conn = db_state.0.lock().unwrap();
+            let conn = lock_db(&db_state, "launch");
             let _ = crate::db::increment_launch_count(&conn, &id);
         }
         crate::search::rebuild_index(&app);
@@ -96,7 +107,7 @@ pub fn launch_elevated(id: String, app: tauri::AppHandle) -> Result<(), String> 
     // Bind state to a local variable first to satisfy the borrow checker (temporary lifetime).
     let path = {
         let db_state = app.state::<crate::db::DbState>();
-        let conn = db_state.0.lock().unwrap();
+        let conn = lock_db(&db_state, "launch_elevated");
         conn.query_row(
             "SELECT path FROM apps WHERE id = ?1",
             rusqlite::params![id],
@@ -142,7 +153,7 @@ pub fn launch_elevated(id: String, app: tauri::AppHandle) -> Result<(), String> 
     }
     {
         let db_state = app.state::<crate::db::DbState>();
-        let conn = db_state.0.lock().unwrap();
+        let conn = lock_db(&db_state, "launch_elevated");
         let _ = crate::db::increment_launch_count(&conn, &id);
     }
     crate::search::rebuild_index(&app);
