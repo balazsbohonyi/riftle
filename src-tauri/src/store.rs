@@ -1,13 +1,15 @@
 // Phase 2: Settings persistence via tauri-plugin-store
+use crate::warnings::BackendWarning;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use serde_json::json;
+use std::fs;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
-use serde_json::json;
 
 // ---- Settings struct ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Settings {
     #[serde(default = "default_hotkey")]
     pub hotkey: String,
@@ -86,6 +88,96 @@ impl Default for Settings {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum SettingsLoadOutcome {
+    Loaded(Settings),
+    Missing(Settings),
+    RecoveredWithDefaults {
+        settings: Settings,
+        warning: BackendWarning,
+    },
+    FatalBackupFailure {
+        error: String,
+    },
+}
+
+fn settings_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("settings.json")
+}
+
+fn backup_path(store_path: &Path) -> PathBuf {
+    store_path.with_file_name("settings.json.bak")
+}
+
+fn load_settings_from_file(store_path: &Path) -> Result<Settings, String> {
+    let raw = fs::read_to_string(store_path)
+        .map_err(|err| format!("failed to read {}: {}", store_path.display(), err))?;
+    let root: serde_json::Value = serde_json::from_str(&raw)
+        .map_err(|err| format!("failed to parse {}: {}", store_path.display(), err))?;
+    let settings = root
+        .get("settings")
+        .cloned()
+        .ok_or_else(|| format!("missing settings payload in {}", store_path.display()))?;
+
+    serde_json::from_value(settings)
+        .map_err(|err| format!("failed to deserialize settings from {}: {}", store_path.display(), err))
+}
+
+fn backup_file_with_overwrite(source_path: &Path, backup_path: &Path) -> std::io::Result<()> {
+    if backup_path.exists() {
+        if backup_path.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("backup path {} is a directory", backup_path.display()),
+            ));
+        }
+        fs::remove_file(backup_path)?;
+    }
+
+    fs::copy(source_path, backup_path)?;
+    Ok(())
+}
+
+pub fn load_settings_outcome(data_dir: &Path) -> SettingsLoadOutcome {
+    let store_path = settings_path(data_dir);
+    let defaults = Settings::default();
+
+    if !store_path.exists() {
+        return SettingsLoadOutcome::Missing(defaults);
+    }
+
+    match load_settings_from_file(&store_path) {
+        Ok(settings) => SettingsLoadOutcome::Loaded(settings),
+        Err(load_error) => {
+            let backup_path = backup_path(&store_path);
+            if let Err(backup_error) = backup_file_with_overwrite(&store_path, &backup_path) {
+                return SettingsLoadOutcome::FatalBackupFailure {
+                    error: format!(
+                        "failed to create {} before recovering {}: {} ({})",
+                        backup_path.display(),
+                        store_path.display(),
+                        backup_error,
+                        load_error
+                    ),
+                };
+            }
+
+            SettingsLoadOutcome::RecoveredWithDefaults {
+                settings: defaults,
+                warning: BackendWarning {
+                    kind: "settings-reset".to_string(),
+                    title: "Settings were reset".to_string(),
+                    message: format!(
+                        "Riftle could not read your existing settings and restored defaults. A backup was saved to {}.",
+                        backup_path.display()
+                    ),
+                    backup_path: Some(backup_path.to_string_lossy().into_owned()),
+                },
+            }
+        }
+    }
+}
+
 // ---- Store functions ----
 //
 // IMPORTANT: app.store() is called with an absolute PathBuf.
@@ -99,19 +191,18 @@ impl Default for Settings {
 //   serde_json::from_slice(&json_bytes).unwrap_or_default()
 // The smoke test in lib.rs setup will reveal this if absolute path is not respected.
 
-/// Returns current settings from settings.json, or Settings::default() if not found/malformed.
-/// Silent reset on malformed JSON per CONTEXT.md decision.
+/// Returns current settings for non-startup call sites.
+/// Startup code should use load_settings_outcome() so it can branch on recovery state.
 /// store_path must be the absolute path to settings.json (data_dir.join("settings.json")).
-pub fn get_settings(app: &AppHandle, data_dir: &Path) -> Settings {
-    let store_path = data_dir.join("settings.json");
-    match app.store(store_path) {
-        Ok(store) => {
-            match store.get("settings") {
-                Some(val) => serde_json::from_value(val).unwrap_or_default(),
-                None => Settings::default(),
-            }
+pub fn get_settings(_app: &AppHandle, data_dir: &Path) -> Settings {
+    match load_settings_outcome(data_dir) {
+        SettingsLoadOutcome::Loaded(settings)
+        | SettingsLoadOutcome::Missing(settings)
+        | SettingsLoadOutcome::RecoveredWithDefaults { settings, .. } => settings,
+        SettingsLoadOutcome::FatalBackupFailure { error } => {
+            eprintln!("[store] {}", error);
+            Settings::default()
         }
-        Err(_) => Settings::default(),
     }
 }
 
@@ -134,10 +225,18 @@ pub fn set_settings(app: &AppHandle, data_dir: &Path, settings: &Settings) {
 
 #[tauri::command]
 pub fn get_settings_cmd(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     data_dir: tauri::State<std::path::PathBuf>,
 ) -> serde_json::Value {
-    let settings = get_settings(&app, &data_dir);
+    let settings = match load_settings_outcome(&data_dir) {
+        SettingsLoadOutcome::Loaded(settings)
+        | SettingsLoadOutcome::Missing(settings)
+        | SettingsLoadOutcome::RecoveredWithDefaults { settings, .. } => settings,
+        SettingsLoadOutcome::FatalBackupFailure { error } => {
+            eprintln!("[store] {}", error);
+            Settings::default()
+        }
+    };
     let is_portable = data_dir.ends_with("data") &&
         data_dir.parent().map(|p| p.join("riftle-launcher.portable").exists()).unwrap_or(false);
     serde_json::json!({
@@ -182,6 +281,25 @@ pub fn set_settings_cmd(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("riftle-store-{label}-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn cleanup_temp_dir(dir: &Path) {
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    fn write_raw_settings(dir: &Path, contents: &str) {
+        fs::write(settings_path(dir), contents).unwrap();
+    }
 
     #[test]
     fn test_settings_defaults() {
@@ -279,5 +397,82 @@ mod tests {
             !allowlist.is_empty(),
             "default system_tool_allowlist must not be empty"
         );
+    }
+
+    #[test]
+    fn settings_missing_file_yields_defaults_without_warning() {
+        let dir = unique_temp_dir("missing");
+        let outcome = load_settings_outcome(&dir);
+
+        match outcome {
+            SettingsLoadOutcome::Missing(settings) => {
+                assert_eq!(settings.hotkey, "Alt+Space");
+                assert!(!backup_path(&settings_path(&dir)).exists());
+            }
+            other => panic!("expected missing outcome, got {:?}", other),
+        }
+
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn settings_malformed_file_creates_backup_before_recovery() {
+        let dir = unique_temp_dir("malformed");
+        let malformed = r#"not valid json"#;
+        write_raw_settings(&dir, malformed);
+
+        let outcome = load_settings_outcome(&dir);
+        let backup = backup_path(&settings_path(&dir));
+
+        match outcome {
+            SettingsLoadOutcome::RecoveredWithDefaults { settings, warning } => {
+                assert_eq!(settings, Settings::default());
+                assert_eq!(warning.kind, "settings-reset");
+                assert_eq!(warning.backup_path.as_deref(), Some(backup.to_string_lossy().as_ref()));
+            }
+            other => panic!("expected recovery outcome, got {:?}", other),
+        }
+
+        assert_eq!(fs::read_to_string(backup).unwrap(), malformed);
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn settings_existing_backup_is_overwritten_on_recovery() {
+        let dir = unique_temp_dir("overwrite");
+        write_raw_settings(&dir, "{ definitely broken");
+        fs::write(backup_path(&settings_path(&dir)), "old backup").unwrap();
+
+        let outcome = load_settings_outcome(&dir);
+        assert!(matches!(
+            outcome,
+            SettingsLoadOutcome::RecoveredWithDefaults { .. }
+        ));
+
+        assert_eq!(
+            fs::read_to_string(backup_path(&settings_path(&dir))).unwrap(),
+            "{ definitely broken"
+        );
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn backup_failure_preserves_original_settings_file() {
+        let dir = unique_temp_dir("backup-failure");
+        let original = "{ definitely broken";
+        write_raw_settings(&dir, original);
+        fs::create_dir_all(backup_path(&settings_path(&dir))).unwrap();
+
+        let outcome = load_settings_outcome(&dir);
+
+        match outcome {
+            SettingsLoadOutcome::FatalBackupFailure { error } => {
+                assert!(error.contains("settings.json.bak"));
+            }
+            other => panic!("expected fatal backup failure, got {:?}", other),
+        }
+
+        assert_eq!(fs::read_to_string(settings_path(&dir)).unwrap(), original);
+        cleanup_temp_dir(&dir);
     }
 }
