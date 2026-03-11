@@ -23,6 +23,13 @@ interface SettingsPayload {
   reindex_interval?: number
 }
 
+interface BackendWarning {
+  kind: string
+  title: string
+  message: string
+  backup_path?: string | null
+}
+
 const GENERIC_ICON_FILENAME = 'generic.png'
 
 // ---- State ----
@@ -35,8 +42,10 @@ const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
 const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
+const warningListRef = ref<HTMLElement | null>(null)
 const isTauriContext = ref(false)
 const iconUrls      = ref<Record<string, string>>({})
+const backendWarnings = ref<BackendWarning[]>([])
 
 const iconRequests = new Map<string, Promise<string>>()
 
@@ -50,12 +59,42 @@ const BOTTOM_PAD   = 8
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
 let unlistenSettings: (() => void) | null = null
+let unlistenBackendWarnings: (() => void) | null = null
 let launchInProgress = false
 
 // ---- Computed ----
 const listHeight = computed(() =>
   Math.min(results.value.length, 5) * 48
 )
+
+function warningKey(warning: BackendWarning): string {
+  return [
+    warning.kind,
+    warning.title,
+    warning.message,
+    warning.backup_path ?? '',
+  ].join('::')
+}
+
+function appendBackendWarnings(warnings: BackendWarning[]) {
+  if (!warnings.length) return
+
+  const seen = new Set(backendWarnings.value.map(warningKey))
+  const next = [...backendWarnings.value]
+
+  for (const warning of warnings) {
+    const key = warningKey(warning)
+    if (seen.has(key)) continue
+    seen.add(key)
+    next.push(warning)
+  }
+
+  backendWarnings.value = next
+}
+
+function dismissBackendWarning(key: string) {
+  backendWarnings.value = backendWarnings.value.filter((warning) => warningKey(warning) !== key)
+}
 
 function setIconUrl(iconPath: string, url: string) {
   if (!url || iconUrls.value[iconPath] === url) return
@@ -129,9 +168,16 @@ watch(results, (items) => {
   }
 })
 
+watch(backendWarnings, async () => {
+  await nextTick()
+  await updateWindowHeight()
+}, { deep: true })
+
 watch(menuVisible, async (visible) => {
   if (!visible && isTauriContext.value) {
-    const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
+    await nextTick()
+    const warningHeight = warningListRef.value?.offsetHeight ?? 0
+    const h = Math.max(56 + listHeight.value + warningHeight, 56) + BOTTOM_PAD
     await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
   }
 })
@@ -154,7 +200,9 @@ async function updateWindowHeight() {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
     return
   }
-  const h = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
+  await nextTick()
+  const warningHeight = warningListRef.value?.offsetHeight ?? 0
+  const h = Math.max(56 + listHeight.value + warningHeight, 56) + BOTTOM_PAD
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
   if (delay > 0) {
@@ -255,7 +303,9 @@ async function onContextMenu(e: MouseEvent) {
   menuY.value = e.clientY
   menuVisible.value = true
   if (isTauriContext.value) {
-    const contentH = Math.max(56 + listHeight.value, 56) + BOTTOM_PAD
+    await nextTick()
+    const warningHeight = warningListRef.value?.offsetHeight ?? 0
+    const contentH = Math.max(56 + listHeight.value + warningHeight, 56) + BOTTOM_PAD
     const neededH = menuY.value + MENU_HEIGHT + 8
     if (neededH > contentH) {
       await getCurrentWindow().setSize(new LogicalSize(500, neededH)).catch(console.error)
@@ -341,6 +391,14 @@ onMounted(async () => {
     }
   }
 
+  if (isTauriContext.value) {
+    unlistenBackendWarnings = await listen<BackendWarning>('backend-warning', ({ payload }) => {
+      appendBackendWarnings([payload])
+    })
+    const pendingWarnings = await invoke<BackendWarning[]>('take_backend_warnings').catch(() => [])
+    appendBackendWarnings(pendingWarnings)
+  }
+
   await updateWindowHeight()
 
   if (isTauriContext.value) {
@@ -375,7 +433,7 @@ onMounted(async () => {
       query.value = ''
       await getCurrentWindow().show().catch(console.error)
       await getCurrentWindow().setFocus().catch(console.error)
-      await getCurrentWindow().setSize(new LogicalSize(500, 56 + BOTTOM_PAD)).catch(console.error)
+      await updateWindowHeight()
       await getCurrentWindow().center().catch(console.error)
       await nextTick()
       isVisible.value = true
@@ -396,6 +454,7 @@ onUnmounted(() => {
   unlistenFocus?.()
   unlistenShow?.()
   unlistenSettings?.()
+  unlistenBackendWarnings?.()
   for (const url of Object.values(iconUrls.value)) {
     URL.revokeObjectURL(url)
   }
@@ -405,6 +464,26 @@ onUnmounted(() => {
 
 <template>
   <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu">
+    <div v-if="backendWarnings.length > 0" ref="warningListRef" class="warning-stack">
+      <div
+        v-for="warning in backendWarnings"
+        :key="warningKey(warning)"
+        class="warning-banner"
+      >
+        <div class="warning-copy">
+          <strong class="warning-title">{{ warning.title }}</strong>
+          <span class="warning-message">{{ warning.message }}</span>
+          <span v-if="warning.backup_path" class="warning-path">{{ warning.backup_path }}</span>
+        </div>
+        <button
+          class="warning-dismiss"
+          type="button"
+          @mousedown.prevent="dismissBackendWarning(warningKey(warning))"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
 
     <!-- Search input area -->
     <div class="search-area">
@@ -541,6 +620,68 @@ html, body {
 .anim-instant.visible { opacity: 1; transform: translateY(0); }
 
 /* ---- Search area ---- */
+.warning-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-md) 0;
+}
+
+.warning-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-lighter));
+  border-radius: var(--radius-sm);
+}
+
+.warning-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.warning-title {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.warning-message {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.warning-path {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+  word-break: break-all;
+}
+
+.warning-dismiss {
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px 0;
+}
+
+.warning-dismiss:hover {
+  color: var(--color-text);
+}
+
 .search-area {
   display: flex;
   align-items: center;
