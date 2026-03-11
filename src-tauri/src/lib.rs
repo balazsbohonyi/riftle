@@ -40,6 +40,18 @@ fn resolve_startup_settings_action(
     }
 }
 
+fn startup_db_warning(backup_path: &std::path::Path) -> warnings::BackendWarning {
+    warnings::BackendWarning {
+        kind: "db-reset".to_string(),
+        title: "Launch history was reset".to_string(),
+        message: format!(
+            "Riftle could not read the existing launch history database and recreated it. A backup was saved to {}.",
+            backup_path.display()
+        ),
+        backup_path: Some(backup_path.to_string_lossy().into_owned()),
+    }
+}
+
 fn show_launcher_window(app: &tauri::AppHandle) {
     let Some(win) = app.get_webview_window("launcher") else {
         eprintln!("[tray] launcher window not found");
@@ -132,9 +144,19 @@ pub fn run() {
 
             // Phase 2: Initialize SQLite database and register as managed state
             let db_path = data_dir.join("launcher.db");
-            let conn = crate::db::init_db(&db_path)
-                .expect("failed to initialize database");
+            let (conn, db_warning) = match crate::db::init_db(&db_path)
+                .expect("failed to initialize database")
+            {
+                crate::db::DbInitOutcome::Clean(connection) => (connection, None),
+                crate::db::DbInitOutcome::Recovered { connection, backup_path } => (
+                    connection,
+                    Some(startup_db_warning(&backup_path)),
+                ),
+            };
             app.manage(crate::db::DbState(Arc::new(Mutex::new(conn))));
+            if let Some(warning) = db_warning {
+                crate::warnings::push_backend_warning(app.handle(), warning);
+            }
 
             // Phase 2 / 09.5: startup distinguishes first-run defaults from recovery defaults.
             let settings = match resolve_startup_settings_action(
@@ -412,5 +434,16 @@ mod tests {
         );
 
         assert_eq!(result.unwrap_err(), error);
+    }
+
+    #[test]
+    fn db_recovery_warning_uses_expected_copy_and_backup_path() {
+        let backup = std::path::Path::new("C:\\data\\launcher.db.bak");
+        let warning = startup_db_warning(backup);
+
+        assert_eq!(warning.kind, "db-reset");
+        assert_eq!(warning.title, "Launch history was reset");
+        assert!(warning.message.contains("launcher.db.bak"));
+        assert_eq!(warning.backup_path.as_deref(), Some("C:\\data\\launcher.db.bak"));
     }
 }

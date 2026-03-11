@@ -10,6 +10,14 @@ use std::sync::{Arc, Mutex};
 /// Arc<Mutex<>> allows the connection to be cloned and sent to indexer threads (Phase 3).
 pub struct DbState(pub Arc<Mutex<Connection>>);
 
+pub enum DbInitOutcome {
+    Clean(Connection),
+    Recovered {
+        connection: Connection,
+        backup_path: PathBuf,
+    },
+}
+
 /// A single app record in the apps table.
 /// id is the normalized exe path (natural unique key — no hash crate needed).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,11 +50,15 @@ pub fn init_db_connection(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-/// Opens (or creates) the SQLite file at db_path, runs schema DDL, returns the Connection.
-/// On corrupted file: delete and recreate (silent reset per CONTEXT.md decision).
-/// Returns Result<Connection> — caller wraps in Arc<Mutex<>> and stores as managed state.
-pub fn init_db(db_path: &Path) -> Result<Connection> {
-    init_db_with_recovery(db_path).map(|(conn, _)| conn)
+/// Opens (or creates) the SQLite file at db_path and reports whether startup had to recover it.
+pub fn init_db(db_path: &Path) -> Result<DbInitOutcome> {
+    init_db_with_recovery(db_path).map(|(connection, backup_path)| match backup_path {
+        Some(backup_path) => DbInitOutcome::Recovered {
+            connection,
+            backup_path,
+        },
+        None => DbInitOutcome::Clean(connection),
+    })
 }
 
 fn try_init_db(db_path: &Path) -> Result<Connection> {
@@ -292,7 +304,9 @@ mod tests {
         let original = "not a sqlite database";
         fs::write(&db_path, original).unwrap();
 
-        let conn = init_db(&db_path).unwrap();
+        let DbInitOutcome::Recovered { connection: conn, .. } = init_db(&db_path).unwrap() else {
+            panic!("expected recovered database");
+        };
         let backup = backup_path(&db_path);
 
         assert_eq!(fs::read_to_string(&backup).unwrap(), original);
@@ -315,7 +329,10 @@ mod tests {
         fs::write(&db_path, "broken db").unwrap();
         fs::write(&backup, "old backup").unwrap();
 
-        init_db(&db_path).unwrap();
+        assert!(matches!(
+            init_db(&db_path).unwrap(),
+            DbInitOutcome::Recovered { .. }
+        ));
 
         assert_eq!(fs::read_to_string(backup).unwrap(), "broken db");
         cleanup_temp_dir(&dir);
