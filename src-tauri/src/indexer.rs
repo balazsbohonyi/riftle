@@ -793,10 +793,16 @@ mod tests {
         (dir, exe_path)
     }
 
+    fn test_com_tx() -> std::sync::mpsc::SyncSender<LnkQuery> {
+        // Minimal COM worker for unit tests — all .lnk paths in tests are fake so
+        // resolve_lnk returns None; the worker still needs to respond to each query.
+        spawn_com_worker()
+    }
+
     #[test]
     fn test_crawl_discovers_exe() {
         let (dir, _exe) = temp_dir_with_exe("foo.exe");
-        let apps = crawl_dir(dir.path(), "additional", &[], &[]);
+        let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
         assert_eq!(apps.len(), 1);
         assert!(apps[0].path.ends_with("foo.exe"));
     }
@@ -852,7 +858,7 @@ mod tests {
         fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
         fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
         let excluded = vec![excluded_sub.to_string_lossy().to_string()];
-        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
         // Only visible.exe should appear
         assert_eq!(apps.len(), 1);
         assert!(apps[0].path.contains("visible.exe"));
@@ -892,7 +898,7 @@ mod tests {
         let settings = Settings::default();
 
         // try_start_index with flag=false should flip it to true and spawn a thread
-        try_start_index(&flag, &db, dir.path(), &settings);
+        try_start_index(&flag, &db, dir.path(), &settings, test_com_tx());
         // Give thread a moment to start and set the flag
         std::thread::sleep(Duration::from_millis(50));
         // The spawned thread may have already finished (empty index) and reset flag to false
@@ -929,7 +935,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let settings = Settings::default();
 
-        try_start_index(&flag_clone, &db, dir.path(), &settings);
+        try_start_index(&flag_clone, &db, dir.path(), &settings, test_com_tx());
         // Flag should still be true — no thread was spawned to reset it
         assert!(flag_clone.load(Ordering::SeqCst), "flag should remain true (second call was dropped)");
 
@@ -1038,7 +1044,7 @@ mod tests {
         // Supply excluded path with uppercase final component to trigger case mismatch
         let excluded_upper = excluded_sub.to_string_lossy().to_uppercase();
         let excluded = vec![excluded_upper];
-        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
 
         // After normalization, hidden.exe must be excluded → only visible.exe
         assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite case difference");
@@ -1065,7 +1071,7 @@ mod tests {
             excluded_sub.to_string_lossy().to_uppercase()
         );
         let excluded = vec![excluded_upper_with_slash];
-        let apps = crawl_dir(dir.path(), "additional", &excluded, &[]);
+        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
 
         // After normalization: both sides lowercase, no trailing separator →
         // hidden.exe is excluded → only visible.exe remains
@@ -1089,7 +1095,7 @@ mod tests {
         fs::write(deep.join("deep.exe"), b"MZ").unwrap();
         fs::write(dir.path().join("shallow.exe"), b"MZ").unwrap();
 
-        let apps = crawl_dir(dir.path(), "additional", &[], &[]);
+        let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
 
         // With max_depth(8), depth-9 directory is not traversed → deep.exe absent
         let paths: Vec<&str> = apps.iter().map(|a| a.path.as_str()).collect();
