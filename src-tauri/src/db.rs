@@ -2,7 +2,8 @@
 
 use rusqlite::{Connection, Result};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 /// Tauri managed state wrapper for the shared SQLite connection.
@@ -45,21 +46,77 @@ pub fn init_db_connection(conn: &Connection) -> Result<()> {
 /// On corrupted file: delete and recreate (silent reset per CONTEXT.md decision).
 /// Returns Result<Connection> — caller wraps in Arc<Mutex<>> and stores as managed state.
 pub fn init_db(db_path: &Path) -> Result<Connection> {
-    // Silent reset on corruption: attempt open, if DDL fails delete and retry once.
-    match try_init_db(db_path) {
-        Ok(conn) => Ok(conn),
-        Err(_) => {
-            // Corrupted — delete and recreate (launch history lost, app starts normally)
-            let _ = std::fs::remove_file(db_path);
-            try_init_db(db_path)
-        }
-    }
+    init_db_with_recovery(db_path).map(|(conn, _)| conn)
 }
 
 fn try_init_db(db_path: &Path) -> Result<Connection> {
     let conn = Connection::open(db_path)?;
     init_db_connection(&conn)?;
     Ok(conn)
+}
+
+fn init_db_with_recovery(db_path: &Path) -> Result<(Connection, Option<PathBuf>)> {
+    let init_error = match try_init_db(db_path) {
+        Ok(conn) => return Ok((conn, None)),
+        Err(err) => err,
+    };
+
+    if !db_path.exists() {
+        return Err(init_error);
+    }
+
+    let backup_path = backup_path(db_path);
+    backup_file_with_overwrite(db_path, &backup_path)
+        .map_err(|backup_error| db_recovery_error(db_path, Some(&backup_path), backup_error, &init_error))?;
+
+    let conn = try_init_db(db_path)?;
+    Ok((conn, Some(backup_path)))
+}
+
+fn backup_path(db_path: &Path) -> PathBuf {
+    db_path.with_file_name("launcher.db.bak")
+}
+
+fn backup_file_with_overwrite(source_path: &Path, backup_path: &Path) -> std::io::Result<()> {
+    if backup_path.exists() {
+        if backup_path.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("backup path {} is a directory", backup_path.display()),
+            ));
+        }
+        fs::remove_file(backup_path)?;
+    }
+
+    match fs::rename(source_path, backup_path) {
+        Ok(()) => Ok(()),
+        Err(rename_error) => {
+            fs::copy(source_path, backup_path)?;
+            fs::remove_file(source_path)?;
+            if backup_path.exists() {
+                Ok(())
+            } else {
+                Err(rename_error)
+            }
+        }
+    }
+}
+
+fn db_recovery_error(
+    db_path: &Path,
+    backup_path: Option<&Path>,
+    io_error: std::io::Error,
+    init_error: &rusqlite::Error,
+) -> rusqlite::Error {
+    let mut message = format!("failed to recover {}: {}", db_path.display(), io_error);
+    if let Some(path) = backup_path {
+        message.push_str(&format!(" while creating {}", path.display()));
+    }
+    message.push_str(&format!(" (initialization error: {})", init_error));
+    rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+        io_error.kind(),
+        message,
+    )))
 }
 
 /// Inserts or updates an app record.
@@ -131,6 +188,7 @@ pub fn increment_launch_count(conn: &Connection, id: &str) -> Result<()> {
 mod tests {
     use super::*;
     use rusqlite::Connection;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn setup() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -148,6 +206,20 @@ mod tests {
             last_launched: None,
             launch_count: 0,
         }
+    }
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("riftle-db-{label}-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn cleanup_temp_dir(dir: &Path) {
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -211,5 +283,66 @@ mod tests {
         assert_eq!(all[0].launch_count, 1);
         assert!(all[0].last_launched.is_some());
         assert!(all[0].last_launched.unwrap() > 0);
+    }
+
+    #[test]
+    fn db_backup_is_created_before_recovery() {
+        let dir = unique_temp_dir("backup-create");
+        let db_path = dir.join("launcher.db");
+        let original = "not a sqlite database";
+        fs::write(&db_path, original).unwrap();
+
+        let conn = init_db(&db_path).unwrap();
+        let backup = backup_path(&db_path);
+
+        assert_eq!(fs::read_to_string(&backup).unwrap(), original);
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'apps'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn db_backup_overwrites_existing_backup() {
+        let dir = unique_temp_dir("backup-overwrite");
+        let db_path = dir.join("launcher.db");
+        let backup = backup_path(&db_path);
+        fs::write(&db_path, "broken db").unwrap();
+        fs::write(&backup, "old backup").unwrap();
+
+        init_db(&db_path).unwrap();
+
+        assert_eq!(fs::read_to_string(backup).unwrap(), "broken db");
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn db_backup_missing_db_does_not_create_backup_on_init_error() {
+        let dir = unique_temp_dir("missing-parent");
+        let missing_parent = dir.join("missing");
+        let db_path = missing_parent.join("launcher.db");
+
+        assert!(init_db(&db_path).is_err());
+        assert!(!backup_path(&db_path).exists());
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn backup_failure_preserves_original_db() {
+        let dir = unique_temp_dir("backup-failure");
+        let db_path = dir.join("launcher.db");
+        let backup = backup_path(&db_path);
+        let original = "still broken";
+        fs::write(&db_path, original).unwrap();
+        fs::create_dir_all(&backup).unwrap();
+
+        assert!(init_db(&db_path).is_err());
+        assert_eq!(fs::read_to_string(&db_path).unwrap(), original);
+        cleanup_temp_dir(&dir);
     }
 }
