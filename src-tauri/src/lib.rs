@@ -13,6 +13,33 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 struct SettingsCentered(AtomicBool);
 struct SettingsCloseBehavior(AtomicBool);
 
+#[derive(Debug)]
+enum StartupSettingsAction {
+    UseExisting(store::Settings),
+    PersistDefaults(store::Settings),
+    RecoverAndPersist {
+        settings: store::Settings,
+        warning: warnings::BackendWarning,
+    },
+}
+
+fn resolve_startup_settings_action(
+    outcome: store::SettingsLoadOutcome,
+) -> Result<StartupSettingsAction, String> {
+    match outcome {
+        store::SettingsLoadOutcome::Loaded(settings) => {
+            Ok(StartupSettingsAction::UseExisting(settings))
+        }
+        store::SettingsLoadOutcome::Missing(settings) => {
+            Ok(StartupSettingsAction::PersistDefaults(settings))
+        }
+        store::SettingsLoadOutcome::RecoveredWithDefaults { settings, warning } => {
+            Ok(StartupSettingsAction::RecoverAndPersist { settings, warning })
+        }
+        store::SettingsLoadOutcome::FatalBackupFailure { error } => Err(error),
+    }
+}
+
 fn show_launcher_window(app: &tauri::AppHandle) {
     let Some(win) = app.get_webview_window("launcher") else {
         eprintln!("[tray] launcher window not found");
@@ -109,12 +136,26 @@ pub fn run() {
                 .expect("failed to initialize database");
             app.manage(crate::db::DbState(Arc::new(Mutex::new(conn))));
 
-            // Phase 2: Initialize settings store — loads existing settings or writes defaults on first run
-            let settings = crate::store::get_settings(app.handle(), &data_dir);
-            crate::store::set_settings(app.handle(), &data_dir, &settings);
-            // get_settings returns defaults if no file exists; set_settings persists them.
-            // This guarantees settings.json exists after setup (DATA-04).
-            // Phase 8 will expose settings to the frontend via Tauri commands.
+            // Phase 2 / 09.5: startup distinguishes first-run defaults from recovery defaults.
+            let settings = match resolve_startup_settings_action(
+                crate::store::load_settings_outcome(&data_dir),
+            ) {
+                Ok(StartupSettingsAction::UseExisting(settings)) => settings,
+                Ok(StartupSettingsAction::PersistDefaults(settings)) => {
+                    crate::store::set_settings(app.handle(), &data_dir, &settings);
+                    settings
+                }
+                Ok(StartupSettingsAction::RecoverAndPersist { settings, warning }) => {
+                    crate::warnings::push_backend_warning(app.handle(), warning);
+                    crate::store::set_settings(app.handle(), &data_dir, &settings);
+                    settings
+                }
+                Err(error) => {
+                    return Err(std::io::Error::other(error).into());
+                }
+            };
+            // Missing settings.json still follows the first-run path and is persisted immediately.
+            // Recovery defaults are only persisted after the original file was backed up and a warning was queued.
 
             // Phase 3: Indexer — synchronous first index then background refresh
             #[cfg(desktop)]
@@ -298,4 +339,78 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_warning() -> warnings::BackendWarning {
+        warnings::BackendWarning {
+            kind: "settings-reset".to_string(),
+            title: "Settings were reset".to_string(),
+            message: "backup created".to_string(),
+            backup_path: Some("C:\\data\\settings.json.bak".to_string()),
+        }
+    }
+
+    #[test]
+    fn settings_recovery_missing_file_persists_defaults_without_warning() {
+        let settings = store::Settings::default();
+        let action = resolve_startup_settings_action(store::SettingsLoadOutcome::Missing(settings.clone()))
+            .unwrap();
+
+        match action {
+            StartupSettingsAction::PersistDefaults(returned) => assert_eq!(returned, settings),
+            _ => panic!("expected first-run defaults to be persisted"),
+        }
+    }
+
+    #[test]
+    fn settings_recovery_loaded_settings_do_not_trigger_persist() {
+        let settings = store::Settings::default();
+        let action = resolve_startup_settings_action(store::SettingsLoadOutcome::Loaded(settings.clone()))
+            .unwrap();
+
+        match action {
+            StartupSettingsAction::UseExisting(returned) => assert_eq!(returned, settings),
+            _ => panic!("expected clean load to reuse existing settings"),
+        }
+    }
+
+    #[test]
+    fn settings_recovery_recovered_defaults_require_warning_before_persist() {
+        let settings = store::Settings::default();
+        let warning = sample_warning();
+        let action = resolve_startup_settings_action(
+            store::SettingsLoadOutcome::RecoveredWithDefaults {
+                settings: settings.clone(),
+                warning: warning.clone(),
+            },
+        )
+        .unwrap();
+
+        match action {
+            StartupSettingsAction::RecoverAndPersist {
+                settings: returned,
+                warning: returned_warning,
+            } => {
+                assert_eq!(returned, settings);
+                assert_eq!(returned_warning, warning);
+            }
+            _ => panic!("expected recovery path to preserve warning payload"),
+        }
+    }
+
+    #[test]
+    fn settings_recovery_backup_failure_stops_startup_overwrite() {
+        let error = "backup failed".to_string();
+        let result = resolve_startup_settings_action(
+            store::SettingsLoadOutcome::FatalBackupFailure {
+                error: error.clone(),
+            },
+        );
+
+        assert_eq!(result.unwrap_err(), error);
+    }
 }
