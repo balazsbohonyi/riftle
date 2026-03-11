@@ -3,17 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase_name: backend resilience
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 09.5-backend-resilience-02-PLAN.md
-last_updated: "2026-03-11T22:20:04.671Z"
+stopped_at: Completed 09.5-03-PLAN.md
+last_updated: "2026-03-11T22:27:33.910Z"
 last_activity: 2026-03-11
 progress:
   total_phases: 15
   completed_phases: 11
   total_plans: 40
-  completed_plans: 37
-  percent: 93
+  completed_plans: 38
 ---
 
   [█████████░] 92%
@@ -41,7 +40,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Phase:** 09.5-backend-resilience
 **Current Phase Name:** backend resilience
-**Current Plan:** 3
+**Current Plan:** 4
 **Total Plans in Phase:** 4
 **Status:** Ready to execute
 **Last Activity:** 2026-03-11
@@ -163,6 +162,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.5-01]: App.vue listens for backend-warning before draining take_backend_warnings and deduplicates payloads to avoid startup race duplicates
 - [Phase 09.5-01]: Launcher height measures the rendered warning stack so the inline banner stays visible without a broader notification subsystem
 - [Phase 09.5-backend-resilience]: lib.rs only persists defaults on missing-file or backed-up recovery paths; clean settings loads are left untouched and recovery warnings are queued first.
+- [Phase 09.5-backend-resilience]: Database recovery prefers same-directory rename into launcher.db.bak, with copy-then-delete fallback only after backup success.
+- [Phase 09.5-backend-resilience]: DB startup returns an explicit recovered outcome so lib.rs can queue a launcher warning without widening the DB API further.
 
 ## Performance Metrics
 
@@ -202,11 +203,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.4-indexer-hardening P03 | 6min | 3 tasks | 3 files |
 | Phase 09.5-backend-resilience P01 | 3min | 2 tasks | 3 files |
 | Phase 09.5-backend-resilience P02 | 17min | 2 tasks | 2 files |
+| Phase 09.5-backend-resilience P03 | 10min | 2 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-03-11T22:20:04.643Z
-**Stopped At:** Completed 09.5-backend-resilience-02-PLAN.md
+**Last Date:** 2026-03-11T22:27:33.906Z
+**Stopped At:** Completed 09.5-03-PLAN.md
 **Resume File:** None
 
 ## Session Log
