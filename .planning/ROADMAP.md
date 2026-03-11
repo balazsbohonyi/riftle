@@ -210,7 +210,7 @@ Plans:
 **Goal:** Harden indexer.rs against five robustness concerns: bounded icon extraction thread pool (rayon, item 6), path normalization for exclusion comparison (item 9), WalkDir max-depth + symlink guards (item 10), COM init/uninit isolation in dedicated thread (item 11), extended-length path buffer in .lnk resolution (item 12).
 **Requirements**: none (urgent internal hardening, no formal req IDs)
 **Depends on:** Phase 9
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 09.4-01-PLAN.md — Wave 0: add 3 RED test stubs for path normalization and max-depth guards

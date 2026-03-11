@@ -2,12 +2,28 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_plan: Human verification for installed/dev and portable icon rendering
+status: Awaiting manual smoke tests
+last_updated: "2026-03-11T20:51:10.349Z"
+last_activity: "2026-03-09 - Completed quick task 8: Button.vue component with default and accent variants"
+progress:
+  total_phases: 14
+  completed_phases: 10
+  total_plans: 36
+  completed_plans: 33
+  percent: 92
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
 current_plan: 09.3 verification pending
 status: human_verification_required
 last_updated: "2026-03-11T01:50:00.000Z"
 last_activity: "2026-03-11 - Completed Phase 09.3 gap-closure plan 03; awaiting installed/dev and portable icon smoke tests"
 progress:
-  total_phases: 13
+  [█████████░] 92%
   completed_phases: 9
   total_plans: 32
   completed_plans: 32
@@ -140,6 +156,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.2-03]: use tauri::Manager imported locally inside set_settings_cmd body to access try_state without widening store.rs import footprint
 - [Phase 09.2-03]: try_state used instead of State parameter in set_settings_cmd — safe in non-desktop builds where timer may not be managed
 - [Phase 09.3-03]: app-managed icons now load through Rust get_icon_bytes + blob URLs, removing the unsupported Windows `$EXE` asset scope dependency while keeping validate_icon_filename() on both search output and file reads
+- [Phase 09.4-indexer-hardening]: test_crawl_excludes_trailing_slash revised: plan's forward-slash-only RED premise was wrong (Path::starts_with handles separators on Windows); revised to uppercase-dir + trailing-backslash combination to expose genuine case-sensitivity bug
 
 ## Performance Metrics
 
@@ -174,6 +191,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.2-settings-indexer-contract-reliability P01 | 3 | 2 tasks | 2 files |
 | Phase 09.2-settings-indexer-contract-reliability P02 | 2 | 2 tasks | 1 files |
 | Phase 09.2-settings-indexer-contract-reliability P03 | 5min | 2 tasks | 1 files |
+| Phase 09.4-indexer-hardening P01 | 7min | 1 tasks | 1 files |
 
 ## Session Log
 
