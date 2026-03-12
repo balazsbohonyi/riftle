@@ -205,6 +205,17 @@ Plans:
 
 ---
 
+### Phase 09.6: UX Safety Gates (INSERTED)
+
+**Goal:** Two targeted safety improvements: confirmation gate before shutdown/restart system commands (Vue overlay inside launcher); atomic two-phase hotkey swap so a failed registration leaves the old hotkey active.
+**Requirements**: none (urgent UX hardening, no formal req IDs)
+**Depends on:** Phase 9
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09.6-01-PLAN.md — Atomic hotkey swap in hotkey.rs (register-new-first) + Settings.vue inline error display on hotkey registration failure
+- [ ] 09.6-02-PLAN.md — Shutdown/restart confirmation overlay in App.vue: confirmPending state, keyboard intercepts, modal card template and CSS
+
 ### Phase 09.5: Backend resilience (INSERTED)
 
 **Goal:** Fix two medium-risk backend resilience issues from `.planning/codebase/CONCERNS.md` items 7 and 8: replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` calls in `src-tauri/src/commands.rs`, `search.rs`, and `lib.rs` with fallible handling, and add backup-plus-user-warning behavior before any silent DB/settings reset in `src-tauri/src/db.rs` and `store.rs`.
@@ -322,6 +333,7 @@ Plans:
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 09.4 | Indexer hardening | Inserted | Planned |
 | 09.5 | 5/5 | Complete    | 2026-03-11 |
+| 09.6 | UX Safety Gates | Inserted | Planning |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
