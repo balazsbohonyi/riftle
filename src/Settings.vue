@@ -32,6 +32,7 @@ interface SettingsResponse extends SettingsData {
 const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window)
 const isPortable = ref(false)
 const reindexButtonText = ref('Re-index')
+const hotkeyError = ref<string | null>(null)
 
 const settings = ref<SettingsData>({
   hotkey: 'Alt+Space',
@@ -101,17 +102,20 @@ async function onAutostartChange(v: boolean) {
 
 // Hotkey
 async function onHotkeyChange(hotkey: string) {
+  const oldHotkey = settings.value.hotkey
+  hotkeyError.value = null
   try {
     await invoke('update_hotkey', { hotkey })
     settings.value.hotkey = hotkey
+    await saveSettings()
   } catch (e: any) {
-    // Rust fell back to a different hotkey (e.g. OS-reserved key)
-    // Extract the fallback from the error message and reload from backend
-    console.warn('Hotkey update error:', e)
-    const fresh = await invoke<SettingsResponse>('get_settings_cmd').catch(() => null)
-    if (fresh) settings.value.hotkey = fresh.hotkey
+    // New registration failed — old hotkey is still active
+    console.warn('Hotkey update failed:', e)
+    const msg = typeof e === 'string' ? e : (e?.message ?? 'Could not register hotkey')
+    hotkeyError.value = `${msg} — still using ${oldHotkey}`
+    settings.value.hotkey = oldHotkey  // reverts KeyCapture via its prop watcher
+    // Do NOT call saveSettings() — backend hotkey is unchanged
   }
-  await saveSettings()
 }
 
 // Search
@@ -207,6 +211,7 @@ onUnmounted(() => {
             <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
           </div>
         </Row>
+        <p v-if="hotkeyError" class="hotkey-error">{{ hotkeyError }}</p>
       </Section>
 
       <Section title="Search">
@@ -349,6 +354,15 @@ input[type='range'] {
 
 .reset-link:hover {
   opacity: 0.7;
+}
+
+.hotkey-error {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: #ff453a;
+  padding: 0 var(--spacing-lg);
+  margin-top: calc(-1 * var(--spacing-sm));
+  margin-bottom: var(--spacing-sm);
 }
 
 </style>
