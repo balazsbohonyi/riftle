@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Phase 09.6 context gathered
-last_updated: "2026-03-12T18:05:39.727Z"
+stopped_at: Completed 09.6-01-PLAN.md
+last_updated: "2026-03-12T18:40:24.882Z"
 last_activity: 2026-03-11
 progress:
   total_phases: 16
   completed_phases: 12
-  total_plans: 41
-  completed_plans: 40
+  total_plans: 43
+  completed_plans: 41
 ---
 
 ---
@@ -184,6 +184,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.5-backend-resilience]: DB startup returns an explicit recovered outcome so lib.rs can queue a launcher warning without widening the DB API further.
 - [Phase 09.5-backend-resilience]: Launcher HWND acquisition for DWM customization is cosmetic-only; failures log and skip the DWM branch without affecting startup.
 - [Phase 09.5-05]: Recovery warnings keep explanation in `message` and expose the backup path only through `backup_path`; App.vue renders that path once as a lighter labeled detail row.
+- [Phase 09.6-01]: update_hotkey uses on_shortcut() directly (not register()) to avoid startup fallback logic at runtime
+- [Phase 09.6-01]: hotkeyError cleared on each new attempt; saveSettings() skipped on failure since backend is unchanged
 
 ## Performance Metrics
 
@@ -225,12 +227,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.5-backend-resilience P02 | 17min | 2 tasks | 2 files |
 | Phase 09.5-backend-resilience P03 | 10min | 2 tasks | 2 files |
 | Phase 09.5-backend-resilience P05 | 7min | 2 tasks | 4 files |
+| Phase 09.6-ux-safety-gates P01 | 4min | 2 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-03-12T18:05:39.714Z
-**Stopped At:** Phase 09.6 context gathered
-**Resume File:** .planning/phases/09.6-ux-safety-gates/09.6-CONTEXT.md
+**Last Date:** 2026-03-12T18:40:24.877Z
+**Stopped At:** Completed 09.6-01-PLAN.md
+**Resume File:** None
 
 ## Session Log
 

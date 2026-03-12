@@ -210,7 +210,7 @@ Plans:
 **Goal:** Two targeted safety improvements: confirmation gate before shutdown/restart system commands (Vue overlay inside launcher); atomic two-phase hotkey swap so a failed registration leaves the old hotkey active.
 **Requirements**: none (urgent UX hardening, no formal req IDs)
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 09.6-01-PLAN.md — Atomic hotkey swap in hotkey.rs (register-new-first) + Settings.vue inline error display on hotkey registration failure
@@ -333,7 +333,7 @@ Plans:
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 09.4 | Indexer hardening | Inserted | Planned |
 | 09.5 | 5/5 | Complete    | 2026-03-11 |
-| 09.6 | UX Safety Gates | Inserted | Planning |
+| 09.6 | 1/2 | In Progress|  |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
