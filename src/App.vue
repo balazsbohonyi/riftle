@@ -31,6 +31,7 @@ interface BackendWarning {
 }
 
 const GENERIC_ICON_FILENAME = 'generic.png'
+const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
 
 // ---- State ----
 const query         = ref('')
@@ -42,6 +43,7 @@ const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
 const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
+const confirmBtnRef = ref<HTMLButtonElement | null>(null)
 const warningListRef = ref<HTMLElement | null>(null)
 const isTauriContext = ref(false)
 const iconUrls      = ref<Record<string, string>>({})
@@ -55,6 +57,10 @@ const menuX        = ref(0)
 const menuY        = ref(0)
 const MENU_HEIGHT  = 80
 const BOTTOM_PAD   = 8
+
+// ---- Confirmation overlay state ----
+const confirmPending  = ref(false)
+const pendingCommand  = ref<SearchResult | null>(null)
 
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
@@ -223,6 +229,10 @@ function getIconUrl(iconPath: string): string {
 
 // ---- Launch stubs (Phase 6 implements commands) ----
 async function launchItem(item: SearchResult) {
+  if (item.kind === 'system' && CONFIRM_REQUIRED.has(item.id)) {
+    showConfirm(item)
+    return
+  }
   launchInProgress = true
   if (item.kind === 'system') {
     await invoke('run_system_command', { cmd: item.id }).catch(console.error)
@@ -259,6 +269,10 @@ function onKeyDown(e: KeyboardEvent) {
       inputRef.value?.focus()
       return
     }
+    if (confirmPending.value) {
+      cancelConfirm()
+      return
+    }
     hideWindow()
     return
   }
@@ -276,6 +290,10 @@ function onKeyDown(e: KeyboardEvent) {
       break
     case 'Enter': {
       e.preventDefault()
+      if (confirmPending.value) {
+        confirmAction()
+        break
+      }
       const item = results.value[selectedIndex.value]
       if (!item) break
       if (e.ctrlKey && e.shiftKey) {
@@ -330,6 +348,28 @@ async function openSettings() {
 async function quitApp() {
   closeMenu()
   await invoke('quit_app').catch(console.error)
+}
+
+// ---- Confirmation overlay ----
+function showConfirm(item: SearchResult) {
+  pendingCommand.value = item
+  confirmPending.value = true
+  nextTick(() => { confirmBtnRef.value?.focus() })
+}
+
+function cancelConfirm() {
+  confirmPending.value = false
+  pendingCommand.value = null
+  inputRef.value?.focus()
+}
+
+async function confirmAction() {
+  const item = pendingCommand.value
+  if (!item) return
+  confirmPending.value = false
+  pendingCommand.value = null
+  await hideWindow()
+  await invoke('run_system_command', { cmd: item.id }).catch(console.error)
 }
 
 // ---- Window show/hide ----
@@ -428,6 +468,8 @@ onMounted(async () => {
   if (isTauriContext.value) {
     unlistenShow = await listen('launcher-show', async () => {
       menuVisible.value = false
+      confirmPending.value = false
+      pendingCommand.value = null
       isVisible.value = false
       results.value = []
       query.value = ''
