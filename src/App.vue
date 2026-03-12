@@ -614,6 +614,36 @@ onUnmounted(() => {
       <div class="menu-item" @mousedown.prevent="quitApp">Quit Launcher</div>
     </div>
 
+    <!-- Confirmation overlay backdrop: mousedown.prevent prevents focus-loss auto-hide -->
+    <div
+      v-if="confirmPending"
+      class="confirm-backdrop"
+      @mousedown.prevent
+    ></div>
+
+    <!-- Confirmation overlay card -->
+    <div v-if="confirmPending" class="confirm-card">
+      <p class="confirm-title">
+        {{ pendingCommand?.id === 'system:shutdown' ? 'Shut down Windows?' : 'Restart Windows?' }}
+      </p>
+      <p class="confirm-body">Your work will be lost.</p>
+      <div class="confirm-actions">
+        <button
+          ref="confirmBtnRef"
+          class="confirm-btn confirm-btn--danger"
+          @mousedown.prevent="confirmAction"
+        >
+          {{ pendingCommand?.id === 'system:shutdown' ? 'Shut Down' : 'Restart' }}
+        </button>
+        <button
+          class="confirm-btn confirm-btn--cancel"
+          @mousedown.prevent="cancelConfirm"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -902,5 +932,89 @@ html, body {
 .menu-item:hover {
   background: var(--color-accent);
   color: #ffffff;
+}
+
+/* ---- Confirmation overlay ---- */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: var(--radius);
+}
+
+.confirm-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-lg);
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.confirm-title {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.confirm-body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: calc(-1 * var(--spacing-sm));
+}
+
+.confirm-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
+.confirm-btn {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.confirm-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.confirm-btn--danger {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.confirm-btn--danger:hover {
+  opacity: 0.85;
+}
+
+.confirm-btn--cancel {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.confirm-btn--cancel:hover {
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 </style>
