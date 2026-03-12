@@ -31,6 +31,7 @@ interface BackendWarning {
 }
 
 const GENERIC_ICON_FILENAME = 'generic.png'
+const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
 
 // ---- State ----
 const query         = ref('')
@@ -42,6 +43,8 @@ const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
 const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
+const confirmBtnRef = ref<HTMLButtonElement | null>(null)
+const cancelBtnRef  = ref<HTMLButtonElement | null>(null)
 const warningListRef = ref<HTMLElement | null>(null)
 const isTauriContext = ref(false)
 const iconUrls      = ref<Record<string, string>>({})
@@ -55,6 +58,10 @@ const menuX        = ref(0)
 const menuY        = ref(0)
 const MENU_HEIGHT  = 80
 const BOTTOM_PAD   = 8
+
+// ---- Confirmation overlay state ----
+const confirmPending  = ref(false)
+const pendingCommand  = ref<SearchResult | null>(null)
 
 let unlistenFocus: (() => void) | null = null
 let unlistenShow: (() => void) | null = null
@@ -223,6 +230,10 @@ function getIconUrl(iconPath: string): string {
 
 // ---- Launch stubs (Phase 6 implements commands) ----
 async function launchItem(item: SearchResult) {
+  if (item.kind === 'system' && CONFIRM_REQUIRED.has(item.id)) {
+    showConfirm(item)
+    return
+  }
   launchInProgress = true
   if (item.kind === 'system') {
     await invoke('run_system_command', { cmd: item.id }).catch(console.error)
@@ -243,8 +254,17 @@ async function launchElevated(item: SearchResult) {
 }
 
 // ---- Keyboard ----
+function toggleConfirmFocus() {
+  if (document.activeElement === cancelBtnRef.value) {
+    confirmBtnRef.value?.focus()
+    return
+  }
+  cancelBtnRef.value?.focus()
+}
+
 function onKeyDown(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
+  const target = e.target as HTMLElement | null
 
   if (e.key === ',' && e.ctrlKey) {
     e.preventDefault()
@@ -259,7 +279,17 @@ function onKeyDown(e: KeyboardEvent) {
       inputRef.value?.focus()
       return
     }
+    if (confirmPending.value) {
+      cancelConfirm()
+      return
+    }
     hideWindow()
+    return
+  }
+
+  if (confirmPending.value && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault()
+    toggleConfirmFocus()
     return
   }
 
@@ -275,7 +305,14 @@ function onKeyDown(e: KeyboardEvent) {
       selectedIndex.value = (selectedIndex.value - 1 + results.value.length) % results.value.length
       break
     case 'Enter': {
+      if (confirmPending.value && target === cancelBtnRef.value) {
+        return
+      }
       e.preventDefault()
+      if (confirmPending.value) {
+        confirmAction()
+        break
+      }
       const item = results.value[selectedIndex.value]
       if (!item) break
       if (e.ctrlKey && e.shiftKey) {
@@ -330,6 +367,30 @@ async function openSettings() {
 async function quitApp() {
   closeMenu()
   await invoke('quit_app').catch(console.error)
+}
+
+// ---- Confirmation overlay ----
+function showConfirm(item: SearchResult) {
+  pendingCommand.value = item
+  confirmPending.value = true
+  nextTick(() => { confirmBtnRef.value?.focus() })
+}
+
+function cancelConfirm() {
+  confirmPending.value = false
+  pendingCommand.value = null
+  nextTick(() => {
+    inputRef.value?.focus()
+  })
+}
+
+async function confirmAction() {
+  const item = pendingCommand.value
+  if (!item) return
+  confirmPending.value = false
+  pendingCommand.value = null
+  await hideWindow()
+  await invoke('run_system_command', { cmd: item.id }).catch(console.error)
 }
 
 // ---- Window show/hide ----
@@ -428,6 +489,8 @@ onMounted(async () => {
   if (isTauriContext.value) {
     unlistenShow = await listen('launcher-show', async () => {
       menuVisible.value = false
+      confirmPending.value = false
+      pendingCommand.value = null
       isVisible.value = false
       results.value = []
       query.value = ''
@@ -463,7 +526,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu">
+  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu" @keydown="onKeyDown">
     <div v-if="backendWarnings.length > 0" ref="warningListRef" class="warning-stack">
       <div
         v-for="warning in backendWarnings"
@@ -490,29 +553,57 @@ onUnmounted(() => {
 
     <!-- Search input area -->
     <div class="search-area">
-      <input
-        ref="inputRef"
-        v-model="query"
-        class="search-input"
-        type="text"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-        placeholder="Search apps, or > for system commands..."
-        @keydown="onKeyDown"
-        @keyup="onKeyUp"
-      />
-      <img :src="magnifierIcon" class="magnifier-icon" alt="" aria-hidden="true" />
+      <!-- Normal search input — hidden while confirming -->
+      <template v-if="!confirmPending">
+        <input
+          ref="inputRef"
+          v-model="query"
+          class="search-input"
+          type="text"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="Search apps, or > for system commands..."
+          @keydown.stop="onKeyDown"
+          @keyup="onKeyUp"
+        />
+        <img :src="magnifierIcon" class="magnifier-icon" alt="" aria-hidden="true" />
+      </template>
+
+      <!-- Inline confirmation row — shown while confirming -->
+      <div v-if="confirmPending" class="confirm-row">
+        <span class="confirm-question">
+          {{ pendingCommand?.id === 'system:shutdown' ? 'Shut down Windows?' : 'Restart Windows?' }}
+        </span>
+        <div class="confirm-actions">
+          <button
+            ref="confirmBtnRef"
+            class="confirm-btn confirm-btn--danger"
+            @mousedown.prevent="confirmAction"
+            @click="confirmAction"
+          >
+            {{ pendingCommand?.id === 'system:shutdown' ? 'Shut Down' : 'Restart' }}
+          </button>
+          <button
+            ref="cancelBtnRef"
+            class="confirm-btn confirm-btn--cancel"
+            @mousedown.prevent="cancelConfirm"
+            @click="cancelConfirm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Divider (only when results exist) -->
-    <div v-if="results.length > 0" class="divider"></div>
+    <div v-if="results.length > 0 && !confirmPending" class="divider"></div>
 
     <!-- Result list (virtualised) -->
     <RecycleScroller
       ref="scrollerRef"
-      v-if="results.length > 0"
+      v-if="results.length > 0 && !confirmPending"
       class="result-list"
       :items="results"
       :item-size="48"
@@ -571,6 +662,7 @@ onUnmounted(() => {
       <div class="menu-item" @mousedown.prevent="openSettings">Settings</div>
       <div class="menu-item" @mousedown.prevent="quitApp">Quit Launcher</div>
     </div>
+
 
   </div>
 </template>
@@ -860,5 +952,70 @@ html, body {
 .menu-item:hover {
   background: var(--color-accent);
   color: #ffffff;
+}
+
+/* ---- Inline confirmation row ---- */
+.confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-sm);
+  height: 40px;
+}
+
+.confirm-question {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
+.confirm-btn {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.confirm-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.confirm-btn--danger {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.confirm-btn--danger:hover {
+  opacity: 0.85;
+}
+
+.confirm-btn--cancel {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.confirm-btn--cancel:hover {
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 </style>

@@ -8,6 +8,7 @@
   --color-text-muted: #888;
   --color-text-dim: #555558;
   --color-accent: #0A84FF;
+  --color-danger: #ff6b5f;
   --color-selection-bg: rgba(10, 132, 255, 0.18);
   --color-border: rgba(255, 255, 255, 0.15);
   --color-divider: rgba(255, 255, 255, 0.094);
@@ -36,6 +37,7 @@
   --color-text-soft: #45454d;
   --color-text-muted: #666;
   --color-text-dim: #aaaaaa;
+  --color-danger: #b42318;
   --color-border: rgba(0, 0, 0, 0.12);
   --color-divider: rgba(0, 0, 0, 0.08);
 }
@@ -50,6 +52,7 @@
     --color-text-soft: #45454d;
     --color-text-muted: #666;
     --color-text-dim: #aaaaaa;
+    --color-danger: #b42318;
     --color-border: rgba(0, 0, 0, 0.12);
     --color-divider: rgba(0, 0, 0, 0.08);
   }

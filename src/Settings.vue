@@ -32,6 +32,8 @@ interface SettingsResponse extends SettingsData {
 const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window)
 const isPortable = ref(false)
 const reindexButtonText = ref('Re-index')
+const hotkeyError = ref<string | null>(null)
+const lastRegisteredHotkey = ref('Alt+Space')
 
 const settings = ref<SettingsData>({
   hotkey: 'Alt+Space',
@@ -64,6 +66,7 @@ onMounted(async () => {
       animation: response.animation,
       system_tool_allowlist: response.system_tool_allowlist,
     }
+    lastRegisteredHotkey.value = response.hotkey
 
     if (!isPortable.value) {
       const { isEnabled } = await import('@tauri-apps/plugin-autostart')
@@ -81,6 +84,11 @@ onMounted(async () => {
 async function saveSettings() {
   if (!isTauriContext.value) return
   await invoke('set_settings_cmd', { settings: { ...settings.value } }).catch(console.error)
+}
+
+async function setHotkeyCaptureActive(active: boolean) {
+  if (!isTauriContext.value) return
+  await invoke('set_hotkey_capture_active', { active }).catch(console.error)
 }
 
 // General
@@ -101,17 +109,20 @@ async function onAutostartChange(v: boolean) {
 
 // Hotkey
 async function onHotkeyChange(hotkey: string) {
+  const oldHotkey = lastRegisteredHotkey.value   // always the last SUCCESSFULLY registered key
+  hotkeyError.value = null
   try {
     await invoke('update_hotkey', { hotkey })
+    lastRegisteredHotkey.value = hotkey           // update only on success
     settings.value.hotkey = hotkey
+    await saveSettings()
   } catch (e: any) {
-    // Rust fell back to a different hotkey (e.g. OS-reserved key)
-    // Extract the fallback from the error message and reload from backend
-    console.warn('Hotkey update error:', e)
-    const fresh = await invoke<SettingsResponse>('get_settings_cmd').catch(() => null)
-    if (fresh) settings.value.hotkey = fresh.hotkey
+    console.warn('Hotkey update failed:', e)
+    const msg = typeof e === 'string' ? e : (e?.message ?? 'Could not register hotkey')
+    hotkeyError.value = `${msg} — still using ${oldHotkey}`
+    settings.value.hotkey = oldHotkey            // triggers KeyCapture prop watcher → reverts display
+    // Do NOT call saveSettings() — backend hotkey is unchanged
   }
-  await saveSettings()
 }
 
 // Search
@@ -171,6 +182,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
+  void setHotkeyCaptureActive(false)
 })
 </script>
 
@@ -204,9 +216,15 @@ onUnmounted(() => {
               class="reset-link"
               @click="onHotkeyChange('Alt+Space')"
             >Reset</button>
-            <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
+            <KeyCapture
+              v-model="settings.hotkey"
+              @change="onHotkeyChange"
+              @capture-start="setHotkeyCaptureActive(true)"
+              @capture-end="setHotkeyCaptureActive(false)"
+            />
           </div>
         </Row>
+        <p v-if="hotkeyError" class="hotkey-error">{{ hotkeyError }}</p>
       </Section>
 
       <Section title="Search">
@@ -349,6 +367,15 @@ input[type='range'] {
 
 .reset-link:hover {
   opacity: 0.7;
+}
+
+.hotkey-error {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  padding: 0 var(--spacing-lg);
+  margin-top: calc(-1 * var(--spacing-sm));
+  margin-bottom: var(--spacing-sm);
 }
 
 </style>

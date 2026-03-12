@@ -13,6 +13,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 /// First open: center then show. Subsequent opens: show at current position.
 struct SettingsCentered(AtomicBool);
 struct SettingsCloseBehavior(AtomicBool);
+pub(crate) struct HotkeyCaptureActive(pub AtomicBool);
 
 #[derive(Debug)]
 enum StartupSettingsAction {
@@ -126,6 +127,12 @@ fn consume_restore_launcher_on_settings_close(app: tauri::AppHandle) -> bool {
     state.0.swap(true, Ordering::Relaxed)
 }
 
+#[tauri::command]
+fn set_hotkey_capture_active(app: tauri::AppHandle, active: bool) {
+    let state = app.state::<HotkeyCaptureActive>();
+    state.0.store(active, Ordering::Relaxed);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -186,6 +193,7 @@ pub fn run() {
             };
             // Missing settings.json still follows the first-run path and is persisted immediately.
             // Recovery defaults are only persisted after the original file was backed up and a warning was queued.
+            app.manage(HotkeyCaptureActive(AtomicBool::new(false)));
 
             // Phase 3: Indexer — synchronous first index then background refresh
             #[cfg(desktop)]
@@ -375,6 +383,45 @@ pub fn run() {
                 }
             }
 
+            // Subclass the settings window HWND to swallow WM_SYSCOMMAND SC_KEYMENU messages.
+            // Without this, pressing Alt+Space in the KeyCapture input triggers the OS system menu
+            // before the DOM keydown event fires, making Alt+Space impossible to capture as a hotkey.
+            #[cfg(target_os = "windows")]
+            if let Some(settings_win) = app.get_webview_window("settings") {
+                use windows::Win32::Foundation::{HWND, LRESULT, WPARAM, LPARAM};
+                use windows::Win32::UI::Shell::{SetWindowSubclass, DefSubclassProc};
+
+                unsafe extern "system" fn subclass_proc(
+                    hwnd: HWND,
+                    msg: u32,
+                    wparam: WPARAM,
+                    lparam: LPARAM,
+                    _subclass_id: usize,
+                    _ref_data: usize,
+                ) -> LRESULT {
+                    const WM_SYSCOMMAND: u32 = 0x0112;
+                    const SC_KEYMENU: usize = 0xF100;
+                    if msg == WM_SYSCOMMAND && (wparam.0 & 0xFFF0) == SC_KEYMENU {
+                        // Swallow Alt key menu activation — prevents OS system menu from appearing
+                        // when user presses Alt+Space in the KeyCapture input
+                        return LRESULT(0);
+                    }
+                    DefSubclassProc(hwnd, msg, wparam, lparam)
+                }
+
+                match settings_win.hwnd() {
+                    Ok(raw_hwnd) => {
+                        let hwnd = HWND(raw_hwnd.0 as *mut std::ffi::c_void);
+                        unsafe {
+                            let _ = SetWindowSubclass(hwnd, Some(subclass_proc), 1, 0);
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("[startup] failed to acquire settings HWND for subclassing: {}", err);
+                    }
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -391,6 +438,7 @@ pub fn run() {
             crate::warnings::take_backend_warnings,
             open_settings_window,        // Phase 8: open settings window
             consume_restore_launcher_on_settings_close,
+            set_hotkey_capture_active,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

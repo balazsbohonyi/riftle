@@ -5,6 +5,23 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Completed 09.6-05-PLAN.md
+last_updated: "2026-03-12T19:59:46.804Z"
+last_activity: 2026-03-12
+progress:
+  total_phases: 16
+  completed_phases: 13
+  total_plans: 46
+  completed_plans: 45
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Completed 09.5-05-PLAN.md
 last_updated: "2026-03-11T23:41:35.432Z"
 last_activity: 2026-03-11
@@ -28,6 +45,7 @@ progress:
 - Phase 09.4 inserted after Phase 9: Indexer Hardening — bounded worker pool for icon extraction, path normalization for exclusion comparison, WalkDir max-depth + opt-in symlink guards, COM init/uninit isolation in dedicated thread, extended-length path support in .lnk resolution. (URGENT)
 
 - Phase 09.5 inserted after Phase 9: Backend resilience - replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` paths with recoverable handling in `commands.rs`, `search.rs`, and `lib.rs`; add `launcher.db.bak` / `settings.json.bak` plus surfaced frontend warnings before silent reset paths in `db.rs` and `store.rs`. (URGENT)
+- Phase 09.6 inserted after Phase 9: UX Safety Gates — confirmation gate before shutdown/restart in system_commands.rs; two-phase hotkey swap in hotkey.rs so a failed registration rolls back rather than leaving no active hotkey. (URGENT)
 
 ## Project Reference
 
@@ -43,8 +61,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 **Current Plan:** Not started
 **Total Plans in Phase:** 5
 **Status:** Ready to plan
-**Last Activity:** 2026-03-11
-**Last Activity Description:** Phase 09.5 complete, transitioned to Phase 10
+**Last Activity:** 2026-03-12
+**Last Activity Description:** Phase 9.6 complete, transitioned to Phase 10
 
 ## Progress
 
@@ -166,6 +184,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.5-backend-resilience]: DB startup returns an explicit recovered outcome so lib.rs can queue a launcher warning without widening the DB API further.
 - [Phase 09.5-backend-resilience]: Launcher HWND acquisition for DWM customization is cosmetic-only; failures log and skip the DWM branch without affecting startup.
 - [Phase 09.5-05]: Recovery warnings keep explanation in `message` and expose the backup path only through `backup_path`; App.vue renders that path once as a lighter labeled detail row.
+- [Phase 09.6-01]: update_hotkey uses on_shortcut() directly (not register()) to avoid startup fallback logic at runtime
+- [Phase 09.6-01]: hotkeyError cleared on each new attempt; saveSettings() skipped on failure since backend is unchanged
+- [Phase 09.6-02]: CONFIRM_REQUIRED uses Set for O(1) lookup; confirmAction calls hideWindow() before invoke; backdrop mousedown.prevent blocks focus-loss without closing on outside click
+- [Phase 09.6-03]: lastRegisteredHotkey ref is the source of truth for the previous working hotkey — updated only on successful invoke, never on v-model updates which fire before change
+- [Phase 09.6-04]: SetWindowSubclass/DefSubclassProc live in windows::Win32::UI::Shell (not Win32::UI::Controls); subclass_proc is a free unsafe extern system fn inside cfg(target_os=windows); swallows WM_SYSCOMMAND where wParam & 0xFFF0 == SC_KEYMENU (0xF100) to fix Alt+Space capture in KeyCapture input
+- [Phase 09.6-05]: Inline confirmation row replaces floating overlay — v-if guards swap input vs confirm-row inside .search-area; divider and RecycleScroller also gated on !confirmPending
 
 ## Performance Metrics
 
@@ -207,11 +231,16 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.5-backend-resilience P02 | 17min | 2 tasks | 2 files |
 | Phase 09.5-backend-resilience P03 | 10min | 2 tasks | 2 files |
 | Phase 09.5-backend-resilience P05 | 7min | 2 tasks | 4 files |
+| Phase 09.6-ux-safety-gates P01 | 4min | 2 tasks | 2 files |
+| Phase 09.6-ux-safety-gates P02 | 2min | 2 tasks | 1 files |
+| Phase 09.6-ux-safety-gates P03 | 2min | 2 tasks | 2 files |
+| Phase 09.6-ux-safety-gates P04 | 4min | 1 tasks | 2 files |
+| Phase 09.6-ux-safety-gates P05 | 1min | 1 tasks | 1 files |
 
 ## Session
 
-**Last Date:** 2026-03-11T22:33:31.283Z
-**Stopped At:** Completed 09.5-05-PLAN.md
+**Last Date:** 2026-03-12T19:59:46.801Z
+**Stopped At:** Completed 09.6-05-PLAN.md
 **Resume File:** None
 
 ## Session Log
