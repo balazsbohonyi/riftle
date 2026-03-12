@@ -44,6 +44,7 @@ const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
 const confirmBtnRef = ref<HTMLButtonElement | null>(null)
+const cancelBtnRef  = ref<HTMLButtonElement | null>(null)
 const warningListRef = ref<HTMLElement | null>(null)
 const isTauriContext = ref(false)
 const iconUrls      = ref<Record<string, string>>({})
@@ -255,6 +256,7 @@ async function launchElevated(item: SearchResult) {
 // ---- Keyboard ----
 function onKeyDown(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
+  const target = e.target as HTMLElement | null
 
   if (e.key === ',' && e.ctrlKey) {
     e.preventDefault()
@@ -289,6 +291,9 @@ function onKeyDown(e: KeyboardEvent) {
       selectedIndex.value = (selectedIndex.value - 1 + results.value.length) % results.value.length
       break
     case 'Enter': {
+      if (confirmPending.value && target === cancelBtnRef.value) {
+        return
+      }
       e.preventDefault()
       if (confirmPending.value) {
         confirmAction()
@@ -360,7 +365,9 @@ function showConfirm(item: SearchResult) {
 function cancelConfirm() {
   confirmPending.value = false
   pendingCommand.value = null
-  inputRef.value?.focus()
+  nextTick(() => {
+    inputRef.value?.focus()
+  })
 }
 
 async function confirmAction() {
@@ -565,6 +572,7 @@ onUnmounted(() => {
             {{ pendingCommand?.id === 'system:shutdown' ? 'Shut Down' : 'Restart' }}
           </button>
           <button
+            ref="cancelBtnRef"
             class="confirm-btn confirm-btn--cancel"
             @mousedown.prevent="cancelConfirm"
             @click="cancelConfirm"
