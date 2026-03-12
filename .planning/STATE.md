@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Completed 09.6-01-PLAN.md
-last_updated: "2026-03-12T18:40:24.882Z"
+stopped_at: Completed 09.6-02-PLAN.md
+last_updated: "2026-03-12T18:43:55.695Z"
 last_activity: 2026-03-11
 progress:
   total_phases: 16
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 43
-  completed_plans: 41
+  completed_plans: 42
 ---
 
 ---
@@ -186,6 +186,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.5-05]: Recovery warnings keep explanation in `message` and expose the backup path only through `backup_path`; App.vue renders that path once as a lighter labeled detail row.
 - [Phase 09.6-01]: update_hotkey uses on_shortcut() directly (not register()) to avoid startup fallback logic at runtime
 - [Phase 09.6-01]: hotkeyError cleared on each new attempt; saveSettings() skipped on failure since backend is unchanged
+- [Phase 09.6-02]: CONFIRM_REQUIRED uses Set for O(1) lookup; confirmAction calls hideWindow() before invoke; backdrop mousedown.prevent blocks focus-loss without closing on outside click
 
 ## Performance Metrics
 
@@ -228,11 +229,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.5-backend-resilience P03 | 10min | 2 tasks | 2 files |
 | Phase 09.5-backend-resilience P05 | 7min | 2 tasks | 4 files |
 | Phase 09.6-ux-safety-gates P01 | 4min | 2 tasks | 2 files |
+| Phase 09.6-ux-safety-gates P02 | 2min | 2 tasks | 1 files |
 
 ## Session
 
-**Last Date:** 2026-03-12T18:40:24.877Z
-**Stopped At:** Completed 09.6-01-PLAN.md
+**Last Date:** 2026-03-12T18:43:55.690Z
+**Stopped At:** Completed 09.6-02-PLAN.md
 **Resume File:** None
 
 ## Session Log
