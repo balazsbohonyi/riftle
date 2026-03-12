@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Completed 09.6-02-PLAN.md
-last_updated: "2026-03-12T18:47:02.430Z"
+stopped_at: Completed 09.6-03-PLAN.md
+last_updated: "2026-03-12T19:50:24.053Z"
 last_activity: 2026-03-12
 progress:
   total_phases: 16
-  completed_phases: 13
-  total_plans: 43
-  completed_plans: 42
+  completed_phases: 12
+  total_plans: 46
+  completed_plans: 43
 ---
 
 ---
@@ -187,6 +187,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.6-01]: update_hotkey uses on_shortcut() directly (not register()) to avoid startup fallback logic at runtime
 - [Phase 09.6-01]: hotkeyError cleared on each new attempt; saveSettings() skipped on failure since backend is unchanged
 - [Phase 09.6-02]: CONFIRM_REQUIRED uses Set for O(1) lookup; confirmAction calls hideWindow() before invoke; backdrop mousedown.prevent blocks focus-loss without closing on outside click
+- [Phase 09.6-03]: lastRegisteredHotkey ref is the source of truth for the previous working hotkey — updated only on successful invoke, never on v-model updates which fire before change
 
 ## Performance Metrics
 
@@ -230,11 +231,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.5-backend-resilience P05 | 7min | 2 tasks | 4 files |
 | Phase 09.6-ux-safety-gates P01 | 4min | 2 tasks | 2 files |
 | Phase 09.6-ux-safety-gates P02 | 2min | 2 tasks | 1 files |
+| Phase 09.6-ux-safety-gates P03 | 2min | 2 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-03-12T18:43:55.690Z
-**Stopped At:** Completed 09.6-02-PLAN.md
+**Last Date:** 2026-03-12T19:50:24.049Z
+**Stopped At:** Completed 09.6-03-PLAN.md
 **Resume File:** None
 
 ## Session Log
