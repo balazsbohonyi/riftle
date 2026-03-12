@@ -210,11 +210,14 @@ Plans:
 **Goal:** Two targeted safety improvements: confirmation gate before shutdown/restart system commands (Vue overlay inside launcher); atomic two-phase hotkey swap so a failed registration leaves the old hotkey active.
 **Requirements**: none (urgent UX hardening, no formal req IDs)
 **Depends on:** Phase 9
-**Plans:** 2/2 plans complete
+**Plans:** 5 plans (2 complete + 3 gap closure)
 
 Plans:
 - [ ] 09.6-01-PLAN.md — Atomic hotkey swap in hotkey.rs (register-new-first) + Settings.vue inline error display on hotkey registration failure
 - [ ] 09.6-02-PLAN.md — Shutdown/restart confirmation overlay in App.vue: confirmPending state, keyboard intercepts, modal card template and CSS
+- [ ] 09.6-03-PLAN.md — Gap closure: fix lastRegisteredHotkey tracking in Settings.vue + add @keydown.prevent to KeyCapture div
+- [ ] 09.6-04-PLAN.md — Gap closure: SetWindowSubclass on settings HWND to swallow WM_SYSCOMMAND SC_KEYMENU (Alt+Space OS interception fix)
+- [ ] 09.6-05-PLAN.md — Gap closure: replace floating confirmation overlay with inline confirmation row inside the launcher field
 
 ### Phase 09.5: Backend resilience (INSERTED)
 
@@ -333,7 +336,7 @@ Plans:
 | 09.3 | 3/3 | Human Needed | 2026-03-11 |
 | 09.4 | Indexer hardening | Inserted | Planned |
 | 09.5 | 5/5 | Complete    | 2026-03-11 |
-| 09.6 | 2/2 | Complete   | 2026-03-12 |
+| 09.6 | 2/5 | Gap closure planned | 2026-03-12 |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
