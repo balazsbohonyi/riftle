@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Completed 09.6-03-PLAN.md
-last_updated: "2026-03-12T19:50:24.053Z"
+stopped_at: Completed 09.6-04-PLAN.md
+last_updated: "2026-03-12T19:56:35.130Z"
 last_activity: 2026-03-12
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 46
-  completed_plans: 43
+  completed_plans: 44
 ---
 
 ---
@@ -188,6 +188,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.6-01]: hotkeyError cleared on each new attempt; saveSettings() skipped on failure since backend is unchanged
 - [Phase 09.6-02]: CONFIRM_REQUIRED uses Set for O(1) lookup; confirmAction calls hideWindow() before invoke; backdrop mousedown.prevent blocks focus-loss without closing on outside click
 - [Phase 09.6-03]: lastRegisteredHotkey ref is the source of truth for the previous working hotkey — updated only on successful invoke, never on v-model updates which fire before change
+- [Phase 09.6-04]: SetWindowSubclass/DefSubclassProc live in windows::Win32::UI::Shell (not Win32::UI::Controls); subclass_proc is a free unsafe extern system fn inside cfg(target_os=windows); swallows WM_SYSCOMMAND where wParam & 0xFFF0 == SC_KEYMENU (0xF100) to fix Alt+Space capture in KeyCapture input
 
 ## Performance Metrics
 
@@ -232,11 +233,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.6-ux-safety-gates P01 | 4min | 2 tasks | 2 files |
 | Phase 09.6-ux-safety-gates P02 | 2min | 2 tasks | 1 files |
 | Phase 09.6-ux-safety-gates P03 | 2min | 2 tasks | 2 files |
+| Phase 09.6-ux-safety-gates P04 | 4min | 1 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-03-12T19:50:24.049Z
-**Stopped At:** Completed 09.6-03-PLAN.md
+**Last Date:** 2026-03-12T19:56:35.125Z
+**Stopped At:** Completed 09.6-04-PLAN.md
 **Resume File:** None
 
 ## Session Log
