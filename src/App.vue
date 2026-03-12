@@ -505,7 +505,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu">
+  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu" @keydown="onKeyDown">
     <div v-if="backendWarnings.length > 0" ref="warningListRef" class="warning-stack">
       <div
         v-for="warning in backendWarnings"
