@@ -5,6 +5,23 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Phase 09.6 context gathered
+last_updated: "2026-03-12T18:05:39.727Z"
+last_activity: 2026-03-11
+progress:
+  total_phases: 16
+  completed_phases: 12
+  total_plans: 41
+  completed_plans: 40
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Completed 09.5-05-PLAN.md
 last_updated: "2026-03-11T23:41:35.432Z"
 last_activity: 2026-03-11
@@ -28,6 +45,7 @@ progress:
 - Phase 09.4 inserted after Phase 9: Indexer Hardening — bounded worker pool for icon extraction, path normalization for exclusion comparison, WalkDir max-depth + opt-in symlink guards, COM init/uninit isolation in dedicated thread, extended-length path support in .lnk resolution. (URGENT)
 
 - Phase 09.5 inserted after Phase 9: Backend resilience - replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` paths with recoverable handling in `commands.rs`, `search.rs`, and `lib.rs`; add `launcher.db.bak` / `settings.json.bak` plus surfaced frontend warnings before silent reset paths in `db.rs` and `store.rs`. (URGENT)
+- Phase 09.6 inserted after Phase 9: UX Safety Gates — confirmation gate before shutdown/restart in system_commands.rs; two-phase hotkey swap in hotkey.rs so a failed registration rolls back rather than leaving no active hotkey. (URGENT)
 
 ## Project Reference
 
@@ -210,9 +228,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Session
 
-**Last Date:** 2026-03-11T22:33:31.283Z
-**Stopped At:** Completed 09.5-05-PLAN.md
-**Resume File:** None
+**Last Date:** 2026-03-12T18:05:39.714Z
+**Stopped At:** Phase 09.6 context gathered
+**Resume File:** .planning/phases/09.6-ux-safety-gates/09.6-CONTEXT.md
 
 ## Session Log
 
