@@ -544,7 +544,7 @@ onUnmounted(() => {
           autocapitalize="off"
           spellcheck="false"
           placeholder="Search apps, or > for system commands..."
-          @keydown="onKeyDown"
+          @keydown.stop="onKeyDown"
           @keyup="onKeyUp"
         />
         <img :src="magnifierIcon" class="magnifier-icon" alt="" aria-hidden="true" />
