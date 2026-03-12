@@ -37,7 +37,7 @@ function onBlur() { if (capturing.value) { capturing.value = false; displayValue
 </script>
 <template>
   <div class="key-capture" :class="{ capturing }" @click="startCapture"
-    @keydown="onKeyDown" @blur="onBlur" tabindex="0">
+    @keydown.prevent="onKeyDown" @blur="onBlur" tabindex="0">
     {{ displayValue }}
   </div>
 </template>
