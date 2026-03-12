@@ -254,6 +254,14 @@ async function launchElevated(item: SearchResult) {
 }
 
 // ---- Keyboard ----
+function toggleConfirmFocus() {
+  if (document.activeElement === cancelBtnRef.value) {
+    confirmBtnRef.value?.focus()
+    return
+  }
+  cancelBtnRef.value?.focus()
+}
+
 function onKeyDown(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
   const target = e.target as HTMLElement | null
@@ -276,6 +284,12 @@ function onKeyDown(e: KeyboardEvent) {
       return
     }
     hideWindow()
+    return
+  }
+
+  if (confirmPending.value && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault()
+    toggleConfirmFocus()
     return
   }
 

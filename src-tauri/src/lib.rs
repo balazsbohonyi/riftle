@@ -13,6 +13,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 /// First open: center then show. Subsequent opens: show at current position.
 struct SettingsCentered(AtomicBool);
 struct SettingsCloseBehavior(AtomicBool);
+pub(crate) struct HotkeyCaptureActive(pub AtomicBool);
 
 #[derive(Debug)]
 enum StartupSettingsAction {
@@ -126,6 +127,12 @@ fn consume_restore_launcher_on_settings_close(app: tauri::AppHandle) -> bool {
     state.0.swap(true, Ordering::Relaxed)
 }
 
+#[tauri::command]
+fn set_hotkey_capture_active(app: tauri::AppHandle, active: bool) {
+    let state = app.state::<HotkeyCaptureActive>();
+    state.0.store(active, Ordering::Relaxed);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -186,6 +193,7 @@ pub fn run() {
             };
             // Missing settings.json still follows the first-run path and is persisted immediately.
             // Recovery defaults are only persisted after the original file was backed up and a warning was queued.
+            app.manage(HotkeyCaptureActive(AtomicBool::new(false)));
 
             // Phase 3: Indexer — synchronous first index then background refresh
             #[cfg(desktop)]
@@ -430,6 +438,7 @@ pub fn run() {
             crate::warnings::take_backend_warnings,
             open_settings_window,        // Phase 8: open settings window
             consume_restore_launcher_on_settings_close,
+            set_hotkey_capture_active,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

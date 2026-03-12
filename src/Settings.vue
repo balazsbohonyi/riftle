@@ -86,6 +86,11 @@ async function saveSettings() {
   await invoke('set_settings_cmd', { settings: { ...settings.value } }).catch(console.error)
 }
 
+async function setHotkeyCaptureActive(active: boolean) {
+  if (!isTauriContext.value) return
+  await invoke('set_hotkey_capture_active', { active }).catch(console.error)
+}
+
 // General
 async function onAutostartChange(v: boolean) {
   if (isPortable.value) return
@@ -177,6 +182,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
+  void setHotkeyCaptureActive(false)
 })
 </script>
 
@@ -210,7 +216,12 @@ onUnmounted(() => {
               class="reset-link"
               @click="onHotkeyChange('Alt+Space')"
             >Reset</button>
-            <KeyCapture v-model="settings.hotkey" @change="onHotkeyChange" />
+            <KeyCapture
+              v-model="settings.hotkey"
+              @change="onHotkeyChange"
+              @capture-start="setHotkeyCaptureActive(true)"
+              @capture-end="setHotkeyCaptureActive(false)"
+            />
           </div>
         </Row>
         <p v-if="hotkeyError" class="hotkey-error">{{ hotkeyError }}</p>
@@ -361,7 +372,7 @@ input[type='range'] {
 .hotkey-error {
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
-  color: #ff453a;
+  color: var(--color-danger);
   padding: 0 var(--spacing-lg);
   margin-top: calc(-1 * var(--spacing-sm));
   margin-bottom: var(--spacing-sm);

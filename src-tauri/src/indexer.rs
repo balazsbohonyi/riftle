@@ -175,8 +175,6 @@ pub fn start_background_tasks(
     is_indexing: Arc<AtomicBool>,
     com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) -> mpsc::Sender<TimerMsg> {
-    let interval_mins = settings.reindex_interval;
-
     // --- Timer thread (INDX-06) ---
     let (timer_tx, timer_rx) = mpsc::channel::<TimerMsg>();
     {
