@@ -33,6 +33,7 @@ const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__
 const isPortable = ref(false)
 const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
+const lastRegisteredHotkey = ref('Alt+Space')
 
 const settings = ref<SettingsData>({
   hotkey: 'Alt+Space',
@@ -65,6 +66,7 @@ onMounted(async () => {
       animation: response.animation,
       system_tool_allowlist: response.system_tool_allowlist,
     }
+    lastRegisteredHotkey.value = response.hotkey
 
     if (!isPortable.value) {
       const { isEnabled } = await import('@tauri-apps/plugin-autostart')
@@ -102,18 +104,18 @@ async function onAutostartChange(v: boolean) {
 
 // Hotkey
 async function onHotkeyChange(hotkey: string) {
-  const oldHotkey = settings.value.hotkey
+  const oldHotkey = lastRegisteredHotkey.value   // always the last SUCCESSFULLY registered key
   hotkeyError.value = null
   try {
     await invoke('update_hotkey', { hotkey })
+    lastRegisteredHotkey.value = hotkey           // update only on success
     settings.value.hotkey = hotkey
     await saveSettings()
   } catch (e: any) {
-    // New registration failed — old hotkey is still active
     console.warn('Hotkey update failed:', e)
     const msg = typeof e === 'string' ? e : (e?.message ?? 'Could not register hotkey')
     hotkeyError.value = `${msg} — still using ${oldHotkey}`
-    settings.value.hotkey = oldHotkey  // reverts KeyCapture via its prop watcher
+    settings.value.hotkey = oldHotkey            // triggers KeyCapture prop watcher → reverts display
     // Do NOT call saveSettings() — backend hotkey is unchanged
   }
 }
