@@ -532,29 +532,56 @@ onUnmounted(() => {
 
     <!-- Search input area -->
     <div class="search-area">
-      <input
-        ref="inputRef"
-        v-model="query"
-        class="search-input"
-        type="text"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-        placeholder="Search apps, or > for system commands..."
-        @keydown="onKeyDown"
-        @keyup="onKeyUp"
-      />
-      <img :src="magnifierIcon" class="magnifier-icon" alt="" aria-hidden="true" />
+      <!-- Normal search input — hidden while confirming -->
+      <template v-if="!confirmPending">
+        <input
+          ref="inputRef"
+          v-model="query"
+          class="search-input"
+          type="text"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="Search apps, or > for system commands..."
+          @keydown="onKeyDown"
+          @keyup="onKeyUp"
+        />
+        <img :src="magnifierIcon" class="magnifier-icon" alt="" aria-hidden="true" />
+      </template>
+
+      <!-- Inline confirmation row — shown while confirming -->
+      <div v-if="confirmPending" class="confirm-row">
+        <span class="confirm-question">
+          {{ pendingCommand?.id === 'system:shutdown' ? 'Shut down Windows?' : 'Restart Windows?' }}
+        </span>
+        <div class="confirm-actions">
+          <button
+            ref="confirmBtnRef"
+            class="confirm-btn confirm-btn--danger"
+            @mousedown.prevent="confirmAction"
+            @click="confirmAction"
+          >
+            {{ pendingCommand?.id === 'system:shutdown' ? 'Shut Down' : 'Restart' }}
+          </button>
+          <button
+            class="confirm-btn confirm-btn--cancel"
+            @mousedown.prevent="cancelConfirm"
+            @click="cancelConfirm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Divider (only when results exist) -->
-    <div v-if="results.length > 0" class="divider"></div>
+    <div v-if="results.length > 0 && !confirmPending" class="divider"></div>
 
     <!-- Result list (virtualised) -->
     <RecycleScroller
       ref="scrollerRef"
-      v-if="results.length > 0"
+      v-if="results.length > 0 && !confirmPending"
       class="result-list"
       :items="results"
       :item-size="48"
@@ -614,35 +641,6 @@ onUnmounted(() => {
       <div class="menu-item" @mousedown.prevent="quitApp">Quit Launcher</div>
     </div>
 
-    <!-- Confirmation overlay backdrop: mousedown.prevent prevents focus-loss auto-hide -->
-    <div
-      v-if="confirmPending"
-      class="confirm-backdrop"
-      @mousedown.prevent
-    ></div>
-
-    <!-- Confirmation overlay card -->
-    <div v-if="confirmPending" class="confirm-card">
-      <p class="confirm-title">
-        {{ pendingCommand?.id === 'system:shutdown' ? 'Shut down Windows?' : 'Restart Windows?' }}
-      </p>
-      <p class="confirm-body">Your work will be lost.</p>
-      <div class="confirm-actions">
-        <button
-          ref="confirmBtnRef"
-          class="confirm-btn confirm-btn--danger"
-          @mousedown.prevent="confirmAction"
-        >
-          {{ pendingCommand?.id === 'system:shutdown' ? 'Shut Down' : 'Restart' }}
-        </button>
-        <button
-          class="confirm-btn confirm-btn--cancel"
-          @mousedown.prevent="cancelConfirm"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
 
   </div>
 </template>
@@ -934,49 +932,30 @@ html, body {
   color: #ffffff;
 }
 
-/* ---- Confirmation overlay ---- */
-.confirm-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 199;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: var(--radius);
-}
-
-.confirm-card {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 200;
-  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 100%);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--spacing-lg);
-  width: 280px;
+/* ---- Inline confirmation row ---- */
+.confirm-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-sm);
+  height: 40px;
 }
 
-.confirm-title {
-  font-family: var(--font-sans);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--color-text);
-  text-align: center;
-}
-
-.confirm-body {
+.confirm-question {
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  text-align: center;
-  margin-top: calc(-1 * var(--spacing-sm));
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 }
 
 .confirm-actions {
   display: flex;
+  flex-direction: row;
   gap: var(--spacing-sm);
   justify-content: center;
 }
