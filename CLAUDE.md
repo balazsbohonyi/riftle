@@ -165,6 +165,10 @@ open_settings_window                 // show settings window; center on first op
 
 Rust unit tests exist in `search.rs`, `store.rs`, and `paths.rs` — run with `cargo test` from `src-tauri/`. No frontend tests currently.
 
+## Tool priority: LSP FIRST
+
+**When navigating code, ALWAYS use LSP before grep, glob, bash, or Read-and-scan.** LSP is faster, more accurate, and cheaper on tokens. Only fall back to grep/glob for non-code text search or regex patterns. This is a hard rule, not a suggestion.
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
