@@ -1,6 +1,4 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## What This Is
 
@@ -166,3 +164,12 @@ open_settings_window                 // show settings window; center on first op
 ## Testing
 
 Rust unit tests exist in `search.rs`, `store.rs`, and `paths.rs` — run with `cargo test` from `src-tauri/`. No frontend tests currently.
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
