@@ -43,7 +43,7 @@ pub struct Settings {
     pub system_tool_allowlist: Vec<String>,
 }
 
-fn default_hotkey() -> String { "Alt+Space".to_string() }
+fn default_hotkey() -> String { "Ctrl+Alt+Space".to_string() }
 fn default_theme() -> String { "system".to_string() }
 
 fn default_reindex_interval() -> u32 { 15 }
@@ -303,7 +303,7 @@ mod tests {
     #[test]
     fn test_settings_defaults() {
         let s = Settings::default();
-        assert_eq!(s.hotkey, "Alt+Space");
+        assert_eq!(s.hotkey, "Ctrl+Alt+Space");
         assert_eq!(s.theme, "system");
 
         assert!(!s.show_path);
@@ -346,7 +346,7 @@ mod tests {
         let result: Result<Settings, _> = serde_json::from_str(malformed);
         let s = result.unwrap_or_default();
         // Should get defaults, not panic
-        assert_eq!(s.hotkey, "Alt+Space");
+        assert_eq!(s.hotkey, "Ctrl+Alt+Space");
         assert_eq!(s.reindex_interval, 15);
     }
 
@@ -405,7 +405,7 @@ mod tests {
 
         match outcome {
             SettingsLoadOutcome::Missing(settings) => {
-                assert_eq!(settings.hotkey, "Alt+Space");
+                assert_eq!(settings.hotkey, "Ctrl+Alt+Space");
                 assert!(!backup_path(&settings_path(&dir)).exists());
             }
             other => panic!("expected missing outcome, got {:?}", other),

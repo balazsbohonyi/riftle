@@ -33,10 +33,10 @@ const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__
 const isPortable = ref(false)
 const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
-const lastRegisteredHotkey = ref('Alt+Space')
+const lastRegisteredHotkey = ref('Ctrl+Alt+Space')
 
 const settings = ref<SettingsData>({
-  hotkey: 'Alt+Space',
+  hotkey: 'Ctrl+Alt+Space',
   theme: 'system',
 
   show_path: false,
@@ -211,10 +211,10 @@ onUnmounted(() => {
         <Row label="Global shortcut">
           <div class="hotkey-row">
             <button
-              v-if="settings.hotkey !== 'Alt+Space'"
+              v-if="settings.hotkey !== 'Ctrl+Alt+Space'"
               type="button"
               class="reset-link"
-              @click="onHotkeyChange('Alt+Space')"
+              @click="onHotkeyChange('Ctrl+Alt+Space')"
             >Reset</button>
             <KeyCapture
               v-model="settings.hotkey"

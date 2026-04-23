@@ -1,9 +1,5 @@
 # Riftle — Dev Environment Setup
 
-> Windows-only setup guide for Tauri v2 + Rust + Vue 3 + TypeScript development.
-
----
-
 ## 1. VS Code
 
 Download and install VS Code from https://code.visualstudio.com/
@@ -113,29 +109,9 @@ pnpm --version
 
 ---
 
-## 6. Tauri CLI
-
-Install as a local dev dependency (recommended over global install so the version is locked per project):
-
-```powershell
-pnpm add -D @tauri-apps/cli@latest
-```
-
-Or globally if you prefer:
-
-```powershell
-pnpm add -g @tauri-apps/cli@latest
-```
-
-Verify:
-
-```powershell
-pnpm tauri --version
-```
-
 ---
 
-## 7. WebView2 Runtime
+## 6. WebView2 Runtime
 
 Tauri uses Microsoft Edge WebView2 to render the frontend.
 
@@ -146,7 +122,7 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 
 ---
 
-## 8. WiX Toolset *(MSI builds only)*
+## 7. WiX Toolset *(MSI builds only)*
 
 Required only when building `.msi` installer packages. Not needed for development or NSIS builds.
 
@@ -160,66 +136,3 @@ Or download from https://wixtoolset.org/
 
 > **Tip:** You can skip this entirely during early development. NSIS (`.exe` installer) builds work out of the box with `pnpm tauri build` without WiX.
 
----
-
-## 9. Git
-
-If you haven't already:
-
-```powershell
-winget install Git.Git
-```
-
-Or download from https://git-scm.com/download/win
-
-Verify:
-
-```powershell
-git --version
-```
-
----
-
-## 10. Scaffold the Project
-
-Once everything above is installed:
-
-```powershell
-cd riftle
-pnpm create tauri-app@latest .
-```
-
-When prompted, select:
-- Framework: **Vue**
-- Language: **TypeScript**
-
-Then start the dev server:
-
-```powershell
-pnpm tauri dev
-```
-
-The first run will take several minutes while Cargo downloads and compiles dependencies. Subsequent runs are much faster.
-
----
-
-## Quick Reference Checklist
-
-```
-[ ] VS Code installed
-[ ] rust-analyzer extension
-[ ] Even Better TOML extension
-[ ] CodeLLDB extension
-[ ] Tauri extension
-[ ] Vue - Official (Volar) extension
-[ ] ESLint extension
-[ ] Prettier extension
-[ ] Microsoft C++ Build Tools (Desktop development with C++)
-[ ] Rust via rustup (MSVC toolchain, stable channel)
-[ ] Node.js LTS
-[ ] pnpm (via corepack)
-[ ] Tauri CLI
-[ ] WebView2 Runtime (pre-installed on Win10 1803+ / Win11)
-[ ] WiX Toolset (only if building .msi)
-[ ] Git
-```

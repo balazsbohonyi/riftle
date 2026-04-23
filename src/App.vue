@@ -71,7 +71,7 @@ let launchInProgress = false
 
 // ---- Computed ----
 const listHeight = computed(() =>
-  Math.min(results.value.length, 5) * 48
+  Math.min(results.value.length, 5) * 48 + 16
 )
 
 function warningKey(warning: BackendWarning): string {
@@ -845,6 +845,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
+  padding: 8px;
   transition: height var(--duration-normal) ease;
 }
 .result-list::-webkit-scrollbar { display: none; }
@@ -862,6 +863,7 @@ html, body {
 
 .result-row.selected {
   background: var(--color-accent);
+  border-radius: var(--radius-sm);
 }
 
 /* ---- App icon ---- */
