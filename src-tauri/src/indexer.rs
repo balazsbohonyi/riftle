@@ -91,6 +91,13 @@ pub fn run_full_index(
 
     // 3. Crawl each directory, upsert each app, spawn icon extraction thread
     let mut discovered_ids: HashSet<String> = HashSet::new();
+    // Tracks (name_lower, exe_lower) for Start Menu entries to collapse the same app
+    // that ships in both user Start Menu and all-users Start Menu.
+    let mut seen_start_menu_name_exe: HashSet<(String, String)> = HashSet::new();
+    // Tracks all indexed names across every source so that an additional-path entry
+    // whose name already came from a higher-priority source (Start Menu / Desktop) is
+    // not shown twice.  Sources are ordered: start_menu → desktop → additional.
+    let mut seen_names: HashSet<String> = HashSet::new();
 
     // Bounded thread pool for icon extraction — caps concurrent GDI calls at 4 threads.
     // The pool lives for the duration of run_full_index. rayon::ThreadPool::spawn() is
@@ -106,13 +113,36 @@ pub fn run_full_index(
 
     for (dir, source) in &source_dirs {
         let apps = crawl_dir(dir, source, &settings.excluded_paths, &settings.system_tool_allowlist, com_tx);
-        for app in apps {
-            // Deduplicate by path: same exe can appear via multiple .lnk files or
-            // in both user and all-users Start Menu. HashSet::insert returns false
-            // if already present — skip the duplicate entirely.
-            if !discovered_ids.insert(app.id.clone()) {
+        for (app, icon_source) in apps {
+            // Primary dedup: same file path already seen this run.
+            // Check without inserting so skipped entries don't land in discovered_ids
+            // — prune_stale can then clean up any stale DB rows for those IDs.
+            if discovered_ids.contains(&app.id) {
                 continue;
             }
+
+            // Start Menu: collapse the same app present in both user and all-users dirs.
+            if *source == "start_menu" && app.path.to_lowercase().ends_with(".lnk") {
+                let key = (
+                    app.name.to_lowercase(),
+                    icon_source.to_string_lossy().to_lowercase(),
+                );
+                if !seen_start_menu_name_exe.insert(key) {
+                    continue;
+                }
+            }
+
+            // Non-start_menu sources (desktop, additional): skip if the same name was
+            // already indexed from an earlier, higher-priority source.
+            // Start Menu is processed first, so duplicates from lower-priority sources
+            // are suppressed rather than appearing alongside the canonical entry.
+            if *source != "start_menu" && seen_names.contains(&app.name.to_lowercase()) {
+                continue;
+            }
+
+            // All dedup checks passed — mark as discovered now.
+            discovered_ids.insert(app.id.clone());
+            seen_names.insert(app.name.to_lowercase());
 
             let icon_file = icons_dir.join(icon_filename(&app.id));
             let icon_cached = icon_file.exists();
@@ -132,13 +162,14 @@ pub fn run_full_index(
                 let _ = upsert_app(&conn, &app);
             }
 
-            // Spawn icon extraction thread only when the file doesn't exist yet
+            // Spawn icon extraction thread only when the file doesn't exist yet.
+            // icon_source is the resolved exe for lnk-based apps so ExtractIconExW
+            // works correctly; for direct exe entries it is the exe itself.
             if !icon_cached {
                 let db_clone = Arc::clone(db);
-                let exe_path = PathBuf::from(&app.path);
                 let app_id = app.id.clone();
                 icon_pool.spawn(move || {
-                    match extract_icon_png(&exe_path) {
+                    match extract_icon_png(&icon_source) {
                         Some(bytes) => {
                             if std::fs::write(&icon_file, &bytes).is_ok() {
                                 let filename = icon_file
@@ -377,16 +408,52 @@ fn normalize_for_exclusion(p: &Path) -> String {
     canonical.trim_end_matches(['/', '\\']).to_string()
 }
 
-/// Walk a directory, resolve .lnk shortcuts, return AppRecords.
+/// Returns true when a .lnk/.url filename stem is a generic launcher name.
+/// In that case, the parent directory name is a better display name for the app.
+fn is_generic_launcher_stem(stem: &str) -> bool {
+    matches!(
+        stem.to_lowercase().as_str(),
+        "steam" | "epicgameslauncher" | "epic games launcher"
+            | "galaxyclient" | "gog galaxy"
+            | "battle.net" | "battlenet"
+            | "uplay" | "ubisoft connect"
+            | "origin" | "ea app"
+    )
+}
+
+/// Returns true if a Windows internet shortcut (.url) contains a custom protocol URL (any `scheme://`).
+fn is_protocol_url_shortcut(path: &Path) -> bool {
+    let Ok(content) = std::fs::read_to_string(path) else { return false };
+    content.contains("://")
+}
+
+/// Parse the IconFile path from a .url shortcut so we can extract the game icon.
+/// Returns None if no IconFile is present or the file doesn't exist on disk.
+fn parse_url_icon_file(path: &Path) -> Option<PathBuf> {
+    let content = std::fs::read_to_string(path).ok()?;
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("IconFile=") {
+            let p = PathBuf::from(rest.trim());
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
+/// Walk a directory, resolve .lnk shortcuts, return (AppRecord, icon_source_exe) pairs.
+/// icon_source_exe is the exe to use for icon extraction:
+///   - .lnk entries: the resolved target exe (so ExtractIconExW works correctly)
+///   - .exe entries: the exe path itself
 /// source: "start_menu" | "desktop" | "path" | "additional"
-/// PATH source: .exe only, no .lnk resolution, max_depth 1.
 pub(crate) fn crawl_dir(
     root: &Path,
     source: &'static str,
     excluded: &[String],
     allowlist: &[String],
     com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
-) -> Vec<AppRecord> {
+) -> Vec<(AppRecord, PathBuf)> {
     let mut apps = vec![];
 
     // Pre-normalize excluded list once (not per WalkDir entry) for performance.
@@ -419,19 +486,83 @@ pub(crate) fn crawl_dir(
                     reply: reply_tx,
                 });
                 if let Some(target) = reply_rx.recv().unwrap_or(None) {
-                    // Use the .lnk filename as display name — it's already the human-readable
-                    // name the user sees in the Start Menu (e.g. "Google Chrome.lnk" → "Google Chrome")
-                    let name = path
+                    // Use the .lnk path as id and launch path so each shortcut is a
+                    // unique entry — shortcuts with different names but the same target
+                    // exe appear individually.
+                    // ShellExecuteW on a .lnk file passes the stored arguments correctly.
+                    let lnk_path = path.to_path_buf();
+                    let stem = lnk_path
                         .file_stem()
                         .and_then(|s| s.to_str())
-                        .map(|s| s.to_string());
-                    apps.push(make_app_record(&target, source, name));
+                        .unwrap_or_default();
+                    // For generic launcher filenames prefer the parent directory name
+                    // so "Apps/MyApp/launcher.lnk" → "MyApp".
+                    // Only apply when the parent is not the crawl root itself.
+                    let name = if is_generic_launcher_stem(stem) {
+                        lnk_path.parent()
+                            .filter(|parent| normalize_for_exclusion(parent) != normalize_for_exclusion(root))
+                            .and_then(|p| p.file_name())
+                            .and_then(|n| n.to_str())
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| stem.to_string())
+                    } else {
+                        stem.to_string()
+                    };
+                    eprintln!("[crawl] lnk {:?} → name={:?} target={:?}", lnk_path.file_name().unwrap_or_default(), name, target);
+                    let record = AppRecord {
+                        id: lnk_path.to_string_lossy().to_lowercase(),
+                        name,
+                        path: lnk_path.to_string_lossy().to_string(),
+                        icon_path: Some("generic.png".to_string()),
+                        source: source.to_string(),
+                        last_launched: None,
+                        launch_count: 0,
+                    };
+                    apps.push((record, target));
                 }
+            }
+            "url" => {
+                // Windows internet shortcut (.url) with a custom protocol scheme.
+                // ShellExecuteW on the .url file invokes the registered protocol handler.
+                if !is_protocol_url_shortcut(path) {
+                    continue;
+                }
+                let url_path = path.to_path_buf();
+                let stem = url_path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default();
+                let name = if is_generic_launcher_stem(stem) {
+                    url_path.parent()
+                        .filter(|p| normalize_for_exclusion(p) != normalize_for_exclusion(root))
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| stem.to_string())
+                } else {
+                    stem.to_string()
+                };
+                // Prefer the IconFile field (often a game-specific .exe or .ico)
+                // so ExtractIconExW gets the real game icon instead of the generic one.
+                let icon_src = parse_url_icon_file(path)
+                    .unwrap_or_else(|| url_path.clone());
+                eprintln!("[crawl] url {:?} → name={:?} icon_src={:?}", url_path.file_name().unwrap_or_default(), name, icon_src);
+                let record = AppRecord {
+                    id: url_path.to_string_lossy().to_lowercase(),
+                    name,
+                    path: url_path.to_string_lossy().to_string(),
+                    icon_path: Some("generic.png".to_string()),
+                    source: source.to_string(),
+                    last_launched: None,
+                    launch_count: 0,
+                };
+                apps.push((record, icon_src));
             }
             "exe" => {
                 // For direct .exe files, try the PE FileDescription first
                 let name = get_file_description(path);
-                apps.push(make_app_record(path, source, name));
+                let record = make_app_record(path, source, name);
+                apps.push((record, path.to_path_buf()));
             }
             _ => {}
         }
@@ -483,7 +614,11 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
 
         let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
         if len == 0 {
-            return None;
+            // GetPath returned empty — target is a URL protocol (steam://, etc.).
+            // ShellExecute on the .lnk file handles these correctly at launch time.
+            // Use the .lnk itself as the icon source; ExtractIconExW on a .lnk
+            // extracts the embedded/linked icon (often the game's icon).
+            return Some(lnk_path.to_path_buf());
         }
         let target = PathBuf::from(OsString::from_wide(&buf[..len]));
 
@@ -802,7 +937,7 @@ mod tests {
         let (dir, _exe) = temp_dir_with_exe("foo.exe");
         let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
         assert_eq!(apps.len(), 1);
-        assert!(apps[0].path.ends_with("foo.exe"));
+        assert!(apps[0].0.path.ends_with("foo.exe"));
     }
 
     #[test]
@@ -859,7 +994,7 @@ mod tests {
         let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
         // Only visible.exe should appear
         assert_eq!(apps.len(), 1);
-        assert!(apps[0].path.contains("visible.exe"));
+        assert!(apps[0].0.path.contains("visible.exe"));
     }
 
     #[test]
@@ -1046,7 +1181,7 @@ mod tests {
 
         // After normalization, hidden.exe must be excluded → only visible.exe
         assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite case difference");
-        assert!(apps[0].path.contains("visible.exe"), "visible.exe must be present");
+        assert!(apps[0].0.path.contains("visible.exe"), "visible.exe must be present");
     }
 
     #[test]
@@ -1074,7 +1209,7 @@ mod tests {
         // After normalization: both sides lowercase, no trailing separator →
         // hidden.exe is excluded → only visible.exe remains
         assert_eq!(apps.len(), 1, "hidden.exe must be excluded despite uppercase + trailing separator");
-        assert!(apps[0].path.contains("visible.exe"), "visible.exe must be present");
+        assert!(apps[0].0.path.contains("visible.exe"), "visible.exe must be present");
     }
 
     #[test]
@@ -1096,7 +1231,7 @@ mod tests {
         let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
 
         // With max_depth(8), depth-9 directory is not traversed → deep.exe absent
-        let paths: Vec<&str> = apps.iter().map(|a| a.path.as_str()).collect();
+        let paths: Vec<&str> = apps.iter().map(|(a, _)| a.path.as_str()).collect();
         assert!(
             !paths.iter().any(|p| p.contains("deep.exe")),
             "deep.exe at depth 9 must NOT be discovered when max_depth is 8; found: {:?}",
