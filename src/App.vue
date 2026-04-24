@@ -32,6 +32,7 @@ interface BackendWarning {
 
 const GENERIC_ICON_FILENAME = 'generic.png'
 const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
+const SHADOW_PAD = 32
 
 // ---- State ----
 const query         = ref('')
@@ -57,7 +58,6 @@ const menuVisible  = ref(false)
 const menuX        = ref(0)
 const menuY        = ref(0)
 const MENU_HEIGHT  = 80
-const BOTTOM_PAD   = 8
 
 // ---- Confirmation overlay state ----
 const confirmPending  = ref(false)
@@ -184,8 +184,8 @@ watch(menuVisible, async (visible) => {
   if (!visible && isTauriContext.value) {
     await nextTick()
     const warningHeight = warningListRef.value?.offsetHeight ?? 0
-    const h = Math.max(56 + listHeight.value + warningHeight, 56) + BOTTOM_PAD
-    await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
+    const h = SHADOW_PAD + Math.max(56 + listHeight.value + warningHeight, 56) + SHADOW_PAD
+    await getCurrentWindow().setSize(new LogicalSize(564, h)).catch(console.error)
   }
 })
 
@@ -209,13 +209,13 @@ async function updateWindowHeight() {
   }
   await nextTick()
   const warningHeight = warningListRef.value?.offsetHeight ?? 0
-  const h = Math.max(56 + listHeight.value + warningHeight, 56) + BOTTOM_PAD
+  const h = SHADOW_PAD + Math.max(56 + listHeight.value + warningHeight, 56) + SHADOW_PAD
   console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
   const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
   if (delay > 0) {
     await new Promise(resolve => setTimeout(resolve, delay))
   }
-  await getCurrentWindow().setSize(new LogicalSize(500, h)).catch(console.error)
+  await getCurrentWindow().setSize(new LogicalSize(564, h)).catch(console.error)
 }
 
 // ---- Icon URL ----
@@ -336,16 +336,18 @@ function closeMenu() {
 
 async function onContextMenu(e: MouseEvent) {
   if ((e.target as HTMLElement).closest('.result-row')) return
-  menuX.value = Math.min(e.clientX, 500 - 170)
-  menuY.value = e.clientY
+  // Subtract SHADOW_PAD because transform on .launcher-app makes position:fixed
+  // descendants use .launcher-app as their containing block, not the viewport.
+  menuX.value = Math.min(e.clientX - SHADOW_PAD, 500 - 170)
+  menuY.value = e.clientY - SHADOW_PAD
   menuVisible.value = true
   if (isTauriContext.value) {
     await nextTick()
     const warningHeight = warningListRef.value?.offsetHeight ?? 0
-    const contentH = Math.max(56 + listHeight.value + warningHeight, 56) + BOTTOM_PAD
-    const neededH = menuY.value + MENU_HEIGHT + 8
+    const contentH = SHADOW_PAD + Math.max(56 + listHeight.value + warningHeight, 56) + SHADOW_PAD
+    const neededH = menuY.value + MENU_HEIGHT + 2 * SHADOW_PAD
     if (neededH > contentH) {
-      await getCurrentWindow().setSize(new LogicalSize(500, neededH)).catch(console.error)
+      await getCurrentWindow().setSize(new LogicalSize(564, neededH)).catch(console.error)
     }
   }
 }
@@ -686,6 +688,7 @@ html, body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  padding: 32px;
 }
 
 /* ---- Launcher container ---- */
@@ -698,6 +701,11 @@ html, body {
 
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
+  box-shadow:
+    0 2px 4px  hsl(var(--shadow-color) / 0.32),
+    0 4px 10px hsl(var(--shadow-color) / 0.26),
+    0 8px 24px hsl(var(--shadow-color) / 0.18),
+    0 16px 40px hsl(var(--shadow-color) / 0.12);
 
   /* Animation: hidden state */
   opacity: 0;

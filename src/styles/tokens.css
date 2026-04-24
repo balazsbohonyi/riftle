@@ -26,6 +26,7 @@
   --radius-sm: 4px;
   --duration-fast: 120ms;
   --duration-normal: 180ms;
+  --shadow-color: 220deg 30% 5%;
 }
 
 [data-theme="light"] {
@@ -40,6 +41,7 @@
   --color-danger: #b42318;
   --color-border: rgba(0, 0, 0, 0.12);
   --color-divider: rgba(0, 0, 0, 0.08);
+  --shadow-color: 220deg 40% 10%;
 }
 
 @media (prefers-color-scheme: light) {
@@ -55,5 +57,6 @@
     --color-danger: #b42318;
     --color-border: rgba(0, 0, 0, 0.12);
     --color-divider: rgba(0, 0, 0, 0.08);
+    --shadow-color: 220deg 40% 10%;
   }
 }
