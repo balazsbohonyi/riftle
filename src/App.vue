@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { currentMonitor, getCurrentWindow, primaryMonitor } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { LogicalSize } from '@tauri-apps/api/dpi'
+import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import magnifierIcon from './assets/magnifier.svg'
@@ -33,6 +33,11 @@ interface BackendWarning {
 const GENERIC_ICON_FILENAME = 'generic.png'
 const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
 const SHADOW_PAD = 32
+const WINDOW_WIDTH = 564
+const SEARCH_AREA_HEIGHT = 56
+const RESULT_ROW_HEIGHT = 48
+const RESULT_PANEL_VERTICAL_PAD = 16
+const MAX_VISIBLE_RESULTS = 5
 
 // ---- State ----
 const query         = ref('')
@@ -51,6 +56,7 @@ const backendWarnings = ref<BackendWarning[]>([])
 const resultPanelOpen = ref(false)
 const resultPanelRendered = ref(false)
 const renderedResults = ref<SearchResult[]>([])
+const suppressResultPanelTransition = ref(false)
 
 const iconRequests = new Map<string, Promise<string>>()
 let resultPanelFrame: number | null = null
@@ -71,15 +77,17 @@ let unlistenSettings: (() => void) | null = null
 let unlistenBackendWarnings: (() => void) | null = null
 let launchInProgress = false
 let searchRequestId = 0
+let restoredQuerySelected = false
+let clearResultsForNextQueryChange = false
 
 // ---- Computed ----
 const listHeight = computed(() =>
-  Math.min(renderedResults.value.length, 5) * 48 + 16
+  Math.min(renderedResults.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD
 )
 
 const shouldShowResults = computed(() => results.value.length > 0 && !confirmPending.value)
 const targetListHeight = computed(() =>
-  shouldShowResults.value ? Math.min(results.value.length, 5) * 48 + 16 : 0
+  shouldShowResults.value ? Math.min(results.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD : 0
 )
 const resultPanelHeight = computed(() =>
   resultPanelOpen.value && resultPanelRendered.value ? 1 + listHeight.value : 0
@@ -114,12 +122,21 @@ function resetResultPanel() {
   renderedResults.value = []
 }
 
-function resetLauncherSearchState() {
-  searchRequestId += 1
-  resetResultPanel()
-  selectedIndex.value = 0
-  results.value = []
-  query.value = ''
+function restoreResultPanelInstantly() {
+  cancelResultPanelFrame()
+  if (!results.value.length || confirmPending.value) {
+    resetResultPanel()
+    return
+  }
+  suppressResultPanelTransition.value = true
+  renderedResults.value = results.value
+  resultPanelRendered.value = true
+  resultPanelOpen.value = true
+}
+
+function inputHasFullQuerySelection(): boolean {
+  const input = inputRef.value
+  return !!input && query.value.length > 0 && input.selectionStart === 0 && input.selectionEnd === query.value.length
 }
 
 function warningKey(warning: BackendWarning): string {
@@ -206,13 +223,29 @@ function primeIconUrl(iconPath: string) {
 // ---- Watchers ----
 watch(query, async (q) => {
   const requestId = ++searchRequestId
-  const nextResults = q.trim()
-    ? await invoke<SearchResult[]>('search', { query: q }).catch(() => [])
-    : []
+  const trimmed = q.trim()
+  const shouldClearRestoredResults = clearResultsForNextQueryChange
+  clearResultsForNextQueryChange = false
+  restoredQuerySelected = false
+  selectedIndex.value = 0
+
+  if (!trimmed) {
+    results.value = []
+    resetResultPanel()
+    await updateWindowHeight()
+    return
+  }
+
+  if (shouldClearRestoredResults) {
+    results.value = []
+    resetResultPanel()
+    await updateWindowHeight()
+  }
+
+  const nextResults = await invoke<SearchResult[]>('search', { query: q }).catch(() => [])
   if (requestId !== searchRequestId) return
   results.value = nextResults
   console.log('[App] search results:', results.value.length, 'items')
-  selectedIndex.value = 0
   await updateWindowHeight()
   console.log('[App] window height updated')
 })
@@ -234,6 +267,11 @@ watch(shouldShowResults, async (show) => {
   if (show) {
     renderedResults.value = results.value
     resultPanelRendered.value = true
+    if (suppressResultPanelTransition.value) {
+      resultPanelOpen.value = true
+      await updateWindowHeight()
+      return
+    }
     resultPanelOpen.value = false
     await nextTick()
     openResultPanelOnNextFrame()
@@ -257,15 +295,14 @@ watch(menuVisible, async (visible) => {
   if (!visible && isTauriContext.value) {
     await nextTick()
     const warningHeight = warningListRef.value?.offsetHeight ?? 0
-    const h = SHADOW_PAD + Math.max(56 + targetListHeight.value + warningHeight, 56) + SHADOW_PAD
-    await getCurrentWindow().setSize(new LogicalSize(564, h)).catch(console.error)
+    await setLauncherWindowSize(warningHeight)
   }
 })
 
 watch(selectedIndex, () => {
-  if (scrollerRef.value && results.value.length > 5) {
-    const visibleRows = 5
-    const firstVisible = Math.floor((scrollerRef.value.$el?.scrollTop || 0) / 48)
+  if (scrollerRef.value && results.value.length > MAX_VISIBLE_RESULTS) {
+    const visibleRows = MAX_VISIBLE_RESULTS
+    const firstVisible = Math.floor((scrollerRef.value.$el?.scrollTop || 0) / RESULT_ROW_HEIGHT)
     const lastVisible = firstVisible + visibleRows - 1
 
     if (selectedIndex.value < firstVisible || selectedIndex.value > lastVisible) {
@@ -275,6 +312,24 @@ watch(selectedIndex, () => {
 })
 
 // ---- Window sizing ----
+function launcherWindowHeight(warningHeight: number, listHeight: number) {
+  return SHADOW_PAD + Math.max(SEARCH_AREA_HEIGHT + listHeight + warningHeight, SEARCH_AREA_HEIGHT) + SHADOW_PAD
+}
+
+function launcherCenterAnchorHeight(warningHeight: number) {
+  const fiveResultListHeight = MAX_VISIBLE_RESULTS * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD
+  return launcherWindowHeight(warningHeight, fiveResultListHeight)
+}
+
+async function setLauncherWindowSize(warningHeight: number) {
+  const h = launcherWindowHeight(warningHeight, targetListHeight.value)
+  console.log('[App] updateWindowHeight:', {
+    listHeight: targetListHeight.value,
+    totalHeight: h,
+  })
+  await getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, h)).catch(console.error)
+}
+
 async function updateWindowHeight() {
   if (!isTauriContext.value) {
     console.log('[App] updateWindowHeight skipped: not in Tauri context')
@@ -282,9 +337,25 @@ async function updateWindowHeight() {
   }
   await nextTick()
   const warningHeight = warningListRef.value?.offsetHeight ?? 0
-  const h = SHADOW_PAD + Math.max(56 + targetListHeight.value + warningHeight, 56) + SHADOW_PAD
-  console.log('[App] updateWindowHeight:', { listHeight: targetListHeight.value, totalHeight: h })
-  await getCurrentWindow().setSize(new LogicalSize(564, h)).catch(console.error)
+  await setLauncherWindowSize(warningHeight)
+}
+
+async function centerLauncherForFiveResults() {
+  if (!isTauriContext.value) return
+  const win = getCurrentWindow()
+  const monitor = await currentMonitor().catch(() => null) ?? await primaryMonitor().catch(() => null)
+  if (!monitor) {
+    await win.center().catch(console.error)
+    return
+  }
+
+  const scaleFactor = await win.scaleFactor().catch(() => monitor.scaleFactor)
+  const warningHeight = warningListRef.value?.offsetHeight ?? 0
+  const anchorHeight = launcherCenterAnchorHeight(warningHeight) * scaleFactor
+  const windowWidth = WINDOW_WIDTH * scaleFactor
+  const x = monitor.workArea.position.x + Math.round((monitor.workArea.size.width - windowWidth) / 2)
+  const y = monitor.workArea.position.y + Math.round((monitor.workArea.size.height - anchorHeight) / 2)
+  await win.setPosition(new PhysicalPosition(x, y)).catch(console.error)
 }
 
 // ---- Icon URL ----
@@ -334,6 +405,18 @@ function toggleConfirmFocus() {
 function onKeyDown(e: KeyboardEvent) {
   adminMode.value = e.ctrlKey && e.shiftKey
   const target = e.target as HTMLElement | null
+
+  if (target === inputRef.value) {
+    const willEditQuery =
+      e.key.length === 1 ||
+      e.key === 'Backspace' ||
+      e.key === 'Delete' ||
+      (e.key.toLowerCase() === 'v' && (e.ctrlKey || e.metaKey))
+    clearResultsForNextQueryChange = restoredQuerySelected && inputHasFullQuerySelection() && willEditQuery
+    if (!inputHasFullQuerySelection() && e.key !== 'Tab') {
+      restoredQuerySelected = false
+    }
+  }
 
   if (e.key === ',' && e.ctrlKey) {
     e.preventDefault()
@@ -416,7 +499,7 @@ async function onContextMenu(e: MouseEvent) {
     const contentH = SHADOW_PAD + Math.max(56 + listHeight.value + warningHeight, 56) + SHADOW_PAD
     const neededH = menuY.value + MENU_HEIGHT + 2 * SHADOW_PAD
     if (neededH > contentH) {
-      await getCurrentWindow().setSize(new LogicalSize(564, neededH)).catch(console.error)
+      await getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, neededH)).catch(console.error)
     }
   }
 }
@@ -489,7 +572,6 @@ async function hideWindow() {
     await getCurrentWindow().hide().catch(e => {
       console.error('[App] hideWindow failed:', e)
     })
-    resetLauncherSearchState()
     await updateWindowHeight()
     console.log('[App] window hidden')
   } else {
@@ -557,14 +639,20 @@ onMounted(async () => {
       menuVisible.value = false
       confirmPending.value = false
       pendingCommand.value = null
-      resetLauncherSearchState()
+      restoreResultPanelInstantly()
       await nextTick()
-      await getCurrentWindow().show().catch(console.error)
-      await getCurrentWindow().setFocus().catch(console.error)
+      const win = getCurrentWindow()
       await updateWindowHeight()
-      await getCurrentWindow().center().catch(console.error)
+      await centerLauncherForFiveResults()
+      await win.show().catch(console.error)
+      await win.setFocus().catch(console.error)
       await nextTick()
       inputRef.value?.focus()
+      inputRef.value?.select()
+      restoredQuerySelected = query.value.length > 0
+      requestAnimationFrame(() => {
+        suppressResultPanelTransition.value = false
+      })
     })
   }
 
@@ -664,6 +752,7 @@ onUnmounted(() => {
     <div
       v-if="resultPanelRendered"
       class="result-panel"
+      :class="{ 'result-panel--no-transition': suppressResultPanelTransition }"
       :style="{ height: resultPanelHeight + 'px' }"
       @transitionend="onResultPanelTransitionEnd"
     >
@@ -683,7 +772,7 @@ onUnmounted(() => {
         <div
           class="result-row"
           :class="{ selected: active && index === selectedIndex }"
-          @mousedown.left.prevent="launchItem(item)"
+          @mousedown.left.prevent="selectedIndex = index; launchItem(item)"
           @mousemove="active && (selectedIndex = index)"
           @contextmenu.prevent
         >
@@ -883,6 +972,11 @@ html, body {
   font-weight: 400;
 }
 
+.search-input::selection {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
 .magnifier-icon {
   position: absolute;
   right: var(--spacing-lg);
@@ -906,6 +1000,10 @@ html, body {
 .result-panel {
   overflow: hidden;
   transition: height var(--duration-normal) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.result-panel--no-transition {
+  transition: none;
 }
 
 .result-list {
