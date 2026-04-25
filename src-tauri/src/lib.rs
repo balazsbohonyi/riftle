@@ -60,6 +60,46 @@ fn show_launcher_window(app: &tauri::AppHandle) {
     let _ = win.emit("launcher-show", ());
 }
 
+#[tauri::command]
+fn show_positioned_launcher(
+    app: tauri::AppHandle,
+    window_width: f64,
+    window_height: f64,
+    anchor_height: f64,
+) -> Result<(), String> {
+    let win = app
+        .get_webview_window("launcher")
+        .ok_or_else(|| "launcher window not found".to_string())?;
+
+    win.set_size(tauri::LogicalSize::new(window_width, window_height))
+        .map_err(|e| e.to_string())?;
+
+    let monitor = win
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .or_else(|| win.primary_monitor().ok().flatten());
+
+    if let Some(monitor) = monitor {
+        let work_area = monitor.work_area();
+        let scale_factor = monitor.scale_factor();
+        let physical_width = window_width * scale_factor;
+        let physical_anchor_height = anchor_height * scale_factor;
+        let x = work_area.position.x
+            + ((work_area.size.width as f64 - physical_width) / 2.0).round() as i32;
+        let y = work_area.position.y
+            + ((work_area.size.height as f64 - physical_anchor_height) / 2.0).round() as i32;
+
+        win.set_position(tauri::PhysicalPosition::new(x, y))
+            .map_err(|e| e.to_string())?;
+    } else {
+        win.center().map_err(|e| e.to_string())?;
+    }
+
+    win.show().map_err(|e| e.to_string())?;
+    win.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn toggle_launcher_window(app: &tauri::AppHandle) {
     let Some(win) = app.get_webview_window("launcher") else {
         eprintln!("[tray] launcher window not found");
@@ -434,6 +474,7 @@ pub fn run() {
             crate::hotkey::update_hotkey,
             crate::commands::quit_app,   // Phase 7: context menu quit action
             crate::warnings::take_backend_warnings,
+            show_positioned_launcher,
             open_settings_window,        // Phase 8: open settings window
             consume_restore_launcher_on_settings_close,
             set_hotkey_capture_active,

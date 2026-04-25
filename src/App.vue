@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { currentMonitor, getCurrentWindow, primaryMonitor } from '@tauri-apps/api/window'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi'
+import { LogicalSize } from '@tauri-apps/api/dpi'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import magnifierIcon from './assets/magnifier.svg'
@@ -340,22 +340,14 @@ async function updateWindowHeight() {
   await setLauncherWindowSize(warningHeight)
 }
 
-async function centerLauncherForFiveResults() {
+async function showPositionedLauncher() {
   if (!isTauriContext.value) return
-  const win = getCurrentWindow()
-  const monitor = await currentMonitor().catch(() => null) ?? await primaryMonitor().catch(() => null)
-  if (!monitor) {
-    await win.center().catch(console.error)
-    return
-  }
-
-  const scaleFactor = await win.scaleFactor().catch(() => monitor.scaleFactor)
   const warningHeight = warningListRef.value?.offsetHeight ?? 0
-  const anchorHeight = launcherCenterAnchorHeight(warningHeight) * scaleFactor
-  const windowWidth = WINDOW_WIDTH * scaleFactor
-  const x = monitor.workArea.position.x + Math.round((monitor.workArea.size.width - windowWidth) / 2)
-  const y = monitor.workArea.position.y + Math.round((monitor.workArea.size.height - anchorHeight) / 2)
-  await win.setPosition(new PhysicalPosition(x, y)).catch(console.error)
+  await invoke('show_positioned_launcher', {
+    windowWidth: WINDOW_WIDTH,
+    windowHeight: launcherWindowHeight(warningHeight, targetListHeight.value),
+    anchorHeight: launcherCenterAnchorHeight(warningHeight),
+  }).catch(console.error)
 }
 
 // ---- Icon URL ----
@@ -641,11 +633,8 @@ onMounted(async () => {
       pendingCommand.value = null
       restoreResultPanelInstantly()
       await nextTick()
-      const win = getCurrentWindow()
       await updateWindowHeight()
-      await centerLauncherForFiveResults()
-      await win.show().catch(console.error)
-      await win.setFocus().catch(console.error)
+      await showPositionedLauncher()
       await nextTick()
       inputRef.value?.focus()
       inputRef.value?.select()
