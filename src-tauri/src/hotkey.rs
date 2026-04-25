@@ -23,8 +23,8 @@ fn format_hotkey_register_error(hotkey: &str, error: impl std::fmt::Display) -> 
 ///
 /// When the hotkey is pressed:
 /// - If the launcher is visible → hide it immediately.
-/// - If the launcher is hidden → center, show, focus, and emit "launcher-show" so Vue
-///   replays the appear animation, clears the query, and focuses the input.
+/// - If the launcher is hidden, emit "launcher-show" so Vue clears state,
+///   shows, centers, and focuses the input.
 pub fn register(app: &AppHandle, hotkey_str: &str) -> String {
     let win: tauri::WebviewWindow = match app.get_webview_window("launcher") {
         Some(w) => w,
@@ -44,8 +44,6 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> String {
             if win_clone.is_visible().unwrap_or(false) {
                 let _ = win_clone.hide();
             } else {
-                let _ = win_clone.show();
-                let _ = win_clone.set_focus();
                 let _ = win_clone.emit("launcher-show", ());
             }
         }
@@ -99,8 +97,6 @@ pub fn update_hotkey(
                 if win_clone.is_visible().unwrap_or(false) {
                     let _ = win_clone.hide();
                 } else {
-                    let _ = win_clone.show();
-                    let _ = win_clone.set_focus();
                     let _ = win_clone.emit("launcher-show", ());
                 }
             }

@@ -20,7 +20,6 @@ interface SettingsData {
   additional_paths: string[]
   excluded_paths: string[]
   reindex_interval: number
-  animation: string
   system_tool_allowlist: string[]
 }
 
@@ -54,7 +53,6 @@ const settings = ref<SettingsData>({
   additional_paths: [],
   excluded_paths: [],
   reindex_interval: 15,
-  animation: 'slide',
   system_tool_allowlist: [],
 })
 
@@ -75,7 +73,6 @@ onMounted(async () => {
       additional_paths: response.additional_paths,
       excluded_paths: response.excluded_paths,
       reindex_interval: response.reindex_interval,
-      animation: response.animation,
       system_tool_allowlist: response.system_tool_allowlist,
     }
     lastRegisteredHotkey.value = response.hotkey

@@ -40,8 +40,6 @@ const results       = ref<SearchResult[]>([])
 const selectedIndex = ref(0)
 const adminMode     = ref(false)
 const showPath      = ref(false)
-const animMode      = ref<'instant' | 'fade' | 'slide'>('slide')
-const isVisible     = ref(false)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
 const confirmBtnRef = ref<HTMLButtonElement | null>(null)
@@ -50,8 +48,12 @@ const warningListRef = ref<HTMLElement | null>(null)
 const isTauriContext = ref(false)
 const iconUrls      = ref<Record<string, string>>({})
 const backendWarnings = ref<BackendWarning[]>([])
+const resultPanelOpen = ref(false)
+const resultPanelRendered = ref(false)
+const renderedResults = ref<SearchResult[]>([])
 
 const iconRequests = new Map<string, Promise<string>>()
+let resultPanelFrame: number | null = null
 
 // ---- Context menu state ----
 const menuVisible  = ref(false)
@@ -68,11 +70,57 @@ let unlistenShow: (() => void) | null = null
 let unlistenSettings: (() => void) | null = null
 let unlistenBackendWarnings: (() => void) | null = null
 let launchInProgress = false
+let searchRequestId = 0
 
 // ---- Computed ----
 const listHeight = computed(() =>
-  Math.min(results.value.length, 5) * 48 + 16
+  Math.min(renderedResults.value.length, 5) * 48 + 16
 )
+
+const shouldShowResults = computed(() => results.value.length > 0 && !confirmPending.value)
+const targetListHeight = computed(() =>
+  shouldShowResults.value ? Math.min(results.value.length, 5) * 48 + 16 : 0
+)
+const resultPanelHeight = computed(() =>
+  resultPanelOpen.value && resultPanelRendered.value ? 1 + listHeight.value : 0
+)
+
+function cancelResultPanelFrame() {
+  if (resultPanelFrame === null) return
+  cancelAnimationFrame(resultPanelFrame)
+  resultPanelFrame = null
+}
+
+function openResultPanelOnNextFrame() {
+  cancelResultPanelFrame()
+  resultPanelFrame = requestAnimationFrame(() => {
+    resultPanelFrame = requestAnimationFrame(() => {
+      resultPanelOpen.value = true
+      resultPanelFrame = null
+    })
+  })
+}
+
+function onResultPanelTransitionEnd(event: TransitionEvent) {
+  if (event.propertyName !== 'height' || resultPanelOpen.value) return
+  resultPanelRendered.value = false
+  renderedResults.value = []
+}
+
+function resetResultPanel() {
+  cancelResultPanelFrame()
+  resultPanelOpen.value = false
+  resultPanelRendered.value = false
+  renderedResults.value = []
+}
+
+function resetLauncherSearchState() {
+  searchRequestId += 1
+  resetResultPanel()
+  selectedIndex.value = 0
+  results.value = []
+  query.value = ''
+}
 
 function warningKey(warning: BackendWarning): string {
   return [
@@ -157,9 +205,12 @@ function primeIconUrl(iconPath: string) {
 
 // ---- Watchers ----
 watch(query, async (q) => {
-  results.value = q.trim()
+  const requestId = ++searchRequestId
+  const nextResults = q.trim()
     ? await invoke<SearchResult[]>('search', { query: q }).catch(() => [])
     : []
+  if (requestId !== searchRequestId) return
+  results.value = nextResults
   console.log('[App] search results:', results.value.length, 'items')
   selectedIndex.value = 0
   await updateWindowHeight()
@@ -168,11 +219,33 @@ watch(query, async (q) => {
 
 watch(results, (items) => {
   selectedIndex.value = 0
+  if (shouldShowResults.value) {
+    renderedResults.value = items
+  }
   if (isTauriContext.value) {
     for (const item of items) {
       primeIconUrl(item.icon_path)
     }
   }
+})
+
+watch(shouldShowResults, async (show) => {
+  cancelResultPanelFrame()
+  if (show) {
+    renderedResults.value = results.value
+    resultPanelRendered.value = true
+    resultPanelOpen.value = false
+    await nextTick()
+    openResultPanelOnNextFrame()
+    await updateWindowHeight()
+    return
+  }
+
+  resultPanelOpen.value = false
+  if (!resultPanelRendered.value) {
+    renderedResults.value = []
+  }
+  await updateWindowHeight()
 })
 
 watch(backendWarnings, async () => {
@@ -184,7 +257,7 @@ watch(menuVisible, async (visible) => {
   if (!visible && isTauriContext.value) {
     await nextTick()
     const warningHeight = warningListRef.value?.offsetHeight ?? 0
-    const h = SHADOW_PAD + Math.max(56 + listHeight.value + warningHeight, 56) + SHADOW_PAD
+    const h = SHADOW_PAD + Math.max(56 + targetListHeight.value + warningHeight, 56) + SHADOW_PAD
     await getCurrentWindow().setSize(new LogicalSize(564, h)).catch(console.error)
   }
 })
@@ -209,12 +282,8 @@ async function updateWindowHeight() {
   }
   await nextTick()
   const warningHeight = warningListRef.value?.offsetHeight ?? 0
-  const h = SHADOW_PAD + Math.max(56 + listHeight.value + warningHeight, 56) + SHADOW_PAD
-  console.log('[App] updateWindowHeight:', { listHeight: listHeight.value, totalHeight: h })
-  const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
-  if (delay > 0) {
-    await new Promise(resolve => setTimeout(resolve, delay))
-  }
+  const h = SHADOW_PAD + Math.max(56 + targetListHeight.value + warningHeight, 56) + SHADOW_PAD
+  console.log('[App] updateWindowHeight:', { listHeight: targetListHeight.value, totalHeight: h })
   await getCurrentWindow().setSize(new LogicalSize(564, h)).catch(console.error)
 }
 
@@ -415,14 +484,13 @@ async function showWindow() {
 async function hideWindow() {
   menuVisible.value = false
   console.log('[App] hideWindow called, isTauriContext:', isTauriContext.value)
-  isVisible.value = false
-  const delay = animMode.value === 'slide' ? 180 : animMode.value === 'fade' ? 120 : 0
-  await new Promise(resolve => setTimeout(resolve, delay))
   if (isTauriContext.value) {
     console.log('[App] calling getCurrentWindow().hide()')
     await getCurrentWindow().hide().catch(e => {
       console.error('[App] hideWindow failed:', e)
     })
+    resetLauncherSearchState()
+    await updateWindowHeight()
     console.log('[App] window hidden')
   } else {
     console.log('[App] hideWindow skipped: not in Tauri context')
@@ -440,15 +508,13 @@ onMounted(async () => {
     try {
       const settings = await invoke<{
         show_path: boolean
-        animation: string
         theme: string
       }>('get_settings_cmd')
       showPath.value = settings.show_path
-      animMode.value = (settings.animation ?? 'slide') as typeof animMode.value
       if (settings.theme) applyTheme(settings.theme)
       await loadIconUrl(GENERIC_ICON_FILENAME)
 
-      console.log('[App] settings loaded:', { showPath: showPath.value, animMode: animMode.value })
+      console.log('[App] settings loaded:', { showPath: showPath.value })
     } catch (e) {
       console.warn('[launcher] get_settings_cmd failed, using defaults:', e)
     }
@@ -468,10 +534,8 @@ onMounted(async () => {
     const win = getCurrentWindow()
     if (win.label === 'launcher') {
       // Hotkey (Alt+Space) owns show/hide - do NOT call showWindow() here.
-      // isVisible stays false until the 'launcher-show' event fires.
     }
   } else {
-    isVisible.value = true
     await nextTick()
     inputRef.value?.focus()
   }
@@ -493,15 +557,12 @@ onMounted(async () => {
       menuVisible.value = false
       confirmPending.value = false
       pendingCommand.value = null
-      isVisible.value = false
-      results.value = []
-      query.value = ''
+      resetLauncherSearchState()
+      await nextTick()
       await getCurrentWindow().show().catch(console.error)
       await getCurrentWindow().setFocus().catch(console.error)
       await updateWindowHeight()
       await getCurrentWindow().center().catch(console.error)
-      await nextTick()
-      isVisible.value = true
       await nextTick()
       inputRef.value?.focus()
     })
@@ -516,6 +577,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  cancelResultPanelFrame()
   unlistenFocus?.()
   unlistenShow?.()
   unlistenSettings?.()
@@ -528,7 +590,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="launcher-app" :class="[`anim-${animMode}`, { visible: isVisible }]" @contextmenu.prevent="onContextMenu" @keydown="onKeyDown">
+  <div class="launcher-app" @contextmenu.prevent="onContextMenu" @keydown="onKeyDown">
     <div v-if="backendWarnings.length > 0" ref="warningListRef" class="warning-stack">
       <div
         v-for="warning in backendWarnings"
@@ -599,54 +661,60 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Divider (only when results exist) -->
-    <div v-if="results.length > 0 && !confirmPending" class="divider"></div>
-
-    <!-- Result list (virtualised) -->
-    <RecycleScroller
-      ref="scrollerRef"
-      v-if="results.length > 0 && !confirmPending"
-      class="result-list"
-      :items="results"
-      :item-size="48"
-      key-field="id"
-      :style="{ height: listHeight + 'px' }"
-      v-slot="{ item, index, active }"
+    <div
+      v-if="resultPanelRendered"
+      class="result-panel"
+      :style="{ height: resultPanelHeight + 'px' }"
+      @transitionend="onResultPanelTransitionEnd"
     >
-      <div
-        class="result-row"
-        :class="{ selected: active && index === selectedIndex }"
-        @mousedown.left.prevent="launchItem(item)"
-        @mousemove="active && (selectedIndex = index)"
-        @contextmenu.prevent
+      <!-- Divider (revealed with results) -->
+      <div class="divider"></div>
+
+      <!-- Result list (virtualised) -->
+      <RecycleScroller
+        ref="scrollerRef"
+        class="result-list"
+        :items="renderedResults"
+        :item-size="48"
+        key-field="id"
+        :style="{ height: listHeight + 'px' }"
+        v-slot="{ item, index, active }"
       >
-        <!-- Icon -->
-        <img
-          class="app-icon"
-          :src="getIconUrl(item.icon_path)"
-          :alt="item.name"
-          width="32"
-          height="32"
-          loading="eager"
-        />
+        <div
+          class="result-row"
+          :class="{ selected: active && index === selectedIndex }"
+          @mousedown.left.prevent="launchItem(item)"
+          @mousemove="active && (selectedIndex = index)"
+          @contextmenu.prevent
+        >
+          <!-- Icon -->
+          <img
+            class="app-icon"
+            :src="getIconUrl(item.icon_path)"
+            :alt="item.name"
+            width="32"
+            height="32"
+            loading="eager"
+          />
 
-        <!-- Text -->
-        <div class="result-text">
-          <span class="app-name">{{ item.name }}</span>
+          <!-- Text -->
+          <div class="result-text">
+            <span class="app-name">{{ item.name }}</span>
+            <span
+              v-if="index === selectedIndex && showPath && item.kind !== 'system'"
+              class="path-line"
+            >{{ item.path }}</span>
+          </div>
+
+          <!-- Admin badge (right margin, no layout shift) -->
           <span
-            v-if="index === selectedIndex && showPath && item.kind !== 'system'"
-            class="path-line"
-          >{{ item.path }}</span>
+            v-if="item.requires_elevation"
+            class="admin-badge"
+            aria-label="Elevate with admin rights"
+          >[Admin]</span>
         </div>
-
-        <!-- Admin badge (right margin, no layout shift) -->
-        <span
-          v-if="item.requires_elevation"
-          class="admin-badge"
-          aria-label="Elevate with admin rights"
-        >[Admin]</span>
-      </div>
-    </RecycleScroller>
+      </RecycleScroller>
+    </div>
 
     <!-- Context menu backdrop: click-outside closes menu -->
     <div
@@ -706,21 +774,7 @@ html, body {
     0 4px 10px hsl(var(--shadow-color) / 0.26),
     0 8px 24px hsl(var(--shadow-color) / 0.18),
     0 16px 40px hsl(var(--shadow-color) / 0.12);
-
-  /* Animation: hidden state */
-  opacity: 0;
-  transform: translateY(-6px);
 }
-
-/* Animation modes */
-.anim-fade   { transition: opacity var(--duration-fast) ease; }
-.anim-fade.visible { opacity: 1; }
-
-.anim-slide  { transition: opacity var(--duration-normal) ease, transform var(--duration-normal) ease; }
-.anim-slide.visible { opacity: 1; transform: translateY(0); }
-
-.anim-instant { transition: none; }
-.anim-instant.visible { opacity: 1; transform: translateY(0); }
 
 /* ---- Search area ---- */
 .warning-stack {
@@ -849,12 +903,16 @@ html, body {
 }
 
 /* ---- Result list ---- */
+.result-panel {
+  overflow: hidden;
+  transition: height var(--duration-normal) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .result-list {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
   padding: 8px;
-  transition: height var(--duration-normal) ease;
 }
 .result-list::-webkit-scrollbar { display: none; }
 
@@ -943,8 +1001,7 @@ html, body {
   background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  min-width: 160px;
-  padding: 4px 0;
+  width: max-content;
   z-index: 100;
   overflow: hidden;
 }
@@ -957,6 +1014,7 @@ html, body {
   padding: var(--spacing-sm) 14px;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
 
 .menu-item:hover {

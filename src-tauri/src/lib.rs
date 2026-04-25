@@ -57,8 +57,6 @@ fn show_launcher_window(app: &tauri::AppHandle) {
         return;
     };
 
-    let _ = win.show();
-    let _ = win.set_focus();
     let _ = win.emit("launcher-show", ());
 }
 
