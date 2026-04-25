@@ -508,7 +508,6 @@ pub(crate) fn crawl_dir(
                     } else {
                         stem.to_string()
                     };
-                    eprintln!("[crawl] lnk {:?} → name={:?} target={:?}", lnk_path.file_name().unwrap_or_default(), name, target);
                     let record = AppRecord {
                         id: lnk_path.to_string_lossy().to_lowercase(),
                         name,
@@ -546,7 +545,6 @@ pub(crate) fn crawl_dir(
                 // so ExtractIconExW gets the real game icon instead of the generic one.
                 let icon_src = parse_url_icon_file(path)
                     .unwrap_or_else(|| url_path.clone());
-                eprintln!("[crawl] url {:?} → name={:?} icon_src={:?}", url_path.file_name().unwrap_or_default(), name, icon_src);
                 let record = AppRecord {
                     id: url_path.to_string_lossy().to_lowercase(),
                     name,

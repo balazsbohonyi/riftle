@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -27,13 +27,23 @@ interface SettingsData {
 interface SettingsResponse extends SettingsData {
   data_dir: string
   is_portable: boolean
+  build_profile: 'debug' | 'release'
+  can_autostart: boolean
 }
 
 const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window)
 const isPortable = ref(false)
+const buildProfile = ref<'debug' | 'release'>('debug')
+const canAutostart = ref(false)
 const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
 const lastRegisteredHotkey = ref('Ctrl+Alt+Space')
+
+const autostartHint = computed(() => {
+  if (isPortable.value) return 'Not available in portable mode'
+  if (buildProfile.value === 'debug') return 'Not available in dev/debug builds'
+  return undefined
+})
 
 const settings = ref<SettingsData>({
   hotkey: 'Ctrl+Alt+Space',
@@ -54,12 +64,14 @@ onMounted(async () => {
   try {
     const response = await invoke<SettingsResponse>('get_settings_cmd')
     isPortable.value = response.is_portable
+    buildProfile.value = response.build_profile
+    canAutostart.value = response.can_autostart
     settings.value = {
       hotkey: response.hotkey,
       theme: response.theme,
 
       show_path: response.show_path,
-      autostart: response.autostart,
+      autostart: response.can_autostart ? response.autostart : false,
       additional_paths: response.additional_paths,
       excluded_paths: response.excluded_paths,
       reindex_interval: response.reindex_interval,
@@ -68,7 +80,7 @@ onMounted(async () => {
     }
     lastRegisteredHotkey.value = response.hotkey
 
-    if (!isPortable.value) {
+    if (canAutostart.value) {
       const { isEnabled } = await import('@tauri-apps/plugin-autostart')
       settings.value.autostart = await isEnabled()
     }
@@ -93,7 +105,10 @@ async function setHotkeyCaptureActive(active: boolean) {
 
 // General
 async function onAutostartChange(v: boolean) {
-  if (isPortable.value) return
+  if (!canAutostart.value) {
+    settings.value.autostart = false
+    return
+  }
   try {
     const { enable, disable } = await import('@tauri-apps/plugin-autostart')
     if (v) {
@@ -197,11 +212,11 @@ onUnmounted(() => {
       <Section title="General">
         <Row
           label="Launch at startup"
-          :hint="isPortable ? 'Not available in portable mode' : undefined"
+          :hint="autostartHint"
         >
           <Toggle
             v-model="settings.autostart"
-            :disabled="isPortable"
+            :disabled="!canAutostart"
             @update:modelValue="onAutostartChange"
           />
         </Row>

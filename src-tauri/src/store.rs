@@ -238,6 +238,8 @@ pub fn get_settings_cmd(
     };
     let is_portable = data_dir.ends_with("data") &&
         data_dir.parent().map(|p| p.join("riftle-launcher.portable").exists()).unwrap_or(false);
+    let build_profile = if cfg!(debug_assertions) { "debug" } else { "release" };
+    let can_autostart = !cfg!(debug_assertions) && !is_portable;
     serde_json::json!({
         "hotkey": settings.hotkey,
         "theme": settings.theme,
@@ -251,6 +253,8 @@ pub fn get_settings_cmd(
         "system_tool_allowlist": settings.system_tool_allowlist,
         "data_dir": data_dir.to_string_lossy(),
         "is_portable": is_portable,
+        "build_profile": build_profile,
+        "can_autostart": can_autostart,
     })
 }
 
@@ -386,6 +390,8 @@ mod tests {
             "system_tool_allowlist": s.system_tool_allowlist,
             "data_dir": "C:\\test",
             "is_portable": false,
+            "build_profile": "debug",
+            "can_autostart": false,
         });
         assert!(
             json.get("system_tool_allowlist").is_some(),
