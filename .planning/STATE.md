@@ -5,6 +5,23 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Phase 09.7 context gathered
+last_updated: "2026-05-14T23:17:21.296Z"
+last_activity: 2026-03-12
+progress:
+  total_phases: 17
+  completed_phases: 12
+  total_plans: 47
+  completed_plans: 45
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Completed 09.6-05-PLAN.md
 last_updated: "2026-03-12T19:59:46.804Z"
 last_activity: 2026-03-12
@@ -46,6 +63,7 @@ progress:
 
 - Phase 09.5 inserted after Phase 9: Backend resilience - replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` paths with recoverable handling in `commands.rs`, `search.rs`, and `lib.rs`; add `launcher.db.bak` / `settings.json.bak` plus surfaced frontend warnings before silent reset paths in `db.rs` and `store.rs`. (URGENT)
 - Phase 09.6 inserted after Phase 9: UX Safety Gates — confirmation gate before shutdown/restart in system_commands.rs; two-phase hotkey swap in hotkey.rs so a failed registration rolls back rather than leaving no active hotkey. (URGENT)
+- Phase 09.7 inserted after Phase 9: Add support for shortcuts: - ability to specify directories and files, with a specific alias (not mandatory) and with arguments/parameters (not mandatory, and only for executable files, not for directories) (URGENT)
 
 ## Project Reference
 
@@ -239,9 +257,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Session
 
-**Last Date:** 2026-03-12T19:59:46.801Z
-**Stopped At:** Completed 09.6-05-PLAN.md
-**Resume File:** None
+**Last Date:** 2026-05-14T23:17:21.289Z
+**Stopped At:** Phase 09.7 context gathered
+**Resume File:** .planning/phases/09.7-shortcuts-support/09.7-CONTEXT.md
 
 ## Session Log
 
