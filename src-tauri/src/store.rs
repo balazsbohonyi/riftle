@@ -269,6 +269,11 @@ pub fn set_settings_cmd(
     data_dir: tauri::State<std::path::PathBuf>,
     settings: Settings,
 ) -> Result<(), String> {
+    crate::shortcuts::validate_shortcuts(
+        &settings.directory_shortcuts,
+        &settings.file_shortcuts,
+    )?;
+
     set_settings(&app, &data_dir, &settings);
     // Notify the background timer thread of the new interval.
     // Uses try_state (not State parameter) so this command is safe in all build targets,
