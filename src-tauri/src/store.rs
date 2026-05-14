@@ -395,6 +395,57 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_old_settings_json_defaults_to_empty_arrays() {
+        let old_settings = r#"{
+            "hotkey": "Ctrl+Alt+Space",
+            "theme": "system",
+            "show_path": false,
+            "autostart": false,
+            "additional_paths": [],
+            "excluded_paths": [],
+            "reindex_interval": 15,
+            "system_tool_allowlist": ["notepad.exe"]
+        }"#;
+
+        let settings: Settings = serde_json::from_str(old_settings).unwrap();
+
+        assert!(settings.directory_shortcuts.is_empty());
+        assert!(settings.file_shortcuts.is_empty());
+    }
+
+    #[test]
+    fn shortcut_default_settings_include_empty_arrays() {
+        let settings = Settings::default();
+
+        assert!(settings.directory_shortcuts.is_empty());
+        assert!(settings.file_shortcuts.is_empty());
+    }
+
+    #[test]
+    fn shortcut_get_settings_cmd_json_shape_includes_arrays() {
+        let s = Settings::default();
+        let json = serde_json::json!({
+            "hotkey": s.hotkey,
+            "theme": s.theme,
+            "show_path": s.show_path,
+            "autostart": s.autostart,
+            "additional_paths": s.additional_paths,
+            "excluded_paths": s.excluded_paths,
+            "reindex_interval": s.reindex_interval,
+            "system_tool_allowlist": s.system_tool_allowlist,
+            "directory_shortcuts": s.directory_shortcuts,
+            "file_shortcuts": s.file_shortcuts,
+            "data_dir": "C:\\test",
+            "is_portable": false,
+            "build_profile": "debug",
+            "can_autostart": false,
+        });
+
+        assert_eq!(json["directory_shortcuts"], serde_json::json!([]));
+        assert_eq!(json["file_shortcuts"], serde_json::json!([]));
+    }
+
+    #[test]
     fn settings_missing_file_yields_defaults_without_warning() {
         let dir = unique_temp_dir("missing");
         let outcome = load_settings_outcome(&dir);
