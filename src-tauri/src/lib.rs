@@ -143,6 +143,7 @@ fn recover_mutex_guard<'a, T>(
 
 mod db;           // Phase 2: SQLite database layer
 mod store;        // Phase 2: Settings persistence via tauri-plugin-store
+mod shortcuts;    // Phase 09.7: settings-backed user shortcut contract
 mod paths;        // Phase 2: Portable-aware data directory resolution
 mod hotkey;       // Phase 9: Global hotkey registration
 mod indexer;      // Phase 3: Windows application indexer

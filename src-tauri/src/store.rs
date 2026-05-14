@@ -1,5 +1,6 @@
 // Phase 2: Settings persistence via tauri-plugin-store
 use crate::warnings::BackendWarning;
+use crate::shortcuts::{DirectoryShortcut, FileShortcut};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs;
@@ -38,6 +39,12 @@ pub struct Settings {
     /// in blocked paths like System32. Users can extend or trim this list.
     #[serde(default = "default_system_tool_allowlist")]
     pub system_tool_allowlist: Vec<String>,
+
+    #[serde(default)]
+    pub directory_shortcuts: Vec<DirectoryShortcut>,
+
+    #[serde(default)]
+    pub file_shortcuts: Vec<FileShortcut>,
 }
 
 fn default_hotkey() -> String { "Ctrl+Alt+Space".to_string() }
@@ -79,6 +86,8 @@ impl Default for Settings {
             excluded_paths: vec![],
             reindex_interval: default_reindex_interval(),
             system_tool_allowlist: default_system_tool_allowlist(),
+            directory_shortcuts: vec![],
+            file_shortcuts: vec![],
         }
     }
 }
@@ -245,6 +254,8 @@ pub fn get_settings_cmd(
         "excluded_paths": settings.excluded_paths,
         "reindex_interval": settings.reindex_interval,
         "system_tool_allowlist": settings.system_tool_allowlist,
+        "directory_shortcuts": settings.directory_shortcuts,
+        "file_shortcuts": settings.file_shortcuts,
         "data_dir": data_dir.to_string_lossy(),
         "is_portable": is_portable,
         "build_profile": build_profile,
