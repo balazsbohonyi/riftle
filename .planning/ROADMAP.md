@@ -205,6 +205,18 @@ Plans:
 
 ---
 
+### Phase 09.7: Shortcuts Support (INSERTED)
+
+**Goal:** Add user-configured shortcuts as first-class launcher results: directory shortcuts, file shortcuts, optional raw parameters for executable/app file shortcuts, Settings editing, prefix-first shortcut search above apps, and Rust-owned launch behavior with visible failure warnings.
+**Requirements**: 09.7-TBD-01, 09.7-TBD-02, 09.7-TBD-03, 09.7-TBD-04, 09.7-TBD-05, 09.7-TBD-06, 09.7-TBD-07, 09.7-TBD-08, 09.7-TBD-09, 09.7-UI-01
+**Depends on:** Phase 9
+**Plans:** 4 plans
+
+Plans:
+- [ ] 09.7-01-PLAN.md — Add backend shortcut structs, settings round-trip fields, validation rules, fallback names, and stable IDs
+- [ ] 09.7-02-PLAN.md — Merge prefix-first shortcut matches into search results above normal apps while preserving system-command routing and result cap
+- [ ] 09.7-03-PLAN.md — Add Rust-owned shortcut launching with ShellExecute/Open With policy and structured failure warnings
+- [ ] 09.7-04-PLAN.md — Add Settings shortcut editor UI and launcher shortcut dispatch with runtime smoke checkpoint
 ### Phase 09.6: UX Safety Gates (INSERTED)
 
 **Goal:** Two targeted safety improvements: confirmation gate before shutdown/restart system commands (Vue overlay inside launcher); atomic two-phase hotkey swap so a failed registration leaves the old hotkey active.
