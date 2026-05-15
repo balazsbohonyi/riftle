@@ -226,6 +226,8 @@ pub fn validate_icon_filename(filename: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shortcuts::{DirectoryShortcut, FileShortcut};
+    use crate::store::Settings;
 
     fn make_app(id: &str, name: &str, launch_count: i64) -> AppRecord {
         AppRecord {
@@ -237,6 +239,82 @@ mod tests {
             last_launched: None,
             launch_count,
         }
+    }
+
+    fn make_settings_with_shortcuts(
+        directory_shortcuts: Vec<DirectoryShortcut>,
+        file_shortcuts: Vec<FileShortcut>,
+    ) -> Settings {
+        Settings {
+            directory_shortcuts,
+            file_shortcuts,
+            ..Settings::default()
+        }
+    }
+
+    fn directory_shortcut(path: &str, alias: &str) -> DirectoryShortcut {
+        DirectoryShortcut {
+            path: path.to_string(),
+            alias: alias.to_string(),
+        }
+    }
+
+    fn file_shortcut(path: &str, alias: &str) -> FileShortcut {
+        FileShortcut {
+            path: path.to_string(),
+            parameters: String::new(),
+            alias: alias.to_string(),
+        }
+    }
+
+    #[test]
+    fn shortcut_fallback_names_alias_prefix_matches_directory_shortcut() {
+        let settings = make_settings_with_shortcuts(
+            vec![directory_shortcut("C:\\Projects\\Riftle", "Work")],
+            vec![],
+        );
+
+        let results = search_shortcuts("wo", &settings);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, crate::shortcuts::shortcut_id("dir", "C:\\Projects\\Riftle"));
+        assert_eq!(results[0].name, "Work");
+        assert_eq!(results[0].icon_path, "generic.png");
+        assert_eq!(results[0].path, "C:\\Projects\\Riftle");
+        assert_eq!(results[0].kind, "shortcut_dir");
+        assert!(!results[0].requires_elevation);
+    }
+
+    #[test]
+    fn shortcut_fallback_names_empty_directory_alias_matches_basename() {
+        let settings = make_settings_with_shortcuts(
+            vec![directory_shortcut("C:\\Projects\\Riftle", "")],
+            vec![],
+        );
+
+        let results = search_shortcuts("rift", &settings);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Riftle");
+        assert_eq!(results[0].kind, "shortcut_dir");
+        assert_eq!(results[0].path, "C:\\Projects\\Riftle");
+    }
+
+    #[test]
+    fn shortcut_fallback_names_empty_file_alias_matches_filename_without_extension() {
+        let settings = make_settings_with_shortcuts(
+            vec![],
+            vec![file_shortcut("C:\\Docs\\Release Notes.pdf", "")],
+        );
+
+        let results = search_shortcuts("release", &settings);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, crate::shortcuts::shortcut_id("file", "C:\\Docs\\Release Notes.pdf"));
+        assert_eq!(results[0].name, "Release Notes");
+        assert_eq!(results[0].kind, "shortcut_file");
+        assert_eq!(results[0].path, "C:\\Docs\\Release Notes.pdf");
+        assert_eq!(results[0].icon_path, "generic.png");
     }
 
     #[test]
