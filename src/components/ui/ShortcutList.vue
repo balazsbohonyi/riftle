@@ -199,7 +199,7 @@ function removeEntry(index: number) {
       </Button>
     </div>
     <p v-if="mode === 'file'" class="shortcut-note">
-      If a file does not open reliably on its own, point the shortcut at the app executable instead and put the file path in Parameters.
+      If a file does not open reliably on its own, point the shortcut at the app associated with it, and put the file path in Parameters.
     </p>
 
     <ShortcutForm
