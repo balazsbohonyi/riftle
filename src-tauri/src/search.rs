@@ -172,7 +172,83 @@ pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
     scored.into_iter().map(|s| s.result).collect()
 }
 
-pub fn search_shortcuts(query: &str, settings: &Settings) -> Vec<SearchResult> {
+fn sanitized_icon_path(icon_path: Option<&str>) -> Option<String> {
+    icon_path
+        .filter(|path| validate_icon_filename(path))
+        .map(ToString::to_string)
+}
+
+fn app_icon_for_path(apps: &[AppRecord], path: &str) -> Option<String> {
+    let normalized_path = path.trim().to_lowercase();
+    apps.iter()
+        .find(|app| {
+            app.path.trim().to_lowercase() == normalized_path
+                || app.id.trim().to_lowercase() == normalized_path
+        })
+        .and_then(|app| sanitized_icon_path(app.icon_path.as_deref()))
+        .filter(|icon_path| icon_path != "generic.png")
+}
+
+fn ensure_shortcut_icon_file(
+    data_dir: &Path,
+    cache_key: &str,
+    source_path: &str,
+    is_directory: bool,
+    is_executable: bool,
+) -> Option<String> {
+    let filename = crate::indexer::icon_filename(cache_key);
+    let icons_dir = data_dir.join("icons");
+    let icon_file = icons_dir.join(&filename);
+    if icon_file.exists() {
+        return Some(filename);
+    }
+
+    std::fs::create_dir_all(&icons_dir).ok()?;
+    let path = Path::new(source_path);
+    let bytes = if is_executable {
+        crate::indexer::extract_icon_png(path)
+            .or_else(|| crate::indexer::extract_shell_icon_png(path, false))
+    } else {
+        crate::indexer::extract_shell_icon_png(path, is_directory)
+    }?;
+
+    std::fs::write(&icon_file, bytes).ok()?;
+    Some(filename)
+}
+
+fn directory_shortcut_icon(path: &str, data_dir: Option<&Path>) -> String {
+    data_dir
+        .and_then(|dir| {
+            ensure_shortcut_icon_file(dir, &format!("shortcut:dir:{path}"), path, true, false)
+        })
+        .unwrap_or_else(|| "generic.png".to_string())
+}
+
+fn file_shortcut_icon(path: &str, apps: &[AppRecord], data_dir: Option<&Path>) -> String {
+    if let Some(icon_path) = app_icon_for_path(apps, path) {
+        return icon_path;
+    }
+
+    let is_executable = crate::shortcuts::is_parameterized_executable_target(path);
+    data_dir
+        .and_then(|dir| {
+            ensure_shortcut_icon_file(
+                dir,
+                &format!("shortcut:file:{path}"),
+                path,
+                false,
+                is_executable,
+            )
+        })
+        .unwrap_or_else(|| "generic.png".to_string())
+}
+
+pub fn search_shortcuts(
+    query: &str,
+    settings: &Settings,
+    apps: &[AppRecord],
+    data_dir: Option<&Path>,
+) -> Vec<SearchResult> {
     let q = query.trim().to_lowercase();
     if q.is_empty() {
         return Vec::new();
@@ -189,7 +265,7 @@ pub fn search_shortcuts(query: &str, settings: &Settings) -> Vec<SearchResult> {
         results.push(SearchResult {
             id: shortcut_id("dir", &shortcut.path),
             name,
-            icon_path: "generic.png".to_string(),
+            icon_path: directory_shortcut_icon(&shortcut.path, data_dir),
             path: shortcut.path.clone(),
             kind: "shortcut_dir".to_string(),
             requires_elevation: false,
@@ -209,7 +285,7 @@ pub fn search_shortcuts(query: &str, settings: &Settings) -> Vec<SearchResult> {
         results.push(SearchResult {
             id: shortcut_id("file", &shortcut.path),
             name,
-            icon_path: "generic.png".to_string(),
+            icon_path: file_shortcut_icon(&shortcut.path, apps, data_dir),
             path: shortcut.path.clone(),
             kind: "shortcut_file".to_string(),
             requires_elevation: false,
@@ -227,6 +303,7 @@ pub fn search_with_shortcuts(
     query: &str,
     apps: &[AppRecord],
     settings: &Settings,
+    data_dir: Option<&Path>,
 ) -> Vec<SearchResult> {
     if query.is_empty() {
         return Vec::new();
@@ -236,7 +313,7 @@ pub fn search_with_shortcuts(
         return search_system_commands(suffix);
     }
 
-    let mut results = search_shortcuts(query, settings);
+    let mut results = search_shortcuts(query, settings, apps, data_dir);
     let remaining = SEARCH_RESULT_LIMIT.saturating_sub(results.len());
     if remaining == 0 {
         return results;
@@ -313,7 +390,7 @@ pub fn search(
     }
     let index = index_state.0.read().unwrap_or_else(|e| e.into_inner());
     if let Some(settings) = load_search_settings(&data_dir) {
-        search_with_shortcuts(&query, &index.apps, &settings)
+        search_with_shortcuts(&query, &index.apps, &settings, Some(&data_dir))
     } else {
         score_and_rank(&query, &index.apps)
     }
@@ -345,6 +422,18 @@ mod tests {
             source: "start_menu".to_string(),
             last_launched: None,
             launch_count,
+        }
+    }
+
+    fn make_app_with_path_icon(path: &str, icon_path: &str) -> AppRecord {
+        AppRecord {
+            id: path.to_lowercase(),
+            name: "Indexed App".to_string(),
+            path: path.to_string(),
+            icon_path: Some(icon_path.to_string()),
+            source: "start_menu".to_string(),
+            last_launched: None,
+            launch_count: 0,
         }
     }
 
@@ -381,7 +470,7 @@ mod tests {
             vec![],
         );
 
-        let results = search_shortcuts("wo", &settings);
+        let results = search_shortcuts("wo", &settings, &[], None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(
@@ -402,7 +491,7 @@ mod tests {
             vec![],
         );
 
-        let results = search_shortcuts("rift", &settings);
+        let results = search_shortcuts("rift", &settings, &[], None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "Riftle");
@@ -417,7 +506,7 @@ mod tests {
             vec![file_shortcut("C:\\Docs\\Release Notes.pdf", "")],
         );
 
-        let results = search_shortcuts("release", &settings);
+        let results = search_shortcuts("release", &settings, &[], None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(
@@ -431,6 +520,46 @@ mod tests {
     }
 
     #[test]
+    fn executable_file_shortcut_reuses_indexed_app_icon() {
+        let settings = make_settings_with_shortcuts(
+            vec![],
+            vec![file_shortcut(
+                "C:\\Program Files\\Editor\\editor.exe",
+                "Config",
+            )],
+        );
+        let apps = vec![make_app_with_path_icon(
+            "C:\\Program Files\\Editor\\editor.exe",
+            "0123456789abcdef.png",
+        )];
+
+        let results = search_shortcuts("config", &settings, &apps, None);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].icon_path, "0123456789abcdef.png");
+    }
+
+    #[test]
+    fn executable_file_shortcut_ignores_invalid_indexed_app_icon() {
+        let settings = make_settings_with_shortcuts(
+            vec![],
+            vec![file_shortcut(
+                "C:\\Program Files\\Editor\\editor.exe",
+                "Config",
+            )],
+        );
+        let apps = vec![make_app_with_path_icon(
+            "C:\\Program Files\\Editor\\editor.exe",
+            "..\\bad.png",
+        )];
+
+        let results = search_shortcuts("config", &settings, &apps, None);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].icon_path, "generic.png");
+    }
+
+    #[test]
     fn shortcut_search_precedes_apps_when_both_match_same_query() {
         let settings = make_settings_with_shortcuts(
             vec![directory_shortcut("C:\\Projects\\Workbench", "Work")],
@@ -438,7 +567,7 @@ mod tests {
         );
         let apps = vec![make_app("workbench", "Workbench", 99)];
 
-        let results = search_with_shortcuts("wo", &apps, &settings);
+        let results = search_with_shortcuts("wo", &apps, &settings, None);
 
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].kind, "shortcut_dir");
@@ -460,7 +589,7 @@ mod tests {
             .map(|i| make_app(&format!("app{}", i), &format!("AppFoo{}", i), i as i64))
             .collect();
 
-        let results = search_with_shortcuts("app", &apps, &settings);
+        let results = search_with_shortcuts("app", &apps, &settings, None);
 
         assert_eq!(results.len(), 50);
         assert_eq!(
@@ -487,7 +616,7 @@ mod tests {
         );
         let apps = vec![make_app("shutdown", "Shutdown Helper", 99)];
 
-        let results = search_with_shortcuts("> sh", &apps, &settings);
+        let results = search_with_shortcuts("> sh", &apps, &settings, None);
 
         assert!(!results.is_empty());
         assert!(results.iter().all(|result| result.kind == "system"));

@@ -73,6 +73,9 @@ function removeEntry(index: number) {
         {{ mode === 'directory' ? '+ Add folder' : '+ Add file' }}
       </Button>
     </div>
+    <p v-if="mode === 'file'" class="shortcut-note">
+      If a file does not open reliably on its own, point the shortcut at the app executable instead and put the file path in Parameters.
+    </p>
 
     <div v-for="(entry, i) in modelValue" :key="`${entry.path}-${i}`" class="shortcut-row">
       <div class="shortcut-fields">
@@ -128,6 +131,14 @@ function removeEntry(index: number) {
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
   color: var(--color-text);
+}
+
+.shortcut-note {
+  margin: calc(-1 * var(--spacing-xs)) 0 var(--spacing-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
 }
 
 .shortcut-row {
