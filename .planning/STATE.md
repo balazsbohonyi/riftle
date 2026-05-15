@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase_name: shortcuts support
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 09.7-02-PLAN.md
-last_updated: "2026-05-15T00:08:23.824Z"
+stopped_at: Completed 09.7-03-PLAN.md
+last_updated: "2026-05-15T00:18:36.707Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 17
   completed_phases: 12
   total_plans: 51
-  completed_plans: 47
+  completed_plans: 48
 ---
 
 ---
@@ -76,7 +76,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Phase:** 09.7-shortcuts-support
 **Current Phase Name:** shortcuts support
-**Current Plan:** 3
+**Current Plan:** 4
 **Total Plans in Phase:** 4
 **Status:** Ready to execute
 **Last Activity:** 2026-05-15
@@ -214,6 +214,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.7-shortcuts-support]: Shortcut search remains prefix-only and case-insensitive; fuzzy matching stays app-only.
 - [Phase 09.7-shortcuts-support]: Shortcut rows use app-owned generic.png and stable shortcut IDs from shortcuts.rs.
 - [Phase 09.7-shortcuts-support]: The search IPC loads settings from the managed data directory and falls back to app-only results if settings loading fatally fails.
+- [Phase 09.7-shortcuts-support]: Rust returns ShortcutLaunchResult for shortcut launches and never hides the launcher directly; the frontend will hide only after success.
+- [Phase 09.7-shortcuts-support]: Shortcut parameters are passed only for .exe, .com, .bat, and .cmd file targets; documents, directories, and .lnk files receive no parameters.
+- [Phase 09.7-shortcuts-support]: Open With fallback is attempted only for non-executable file shortcuts when ShellExecuteW returns SE_ERR_NOASSOC.
 
 ## Performance Metrics
 
@@ -262,11 +265,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.6-ux-safety-gates P05 | 1min | 1 tasks | 1 files |
 | Phase 09.7-shortcuts-support P01 | 4min | 2 tasks | 3 files |
 | Phase 09.7-shortcuts-support P02 | 4min | 2 tasks | 1 files |
+| Phase 09.7-shortcuts-support P03 | 8min | 2 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-05-15T00:08:23.817Z
-**Stopped At:** Completed 09.7-02-PLAN.md
+**Last Date:** 2026-05-15T00:18:36.702Z
+**Stopped At:** Completed 09.7-03-PLAN.md
 **Resume File:** None
 
 ## Session Log

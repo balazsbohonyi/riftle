@@ -210,7 +210,7 @@ Plans:
 **Goal:** Add user-configured shortcuts as first-class launcher results: directory shortcuts, file shortcuts, optional raw parameters for executable/app file shortcuts, Settings editing, prefix-first shortcut search above apps, and Rust-owned launch behavior with visible failure warnings.
 **Requirements**: 09.7-TBD-01, 09.7-TBD-02, 09.7-TBD-03, 09.7-TBD-04, 09.7-TBD-05, 09.7-TBD-06, 09.7-TBD-07, 09.7-TBD-08, 09.7-TBD-09, 09.7-UI-01
 **Depends on:** Phase 9
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 09.7-01-PLAN.md — Add backend shortcut structs, settings round-trip fields, validation rules, fallback names, and stable IDs (completed 2026-05-15)
@@ -350,7 +350,7 @@ Plans:
 | 09.4 | Indexer Hardening | Inserted | Complete |
 | 09.5 | Backend Resilience | Inserted | Complete |
 | 09.6 | UX Safety Gates | Inserted | Complete |
-| 09.7 | 2/4 | In Progress|  |
+| 09.7 | 3/4 | In Progress|  |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **14 phases** | **59 requirements** | All v1 requirements covered
