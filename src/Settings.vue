@@ -374,7 +374,10 @@ onUnmounted(() => {
         </Row>
       </Section>
 
-      <Section title="Search">
+      <Section
+        title="Search"
+        description="Choose where Riftle looks for apps and which paths it should ignore while indexing."
+      >
         <PathList
           label="Additional paths"
           v-model="settings.additional_paths"
@@ -397,7 +400,10 @@ onUnmounted(() => {
         </Row>
       </Section>
 
-      <Section title="Shortcuts">
+      <Section
+        title="Shortcuts"
+        description="Create named shortcuts that appear directly in search results for folders, files, or app-specific file launches."
+      >
         <div class="shortcut-tabs">
           <button
             type="button"
