@@ -14,6 +14,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 struct SettingsCentered(AtomicBool);
 struct SettingsCloseBehavior(AtomicBool);
 pub(crate) struct HotkeyCaptureActive(pub AtomicBool);
+pub(crate) struct HotkeyConflictState(pub Mutex<Option<String>>);
 
 #[derive(Debug)]
 enum StartupSettingsAction {
@@ -233,12 +234,9 @@ pub fn run() {
             // Missing settings.json still follows the first-run path and is persisted immediately.
             // Recovery defaults are only persisted after the original file was backed up and a warning was queued.
             app.manage(HotkeyCaptureActive(AtomicBool::new(false)));
-
-            // hotkey_conflict holds the originally-requested key when startup registration fails
-            // and falls back to a different hotkey. Set inside #[cfg(desktop)] block below.
-            // Used after the full setup to show Settings with an inline error on conflict.
-            #[allow(unused_mut)]
-            let mut hotkey_conflict: Option<String> = None;
+            // Managed state for startup hotkey conflict — set by hotkey::register() failure path,
+            // read by Settings.vue via get_startup_hotkey_conflict command in onMounted.
+            app.manage(HotkeyConflictState(Mutex::new(None)));
 
             // Phase 3: Indexer — synchronous first index then background refresh
             #[cfg(desktop)]
@@ -265,18 +263,24 @@ pub fn run() {
                     crate::db::count_apps(&conn).unwrap_or(0)
                 };
 
-                // Phase 9: Register global hotkey (toggle launcher visibility)
-                // register() returns the actually-registered hotkey (may fall back to Alt+Space).
-                // Persist the fallback so next startup doesn't try the broken key again.
-                // hotkey_conflict captures the originally-requested key when a fallback was triggered,
-                // so we can notify the user via the Settings window (see below, before Ok(())).
-                let actual_hotkey = crate::hotkey::register(app.handle(), &settings.hotkey);
-                if actual_hotkey != settings.hotkey {
-                    let failed_key = settings.hotkey.clone();
-                    let mut updated = settings.clone();
-                    updated.hotkey = actual_hotkey.clone();
-                    crate::store::set_settings(app.handle(), &data_dir, &updated);
-                    hotkey_conflict = Some(failed_key);
+                // Phase 9: Register global hotkey (toggle launcher visibility).
+                // register() returns Ok(registered_key) or Err(requested_key) when nothing works.
+                // On fallback (Ok but different key) or total failure (Err): persist the outcome
+                // and store the failed key in HotkeyConflictState so Settings.vue can show an error.
+                match crate::hotkey::register(app.handle(), &settings.hotkey) {
+                    Ok(actual_hotkey) if actual_hotkey != settings.hotkey => {
+                        // Fell back to a different hotkey — persist the fallback
+                        let failed_key = settings.hotkey.clone();
+                        let mut updated = settings.clone();
+                        updated.hotkey = actual_hotkey;
+                        crate::store::set_settings(app.handle(), &data_dir, &updated);
+                        *app.state::<HotkeyConflictState>().0.lock().unwrap_or_else(|e| e.into_inner()) = Some(failed_key);
+                    }
+                    Err(failed_key) => {
+                        // Total failure — no hotkey registered at all
+                        *app.state::<HotkeyConflictState>().0.lock().unwrap_or_else(|e| e.into_inner()) = Some(failed_key);
+                    }
+                    Ok(_) => {} // Registered as configured — no conflict
                 }
 
                 // Store data_dir as managed state for reindex() command
@@ -438,15 +442,12 @@ pub fn run() {
                 }
             }
 
-            // If a hotkey conflict was detected at startup, open Settings automatically and
-            // emit the hotkey-conflict event so Settings.vue can display the inline error.
-            // hotkey_conflict is always None on non-desktop builds (never set above).
-            if let Some(failed_key) = hotkey_conflict {
+            // If a hotkey conflict was detected, open Settings immediately.
+            // Settings.vue will pull the conflict key via get_startup_hotkey_conflict in onMounted
+            // (event-based approach is unreliable — webview loads after setup() returns).
+            if app.state::<HotkeyConflictState>().0.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
                 if let Err(e) = show_settings_window(app.handle()) {
                     eprintln!("[startup] could not open settings for hotkey conflict: {}", e);
-                }
-                if let Some(settings_win) = app.get_webview_window("settings") {
-                    let _ = settings_win.emit("hotkey-conflict", &failed_key);
                 }
             }
 
@@ -503,6 +504,7 @@ pub fn run() {
             crate::commands::get_icon_bytes,
             crate::system_commands::run_system_command,
             crate::hotkey::update_hotkey,
+            crate::hotkey::get_startup_hotkey_conflict,
             crate::commands::quit_app,   // Phase 7: context menu quit action
             crate::warnings::take_backend_warnings,
             show_positioned_launcher,

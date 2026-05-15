@@ -50,7 +50,7 @@ const isSettingsScrolling = ref(false)
 const settingsScrollThumbTop = ref(0)
 const settingsScrollThumbHeight = ref(0)
 let settingsScrollTimer: number | undefined
-let unlistenConflictRef: (() => void) | undefined
+let unlistenConflictRef: (() => void) | undefined  // unused, kept for cleanup safety
 
 const settingsScrollThumbStyle = computed(() => ({
   height: `${settingsScrollThumbHeight.value}px`,
@@ -112,16 +112,20 @@ onMounted(async () => {
     console.error('Failed to load settings:', e)
   }
 
-  // Listen for startup hotkey conflict (emitted by lib.rs when configured key is already taken)
-  const { listen } = await import('@tauri-apps/api/event')
-  unlistenConflictRef = await listen<string>('hotkey-conflict', (event) => {
-    const failedKey = event.payload
-    hotkeyError.value = `'${failedKey}' is already in use by another app — please set a different hotkey`
-    // Scroll hotkey section into view after DOM updates
-    nextTick(() => {
-      hotkeyRowRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    })
-  })
+  // Pull any startup hotkey conflict from Rust managed state.
+  // Event-based approach is unreliable — the webview loads after the setup() callback fires,
+  // so events emitted during setup are lost before the listener is registered.
+  try {
+    const conflictKey = await invoke<string | null>('get_startup_hotkey_conflict')
+    if (conflictKey) {
+      hotkeyError.value = `'${conflictKey}' is already in use by another app — please set a different hotkey`
+      nextTick(() => {
+        hotkeyRowRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    }
+  } catch (e) {
+    console.error('Failed to check startup hotkey conflict:', e)
+  }
 })
 
 async function saveSettings() {
