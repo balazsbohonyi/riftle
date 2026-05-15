@@ -8,6 +8,7 @@ import Row from './components/ui/Row.vue'
 import Toggle from './components/ui/Toggle.vue'
 import KeyCapture from './components/ui/KeyCapture.vue'
 import PathList from './components/ui/PathList.vue'
+import ShortcutList, { type DirectoryShortcut, type FileShortcut } from './components/ui/ShortcutList.vue'
 import Dropdown from './components/Dropdown.vue'
 import Button from './components/ui/Button.vue'
 
@@ -21,6 +22,8 @@ interface SettingsData {
   excluded_paths: string[]
   reindex_interval: number
   system_tool_allowlist: string[]
+  directory_shortcuts: DirectoryShortcut[]
+  file_shortcuts: FileShortcut[]
 }
 
 interface SettingsResponse extends SettingsData {
@@ -36,6 +39,7 @@ const buildProfile = ref<'debug' | 'release'>('debug')
 const canAutostart = ref(false)
 const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
+const shortcutsError = ref<string | null>(null)
 const lastRegisteredHotkey = ref('Ctrl+Alt+Space')
 
 const autostartHint = computed(() => {
@@ -54,6 +58,8 @@ const settings = ref<SettingsData>({
   excluded_paths: [],
   reindex_interval: 15,
   system_tool_allowlist: [],
+  directory_shortcuts: [],
+  file_shortcuts: [],
 })
 
 onMounted(async () => {
@@ -74,6 +80,8 @@ onMounted(async () => {
       excluded_paths: response.excluded_paths,
       reindex_interval: response.reindex_interval,
       system_tool_allowlist: response.system_tool_allowlist,
+      directory_shortcuts: response.directory_shortcuts ?? [],
+      file_shortcuts: response.file_shortcuts ?? [],
     }
     lastRegisteredHotkey.value = response.hotkey
 
@@ -92,6 +100,9 @@ onMounted(async () => {
 
 async function saveSettings() {
   if (!isTauriContext.value) return
+  const shortcutError = validateShortcutSettings()
+  shortcutsError.value = shortcutError
+  if (shortcutError) return
   await invoke('set_settings_cmd', { settings: { ...settings.value } }).catch(console.error)
 }
 
@@ -154,6 +165,63 @@ async function onReindexNow() {
   reindexButtonText.value = 'Indexing\u2026'
   await invoke('reindex').catch(console.error)
   setTimeout(() => { reindexButtonText.value = 'Re-index' }, 1000)
+}
+
+function pathName(path: string, stripExtension: boolean): string {
+  const trimmed = path.trim().replace(/[\\/]+$/, '')
+  const last = trimmed.split(/[\\/]/).filter(Boolean).pop() ?? ''
+  if (!stripExtension) return last
+  const dot = last.lastIndexOf('.')
+  return dot > 0 ? last.slice(0, dot) : last
+}
+
+function shortcutName(path: string, alias: string, stripExtension: boolean): string {
+  return (alias.trim() || pathName(path, stripExtension)).trim()
+}
+
+function isParameterizedExecutableTarget(path: string): boolean {
+  const extension = path.trim().split(/[\\/]/).pop()?.split('.').pop()?.toLowerCase()
+  return extension !== undefined && ['exe', 'com', 'bat', 'cmd'].includes(extension)
+}
+
+function validateShortcutSettings(): string | null {
+  const names = new Set<string>()
+
+  for (const shortcut of settings.value.directory_shortcuts) {
+    if (!shortcut.path.trim()) return 'Directory shortcut path is required.'
+    const name = shortcutName(shortcut.path, shortcut.alias, false).toLowerCase()
+    if (!name || names.has(name)) return `Duplicate shortcut name: ${shortcutName(shortcut.path, shortcut.alias, false)}`
+    names.add(name)
+  }
+
+  for (const shortcut of settings.value.file_shortcuts) {
+    if (!shortcut.path.trim()) return 'File shortcut path is required.'
+    const hasParameters = shortcut.parameters.trim().length > 0
+    const canUseParameters = isParameterizedExecutableTarget(shortcut.path)
+    if (hasParameters && !canUseParameters) {
+      return 'Parameters are only supported for .exe, .com, .bat, and .cmd files.'
+    }
+    if (hasParameters && !shortcut.alias.trim()) {
+      return 'An alias is required when file parameters are set.'
+    }
+    const name = shortcutName(shortcut.path, shortcut.alias, true).toLowerCase()
+    if (!name || names.has(name)) return `Duplicate shortcut name: ${shortcutName(shortcut.path, shortcut.alias, true)}`
+    names.add(name)
+  }
+
+  return null
+}
+
+async function onShortcutsChange(
+  field: 'directory_shortcuts' | 'file_shortcuts',
+  shortcuts: DirectoryShortcut[] | FileShortcut[],
+) {
+  if (field === 'directory_shortcuts') {
+    settings.value.directory_shortcuts = shortcuts as DirectoryShortcut[]
+  } else {
+    settings.value.file_shortcuts = shortcuts as FileShortcut[]
+  }
+  await saveSettings()
 }
 
 // Appearance
@@ -260,6 +328,22 @@ onUnmounted(() => {
         <Row label="Re-index now">
           <Button variant="accent" @click="onReindexNow">{{ reindexButtonText }}</Button>
         </Row>
+      </Section>
+
+      <Section title="Shortcuts">
+        <ShortcutList
+          label="Directories"
+          mode="directory"
+          v-model="settings.directory_shortcuts"
+          @change="onShortcutsChange('directory_shortcuts', $event as DirectoryShortcut[])"
+        />
+        <ShortcutList
+          label="Files"
+          mode="file"
+          v-model="settings.file_shortcuts"
+          @change="onShortcutsChange('file_shortcuts', $event as FileShortcut[])"
+        />
+        <p v-if="shortcutsError" class="shortcuts-error">{{ shortcutsError }}</p>
       </Section>
 
       <Section title="Appearance">
@@ -388,6 +472,14 @@ input[type='range'] {
   padding: 0 var(--spacing-lg);
   margin-top: calc(-1 * var(--spacing-sm));
   margin-bottom: var(--spacing-sm);
+}
+
+.shortcuts-error {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  padding: 0;
+  margin: var(--spacing-xs) 0 var(--spacing-sm);
 }
 
 </style>
