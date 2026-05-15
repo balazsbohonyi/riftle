@@ -5,11 +5,29 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Completed 09.8-01-PLAN.md
+last_updated: "2026-05-15T21:44:43.815Z"
+last_activity: 2026-05-15
+progress:
+  total_phases: 18
+  completed_phases: 13
+  total_plans: 53
+  completed_plans: 50
+  percent: 94
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Completed 09.7-03-PLAN.md
 last_updated: "2026-05-15T14:50:58.613Z"
 last_activity: 2026-05-15
 progress:
-  total_phases: 17
+  [█████████░] 94%
   completed_phases: 13
   total_plans: 51
   completed_plans: 49
@@ -64,6 +82,7 @@ progress:
 - Phase 09.5 inserted after Phase 9: Backend resilience - replace panic-prone `.lock().unwrap()` / `.hwnd().unwrap()` paths with recoverable handling in `commands.rs`, `search.rs`, and `lib.rs`; add `launcher.db.bak` / `settings.json.bak` plus surfaced frontend warnings before silent reset paths in `db.rs` and `store.rs`. (URGENT)
 - Phase 09.6 inserted after Phase 9: UX Safety Gates — confirmation gate before shutdown/restart in system_commands.rs; two-phase hotkey swap in hotkey.rs so a failed registration rolls back rather than leaving no active hotkey. (URGENT)
 - Phase 09.7 inserted after Phase 9: Add support for shortcuts: - ability to specify directories and files, with a specific alias (not mandatory) and with arguments/parameters (not mandatory, and only for executable files, not for directories) (URGENT)
+- Phase 09.8 inserted after Phase 9: improve indexing performance (URGENT)
 
 ## Project Reference
 
@@ -217,6 +236,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.7-shortcuts-support]: Rust returns ShortcutLaunchResult for shortcut launches and never hides the launcher directly; the frontend will hide only after success.
 - [Phase 09.7-shortcuts-support]: Shortcut parameters are passed only for .exe, .com, .bat, and .cmd file targets; documents, directories, and .lnk files receive no parameters.
 - [Phase 09.7-shortcuts-support]: Open With fallback is attempted only for non-executable file shortcuts when ShellExecuteW returns SE_ERR_NOASSOC.
+- [Phase 09.8-01]: count_apps placed after increment_launch_count and before #[cfg(test)] block — consistent with existing function ordering in db.rs
+- [Phase 09.8-01]: dead_code lint warning on count_apps is expected and intentional — function will be called from lib.rs in Plan 02
 
 ## Performance Metrics
 
@@ -266,11 +287,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.7-shortcuts-support P01 | 4min | 2 tasks | 3 files |
 | Phase 09.7-shortcuts-support P02 | 4min | 2 tasks | 1 files |
 | Phase 09.7-shortcuts-support P03 | 8min | 2 tasks | 2 files |
+| Phase 09.8-improve-indexing-performance P01 | 2min | 1 tasks | 1 files |
 
 ## Session
 
-**Last Date:** 2026-05-15T00:18:36.702Z
-**Stopped At:** Completed 09.7-03-PLAN.md
+**Last Date:** 2026-05-15T21:44:43.810Z
+**Stopped At:** Completed 09.8-01-PLAN.md
 **Resume File:** None
 
 ## Session Log

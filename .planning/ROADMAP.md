@@ -210,7 +210,7 @@ Plans:
 **Goal:** Remove blocking startup run_full_index() call so app launches instantly; fix sync bug where background re-indexing never refreshes the in-memory search cache.
 **Requirements**: 09.8-D1, 09.8-D2, 09.8-D3, 09.8-D4, 09.8-D5, 09.8-D6
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 09.8-01-PLAN.md -- Add count_apps to db.rs with unit tests (prerequisite for deferred index logic)
