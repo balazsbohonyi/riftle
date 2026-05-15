@@ -201,6 +201,83 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_missing_target_policy_returns_visible_failure() {
+        let temp = tempdir().unwrap();
+        let missing_path = temp.path().join("missing-folder");
+        let request = shortcut_launch_request(
+            ShortcutTargetKind::Directory,
+            missing_path.to_string_lossy().as_ref(),
+            "--ignored",
+        );
+
+        let result = evaluate_shortcut_target_policy(&request);
+
+        assert!(!result.success);
+        let warning = result.warning.expect("missing target should return warning");
+        assert_eq!(warning.kind, "shortcut-launch-failed");
+        assert!(warning.message.contains("does not exist"));
+    }
+
+    #[test]
+    fn shortcut_parameters_only_passed_for_parameter_capable_executables() {
+        let exe_request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Tools\\cleanup.exe",
+            "--all --quiet",
+        );
+        let document_request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Docs\\report.pdf",
+            "--ignored",
+        );
+        let lnk_request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Tools\\legacy.lnk",
+            "--ignored",
+        );
+
+        assert_eq!(exe_request.parameters.as_deref(), Some("--all --quiet"));
+        assert_eq!(document_request.parameters, None);
+        assert_eq!(lnk_request.parameters, None);
+    }
+
+    #[test]
+    fn shortcut_open_with_policy_only_for_non_executable_no_association_failures() {
+        let doc_request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Docs\\report.unknown",
+            "",
+        );
+        let exe_request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Tools\\cleanup.exe",
+            "",
+        );
+        let dir_request = shortcut_launch_request(
+            ShortcutTargetKind::Directory,
+            "C:\\Projects",
+            "",
+        );
+
+        assert_eq!(
+            shortcut_shell_failure_action(&doc_request, SE_ERR_NOASSOC_CODE),
+            ShortcutShellFailureAction::OpenWith
+        );
+        assert_eq!(
+            shortcut_shell_failure_action(&exe_request, SE_ERR_NOASSOC_CODE),
+            ShortcutShellFailureAction::Warn
+        );
+        assert_eq!(
+            shortcut_shell_failure_action(&dir_request, SE_ERR_NOASSOC_CODE),
+            ShortcutShellFailureAction::Warn
+        );
+        assert_eq!(
+            shortcut_shell_failure_action(&doc_request, 2),
+            ShortcutShellFailureAction::Warn
+        );
+    }
+
+    #[test]
     fn test_to_wide_null_hello() {
         let result = to_wide_null("hello");
         // "hello" = h, e, l, l, o = 5 chars + 1 null terminator = length 6
