@@ -372,6 +372,63 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_search_precedes_apps_when_both_match_same_query() {
+        let settings = make_settings_with_shortcuts(
+            vec![directory_shortcut("C:\\Projects\\Workbench", "Work")],
+            vec![],
+        );
+        let apps = vec![make_app("workbench", "Workbench", 99)];
+
+        let results = search_with_shortcuts("wo", &apps, &settings);
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].kind, "shortcut_dir");
+        assert_eq!(results[0].name, "Work");
+        assert_eq!(results[1].kind, "app");
+        assert_eq!(results[1].name, "Workbench");
+    }
+
+    #[test]
+    fn shortcut_search_precedes_apps_and_consumes_result_cap() {
+        let settings = make_settings_with_shortcuts(
+            vec![
+                directory_shortcut("C:\\Projects\\AppOne", "App One"),
+                directory_shortcut("C:\\Projects\\AppTwo", "App Two"),
+            ],
+            vec![],
+        );
+        let apps: Vec<AppRecord> = (0..60)
+            .map(|i| make_app(&format!("app{}", i), &format!("AppFoo{}", i), i as i64))
+            .collect();
+
+        let results = search_with_shortcuts("app", &apps, &settings);
+
+        assert_eq!(results.len(), 50);
+        assert_eq!(
+            results.iter().filter(|result| result.kind.starts_with("shortcut_")).count(),
+            2
+        );
+        assert_eq!(results.iter().filter(|result| result.kind == "app").count(), 48);
+        assert!(results[..2].iter().all(|result| result.kind == "shortcut_dir"));
+    }
+
+    #[test]
+    fn shortcut_search_precedes_apps_system_commands_do_not_mix_shortcuts() {
+        let settings = make_settings_with_shortcuts(
+            vec![directory_shortcut("C:\\Tools\\Shutdown", "Shutdown")],
+            vec![],
+        );
+        let apps = vec![make_app("shutdown", "Shutdown Helper", 99)];
+
+        let results = search_with_shortcuts("> sh", &apps, &settings);
+
+        assert!(!results.is_empty());
+        assert!(results.iter().all(|result| result.kind == "system"));
+        assert!(results.iter().all(|result| !result.kind.starts_with("shortcut_")));
+        assert!(results.iter().all(|result| result.kind != "app"));
+    }
+
+    #[test]
     fn test_replace_index_apps_preserves_existing_entries_on_failed_refresh() {
         let state = SearchIndexState(Arc::new(RwLock::new(SearchIndex {
             apps: vec![make_app("chrome", "Chrome", 5)],
