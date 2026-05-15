@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Completed 09.8-01-PLAN.md
-last_updated: "2026-05-15T21:44:43.815Z"
+stopped_at: Completed 09.8-02-PLAN.md
+last_updated: "2026-05-15T21:50:13.258Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 18
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 53
-  completed_plans: 50
+  completed_plans: 51
   percent: 94
 ---
 
@@ -238,6 +238,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.7-shortcuts-support]: Open With fallback is attempted only for non-executable file shortcuts when ShellExecuteW returns SE_ERR_NOASSOC.
 - [Phase 09.8-01]: count_apps placed after increment_launch_count and before #[cfg(test)] block — consistent with existing function ordering in db.rs
 - [Phase 09.8-01]: dead_code lint warning on count_apps is expected and intentional — function will be called from lib.rs in Plan 02
+- [Phase 09.8-improve-indexing-performance]: try_start_index takes app: &tauri::AppHandle as first parameter and calls rebuild_index before clearing AtomicBool flag
+- [Phase 09.8-improve-indexing-performance]: Blocking run_full_index removed from lib.rs startup; deferred startup thread fires immediately (empty DB) or after 30s (populated DB)
+- [Phase 09.8-improve-indexing-performance]: test_timer_fires and test_atomic_guard_prevents_double_index rewritten to test AtomicBool CAS semantics directly — avoids AppHandle in unit tests
 
 ## Performance Metrics
 
@@ -288,11 +291,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.7-shortcuts-support P02 | 4min | 2 tasks | 1 files |
 | Phase 09.7-shortcuts-support P03 | 8min | 2 tasks | 2 files |
 | Phase 09.8-improve-indexing-performance P01 | 2min | 1 tasks | 1 files |
+| Phase 09.8-improve-indexing-performance P02 | 4min | 2 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-05-15T21:44:43.810Z
-**Stopped At:** Completed 09.8-01-PLAN.md
+**Last Date:** 2026-05-15T21:50:13.253Z
+**Stopped At:** Completed 09.8-02-PLAN.md
 **Resume File:** None
 
 ## Session Log
