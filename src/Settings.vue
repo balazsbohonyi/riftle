@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, ref, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -41,6 +41,19 @@ const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
 const shortcutsError = ref<string | null>(null)
 const lastRegisteredHotkey = ref('Ctrl+Alt+Space')
+const activeShortcutTab = ref<'directory' | 'file'>('directory')
+const directoryShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
+const fileShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
+const settingsContentRef = ref<HTMLElement | null>(null)
+const isSettingsScrolling = ref(false)
+const settingsScrollThumbTop = ref(0)
+const settingsScrollThumbHeight = ref(0)
+let settingsScrollTimer: number | undefined
+
+const settingsScrollThumbStyle = computed(() => ({
+  height: `${settingsScrollThumbHeight.value}px`,
+  transform: `translateY(${settingsScrollThumbTop.value}px)`,
+}))
 
 const autostartHint = computed(() => {
   if (isPortable.value) return 'Not available in portable mode'
@@ -224,6 +237,41 @@ async function onShortcutsChange(
   await saveSettings()
 }
 
+async function addShortcutFromTab(mode: 'directory' | 'file') {
+  activeShortcutTab.value = mode
+  await nextTick()
+  if (mode === 'directory') {
+    await directoryShortcutList.value?.addShortcut()
+  } else {
+    await fileShortcutList.value?.addShortcut()
+  }
+}
+
+function onSettingsScroll() {
+  updateSettingsScrollThumb()
+  isSettingsScrolling.value = true
+  window.clearTimeout(settingsScrollTimer)
+  settingsScrollTimer = window.setTimeout(() => {
+    isSettingsScrolling.value = false
+  }, 700)
+}
+
+function updateSettingsScrollThumb() {
+  const el = settingsContentRef.value
+  if (!el || el.scrollHeight <= el.clientHeight) {
+    settingsScrollThumbHeight.value = 0
+    settingsScrollThumbTop.value = 0
+    return
+  }
+
+  const ratio = el.clientHeight / el.scrollHeight
+  const thumbHeight = Math.max(28, el.clientHeight * ratio)
+  const maxTop = el.clientHeight - thumbHeight
+  const scrollRatio = el.scrollTop / (el.scrollHeight - el.clientHeight)
+  settingsScrollThumbHeight.value = thumbHeight
+  settingsScrollThumbTop.value = maxTop * scrollRatio
+}
+
 // Appearance
 async function onThemeChange() {
   const theme = settings.value.theme
@@ -262,6 +310,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
+  window.clearTimeout(settingsScrollTimer)
   void setHotkeyCaptureActive(false)
 })
 </script>
@@ -272,7 +321,11 @@ onUnmounted(() => {
       <span class="settings-title" data-tauri-drag-region>Riftle Settings</span>
       <button class="settings-close" type="button" @mousedown.stop @click="closeWindow">&times;</button>
     </div>
-    <div class="settings-content">
+    <div
+      ref="settingsContentRef"
+      :class="['settings-content', { 'settings-content--scrolling': isSettingsScrolling }]"
+      @scroll="onSettingsScroll"
+    >
 
       <Section title="General">
         <Row
@@ -345,29 +398,62 @@ onUnmounted(() => {
       </Section>
 
       <Section title="Shortcuts">
-        <ShortcutList
-          label="Directories"
-          mode="directory"
-          v-model="settings.directory_shortcuts"
-          :sibling-shortcuts="settings.file_shortcuts"
-          @change="onShortcutsChange('directory_shortcuts', $event as DirectoryShortcut[])"
-        />
-        <ShortcutList
-          label="Files"
-          mode="file"
-          v-model="settings.file_shortcuts"
-          :sibling-shortcuts="settings.directory_shortcuts"
-          @change="onShortcutsChange('file_shortcuts', $event as FileShortcut[])"
-        />
+        <div class="shortcut-tabs">
+          <button
+            type="button"
+            :class="['shortcut-tab', { 'shortcut-tab--active': activeShortcutTab === 'directory' }]"
+            @click="activeShortcutTab = 'directory'"
+          >
+            <span>Directories</span>
+            <span class="shortcut-tab-add" @click.stop="addShortcutFromTab('directory')">+ Add folder</span>
+          </button>
+          <button
+            type="button"
+            :class="['shortcut-tab', { 'shortcut-tab--active': activeShortcutTab === 'file' }]"
+            @click="activeShortcutTab = 'file'"
+          >
+            <span>Files</span>
+            <span class="shortcut-tab-add" @click.stop="addShortcutFromTab('file')">+ Add file</span>
+          </button>
+        </div>
+
+        <div class="shortcut-tab-panel">
+          <ShortcutList
+            v-show="activeShortcutTab === 'directory'"
+            ref="directoryShortcutList"
+            label="Directories"
+            mode="directory"
+            v-model="settings.directory_shortcuts"
+            :sibling-shortcuts="settings.file_shortcuts"
+            :show-header="false"
+            @change="onShortcutsChange('directory_shortcuts', $event as DirectoryShortcut[])"
+          />
+          <ShortcutList
+            v-show="activeShortcutTab === 'file'"
+            ref="fileShortcutList"
+            label="Files"
+            mode="file"
+            v-model="settings.file_shortcuts"
+            :sibling-shortcuts="settings.directory_shortcuts"
+            :show-header="false"
+            @change="onShortcutsChange('file_shortcuts', $event as FileShortcut[])"
+          />
+        </div>
         <p v-if="shortcutsError" class="shortcuts-error">{{ shortcutsError }}</p>
       </Section>
 
     </div>
+    <div
+      v-if="isSettingsScrolling && settingsScrollThumbHeight > 0"
+      class="settings-scroll-thumb"
+      :style="settingsScrollThumbStyle"
+    />
   </div>
 </template>
 
 <style scoped>
 .settings-app {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -414,6 +500,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-lg);
+  scrollbar-width: none;
 }
 
 input[type='range'] {
@@ -422,7 +509,8 @@ input[type='range'] {
 
 /* Custom scrollbar for settings content */
 .settings-content::-webkit-scrollbar {
-  width: 6px;
+  width: 0;
+  height: 0;
 }
 
 .settings-content::-webkit-scrollbar-track {
@@ -430,16 +518,50 @@ input[type='range'] {
 }
 
 .settings-content::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: transparent;
   border-radius: 3px;
 }
 
-.settings-content::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+.settings-content--scrolling::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.settings-content--scrolling::-webkit-scrollbar-thumb:hover {
+  background: transparent;
 }
 
 .settings-content::-webkit-scrollbar-button {
   display: none;
+  width: 0;
+  height: 0;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.settings-scroll-thumb {
+  position: absolute;
+  top: 44px;
+  right: 2px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  pointer-events: none;
+}
+
+.settings-content::-webkit-scrollbar-button:single-button,
+.settings-content::-webkit-scrollbar-button:vertical:start:decrement,
+.settings-content::-webkit-scrollbar-button:vertical:start:increment,
+.settings-content::-webkit-scrollbar-button:vertical:end:decrement,
+.settings-content::-webkit-scrollbar-button:vertical:end:increment,
+.settings-content::-webkit-scrollbar-button:horizontal:start:decrement,
+.settings-content::-webkit-scrollbar-button:horizontal:start:increment,
+.settings-content::-webkit-scrollbar-button:horizontal:end:decrement,
+.settings-content::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none;
+  width: 0;
+  height: 0;
+  -webkit-appearance: none;
+  background: transparent;
 }
 
 .hotkey-row {
@@ -482,6 +604,61 @@ input[type='range'] {
   color: var(--color-danger);
   padding: 0;
   margin: var(--spacing-xs) 0 var(--spacing-sm);
+}
+
+.shortcut-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-sm) 0 0;
+}
+
+.shortcut-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-darker);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  padding: 0 var(--spacing-sm);
+}
+
+.shortcut-tab--active {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.shortcut-tab-add {
+  color: var(--color-accent);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.shortcut-tab-add:hover {
+  opacity: 0.75;
+}
+
+.shortcut-tab-panel {
+  height: 340px;
+  overflow: hidden;
+}
+
+.shortcut-tab-panel :deep(.shortcut-list) {
+  height: 340px;
+  max-height: 340px;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
+
+.shortcut-tab-panel :deep(.shortcut-list-shell) {
+  height: 340px;
 }
 
 </style>

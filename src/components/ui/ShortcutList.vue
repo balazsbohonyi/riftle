@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import Button from './Button.vue'
 import ShortcutForm from './ShortcutForm.vue'
@@ -24,8 +24,10 @@ const props = withDefaults(defineProps<{
   siblingShortcuts?: ShortcutEntry[]
   mode: ShortcutMode
   label: string
+  showHeader?: boolean
 }>(), {
   siblingShortcuts: () => [],
+  showHeader: true,
 })
 
 const emit = defineEmits<{
@@ -38,6 +40,16 @@ const newDraft = ref<ShortcutEntry | null>(null)
 const editIndex = ref<number | null>(null)
 const editDraft = ref<ShortcutEntry | null>(null)
 const formError = ref<string | null>(null)
+const isScrolling = ref(false)
+const listRef = ref<HTMLElement | null>(null)
+const scrollThumbTop = ref(0)
+const scrollThumbHeight = ref(0)
+let scrollTimer: number | undefined
+
+const scrollThumbStyle = computed(() => ({
+  height: `${scrollThumbHeight.value}px`,
+  transform: `translateY(${scrollThumbTop.value}px)`,
+}))
 
 function blankEntry(path = ''): ShortcutEntry {
   if (props.mode === 'file') {
@@ -188,59 +200,155 @@ function removeEntry(index: number) {
   updateEntries(props.modelValue.filter((_, i) => i !== index))
   if (editIndex.value === index) cancelForm()
 }
+
+function onListScroll() {
+  updateScrollThumb()
+  isScrolling.value = true
+  window.clearTimeout(scrollTimer)
+  scrollTimer = window.setTimeout(() => {
+    isScrolling.value = false
+  }, 700)
+}
+
+function updateScrollThumb() {
+  const el = listRef.value
+  if (!el || el.scrollHeight <= el.clientHeight) {
+    scrollThumbHeight.value = 0
+    scrollThumbTop.value = 0
+    return
+  }
+
+  const ratio = el.clientHeight / el.scrollHeight
+  const thumbHeight = Math.max(24, el.clientHeight * ratio)
+  const maxTop = el.clientHeight - thumbHeight
+  const scrollRatio = el.scrollTop / (el.scrollHeight - el.clientHeight)
+  scrollThumbHeight.value = thumbHeight
+  scrollThumbTop.value = maxTop * scrollRatio
+}
+
+onUnmounted(() => {
+  window.clearTimeout(scrollTimer)
+})
+
+defineExpose({ addShortcut })
 </script>
 
 <template>
-  <div class="shortcut-list">
-    <div class="shortcut-list-header">
-      <span class="shortcut-list-label">{{ label }}</span>
-      <Button variant="default" @click="addShortcut">
-        {{ mode === 'directory' ? '+ Add folder' : '+ Add file' }}
-      </Button>
-    </div>
-    <p v-if="mode === 'file'" class="shortcut-note">
-      If a file does not open reliably on its own, point the shortcut at the app associated with it, and put the file path in Parameters.
-    </p>
+  <div class="shortcut-list-shell">
+    <div
+      ref="listRef"
+      :class="['shortcut-list', { 'shortcut-list--scrolling': isScrolling }]"
+      @scroll="onListScroll"
+    >
+      <div v-if="showHeader" class="shortcut-list-header">
+        <span class="shortcut-list-label">{{ label }}</span>
+        <Button variant="default" @click="addShortcut">
+          {{ mode === 'directory' ? '+ Add folder' : '+ Add file' }}
+        </Button>
+      </div>
+      <p v-if="mode === 'file'" class="shortcut-note">
+        If a file does not open reliably on its own, point the shortcut at the app associated with it, and put the file path in Parameters.
+      </p>
 
-    <ShortcutForm
-      v-if="newDraft"
-      v-model="newDraft"
-      :mode="mode"
-      :error="formError"
-      @update:modelValue="clearError"
-      @save="saveNew"
-      @cancel="cancelForm"
-    />
-
-    <template v-for="(entry, i) in modelValue" :key="`${entry.path}-${i}`">
       <ShortcutForm
-        v-if="editIndex === i && editDraft"
-        v-model="editDraft"
+        v-if="newDraft"
+        v-model="newDraft"
         :mode="mode"
         :error="formError"
         @update:modelValue="clearError"
-        @save="saveEdit"
+        @save="saveNew"
         @cancel="cancelForm"
       />
-      <ShortcutReadOnlyEntry
-        v-else
-        :entry="entry"
-        :mode="mode"
-        @edit="startEdit(i)"
-        @remove="removeEntry(i)"
-      />
-    </template>
+
+      <template v-for="(entry, i) in modelValue" :key="`${entry.path}-${i}`">
+        <ShortcutForm
+          v-if="editIndex === i && editDraft"
+          v-model="editDraft"
+          :mode="mode"
+          :error="formError"
+          @update:modelValue="clearError"
+          @save="saveEdit"
+          @cancel="cancelForm"
+        />
+        <ShortcutReadOnlyEntry
+          v-else
+          :entry="entry"
+          :mode="mode"
+          @edit="startEdit(i)"
+          @remove="removeEntry(i)"
+        />
+      </template>
+    </div>
+    <div
+      v-if="isScrolling && scrollThumbHeight > 0"
+      class="shortcut-scroll-thumb"
+      :style="scrollThumbStyle"
+    />
   </div>
 </template>
 
 <style scoped>
+.shortcut-list-shell {
+  position: relative;
+  width: 100%;
+}
+
 .shortcut-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
   width: 100%;
   padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--color-divider);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.shortcut-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.shortcut-list::-webkit-scrollbar-track,
+.shortcut-list::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.shortcut-list--scrolling::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.shortcut-list::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.shortcut-list::-webkit-scrollbar-button:single-button,
+.shortcut-list::-webkit-scrollbar-button:vertical:start:decrement,
+.shortcut-list::-webkit-scrollbar-button:vertical:start:increment,
+.shortcut-list::-webkit-scrollbar-button:vertical:end:decrement,
+.shortcut-list::-webkit-scrollbar-button:vertical:end:increment,
+.shortcut-list::-webkit-scrollbar-button:horizontal:start:decrement,
+.shortcut-list::-webkit-scrollbar-button:horizontal:start:increment,
+.shortcut-list::-webkit-scrollbar-button:horizontal:end:decrement,
+.shortcut-list::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none;
+  width: 0;
+  height: 0;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.shortcut-scroll-thumb {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  pointer-events: none;
 }
 
 .shortcut-list-header {
@@ -263,4 +371,5 @@ function removeEntry(index: number) {
   font-size: var(--font-size-xs);
   line-height: 1.4;
 }
+
 </style>
