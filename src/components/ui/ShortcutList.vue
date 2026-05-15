@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Button from './Button.vue'
+import ShortcutForm from './ShortcutForm.vue'
+import ShortcutReadOnlyEntry from './ShortcutReadOnlyEntry.vue'
 
 export interface DirectoryShortcut {
   path: string
@@ -16,11 +18,14 @@ export interface FileShortcut {
 type ShortcutMode = 'directory' | 'file'
 type ShortcutEntry = DirectoryShortcut | FileShortcut
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: ShortcutEntry[]
+  siblingShortcuts?: ShortcutEntry[]
   mode: ShortcutMode
   label: string
-}>()
+}>(), {
+  siblingShortcuts: () => [],
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: ShortcutEntry[]): void
@@ -28,6 +33,10 @@ const emit = defineEmits<{
 }>()
 
 const isTauriContext = ref(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window)
+const newDraft = ref<ShortcutEntry | null>(null)
+const editIndex = ref<number | null>(null)
+const editDraft = ref<ShortcutEntry | null>(null)
+const formError = ref<string | null>(null)
 
 function blankEntry(path = ''): ShortcutEntry {
   if (props.mode === 'file') {
@@ -36,9 +45,76 @@ function blankEntry(path = ''): ShortcutEntry {
   return { path, alias: '' }
 }
 
+function cloneEntry(entry: ShortcutEntry): ShortcutEntry {
+  if (props.mode === 'file') {
+    const file = entry as FileShortcut
+    return { path: file.path, parameters: file.parameters, alias: file.alias }
+  }
+  return { path: entry.path, alias: entry.alias }
+}
+
 function updateEntries(updated: ShortcutEntry[]) {
   emit('update:modelValue', updated)
   emit('change', updated)
+}
+
+function pathName(path: string, stripExtension: boolean): string {
+  const trimmed = path.trim().replace(/[\\/]+$/, '')
+  const last = trimmed.split(/[\\/]/).filter(Boolean).pop() ?? ''
+  if (!stripExtension) return last
+  const dot = last.lastIndexOf('.')
+  return dot > 0 ? last.slice(0, dot) : last
+}
+
+function shortcutName(entry: ShortcutEntry, mode: ShortcutMode): string {
+  return (entry.alias.trim() || pathName(entry.path, mode === 'file')).trim()
+}
+
+function isParameterizedExecutableTarget(path: string): boolean {
+  const extension = path.trim().split(/[\\/]/).pop()?.split('.').pop()?.toLowerCase()
+  return extension !== undefined && ['exe', 'com', 'bat', 'cmd'].includes(extension)
+}
+
+function validateDraft(draft: ShortcutEntry, originalIndex: number | null): string | null {
+  if (!draft.path.trim()) {
+    return props.mode === 'directory' ? 'Directory shortcut path is required.' : 'File shortcut path is required.'
+  }
+
+  const pathKey = draft.path.trim().toLowerCase()
+  const duplicatePath = props.modelValue.some((entry, index) => (
+    index !== originalIndex && entry.path.trim().toLowerCase() === pathKey
+  ))
+  if (duplicatePath) return 'Shortcut path already exists.'
+
+  if (props.mode === 'file') {
+    const file = draft as FileShortcut
+    const hasParameters = file.parameters.trim().length > 0
+    if (hasParameters && !isParameterizedExecutableTarget(file.path)) {
+      return 'Parameters are only supported for .exe, .com, .bat, and .cmd files.'
+    }
+    if (hasParameters && !file.alias.trim()) {
+      return 'An alias is required when file parameters are set.'
+    }
+  }
+
+  const name = shortcutName(draft, props.mode).toLowerCase()
+  if (!name) return 'Shortcut name is required.'
+
+  const currentNames = props.modelValue
+    .filter((_, index) => index !== originalIndex)
+    .map((entry) => shortcutName(entry, props.mode).toLowerCase())
+  const siblingNames = props.siblingShortcuts.map((entry) => (
+    shortcutName(entry, props.mode === 'file' ? 'directory' : 'file').toLowerCase()
+  ))
+  if ([...currentNames, ...siblingNames].includes(name)) {
+    return `Duplicate shortcut name: ${shortcutName(draft, props.mode)}`
+  }
+
+  return null
+}
+
+function clearError() {
+  formError.value = null
 }
 
 async function addShortcut() {
@@ -49,19 +125,57 @@ async function addShortcut() {
     multiple: false,
   })
   if (!path || typeof path !== 'string') return
-  if (props.modelValue.some((entry) => entry.path === path)) return
-  updateEntries([...props.modelValue, blankEntry(path)])
+
+  editIndex.value = null
+  editDraft.value = null
+  newDraft.value = blankEntry(path)
+  formError.value = null
 }
 
-function updateEntry(index: number, patch: Partial<FileShortcut>) {
-  const updated = props.modelValue.map((entry, i) => (
-    i === index ? { ...entry, ...patch } : entry
+function startEdit(index: number) {
+  newDraft.value = null
+  editIndex.value = index
+  editDraft.value = cloneEntry(props.modelValue[index])
+  formError.value = null
+}
+
+function cancelForm() {
+  newDraft.value = null
+  editIndex.value = null
+  editDraft.value = null
+  formError.value = null
+}
+
+function saveNew() {
+  if (!newDraft.value) return
+  const error = validateDraft(newDraft.value, null)
+  if (error) {
+    formError.value = error
+    return
+  }
+
+  updateEntries([cloneEntry(newDraft.value), ...props.modelValue])
+  cancelForm()
+}
+
+function saveEdit() {
+  if (editIndex.value === null || !editDraft.value) return
+  const error = validateDraft(editDraft.value, editIndex.value)
+  if (error) {
+    formError.value = error
+    return
+  }
+
+  const updated = props.modelValue.map((entry, index) => (
+    index === editIndex.value ? cloneEntry(editDraft.value as ShortcutEntry) : entry
   ))
   updateEntries(updated)
+  cancelForm()
 }
 
 function removeEntry(index: number) {
   updateEntries(props.modelValue.filter((_, i) => i !== index))
+  if (editIndex.value === index) cancelForm()
 }
 </script>
 
@@ -77,36 +191,34 @@ function removeEntry(index: number) {
       If a file does not open reliably on its own, point the shortcut at the app executable instead and put the file path in Parameters.
     </p>
 
-    <div v-for="(entry, i) in modelValue" :key="`${entry.path}-${i}`" class="shortcut-row">
-      <div class="shortcut-fields">
-        <input
-          class="shortcut-input shortcut-input--path"
-          :value="entry.path"
-          type="text"
-          placeholder="Path"
-          spellcheck="false"
-          @input="updateEntry(i, { path: ($event.target as HTMLInputElement).value })"
-        />
-        <input
-          v-if="mode === 'file'"
-          class="shortcut-input"
-          :value="(entry as FileShortcut).parameters"
-          type="text"
-          placeholder="Parameters"
-          spellcheck="false"
-          @input="updateEntry(i, { parameters: ($event.target as HTMLInputElement).value })"
-        />
-        <input
-          class="shortcut-input"
-          :value="entry.alias"
-          type="text"
-          placeholder="Alias"
-          spellcheck="false"
-          @input="updateEntry(i, { alias: ($event.target as HTMLInputElement).value })"
-        />
-      </div>
-      <button class="remove-btn" type="button" @click="removeEntry(i)">&#8722;</button>
-    </div>
+    <ShortcutForm
+      v-if="newDraft"
+      v-model="newDraft"
+      :mode="mode"
+      :error="formError"
+      @update:modelValue="clearError"
+      @save="saveNew"
+      @cancel="cancelForm"
+    />
+
+    <template v-for="(entry, i) in modelValue" :key="`${entry.path}-${i}`">
+      <ShortcutForm
+        v-if="editIndex === i && editDraft"
+        v-model="editDraft"
+        :mode="mode"
+        :error="formError"
+        @update:modelValue="clearError"
+        @save="saveEdit"
+        @cancel="cancelForm"
+      />
+      <ShortcutReadOnlyEntry
+        v-else
+        :entry="entry"
+        :mode="mode"
+        @edit="startEdit(i)"
+        @remove="removeEntry(i)"
+      />
+    </template>
   </div>
 </template>
 
@@ -139,68 +251,5 @@ function removeEntry(index: number) {
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   line-height: 1.4;
-}
-
-.shortcut-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  background: var(--color-bg-darker);
-  border-radius: var(--radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.shortcut-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.65fr);
-  gap: var(--spacing-xs);
-  flex: 1;
-  min-width: 0;
-}
-
-.shortcut-input {
-  min-width: 0;
-  height: 28px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-  padding: 0 var(--spacing-sm);
-  outline: none;
-}
-
-.shortcut-input--path {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-}
-
-.shortcut-input:focus {
-  border-color: var(--color-accent);
-}
-
-.remove-btn {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 6px 4px 0;
-  line-height: 1;
-  transition: color var(--duration-fast);
-}
-
-.remove-btn:hover {
-  color: var(--color-text);
-}
-
-@media (max-width: 520px) {
-  .shortcut-fields {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

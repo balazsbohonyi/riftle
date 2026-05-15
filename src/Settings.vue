@@ -335,12 +335,14 @@ onUnmounted(() => {
           label="Directories"
           mode="directory"
           v-model="settings.directory_shortcuts"
+          :sibling-shortcuts="settings.file_shortcuts"
           @change="onShortcutsChange('directory_shortcuts', $event as DirectoryShortcut[])"
         />
         <ShortcutList
           label="Files"
           mode="file"
           v-model="settings.file_shortcuts"
+          :sibling-shortcuts="settings.directory_shortcuts"
           @change="onShortcutsChange('file_shortcuts', $event as FileShortcut[])"
         />
         <p v-if="shortcutsError" class="shortcuts-error">{{ shortcutsError }}</p>
