@@ -73,9 +73,7 @@ pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
     let icons_dir = data_dir.join("icons");
     std::fs::create_dir_all(&icons_dir)?;
     let dest = icons_dir.join("system_command.png");
-    if !dest.exists() {
-        std::fs::write(&dest, SYSTEM_COMMAND_ICON)?;
-    }
+    std::fs::write(&dest, SYSTEM_COMMAND_ICON)?;
     Ok(())
 }
 
