@@ -9,8 +9,6 @@ use tauri::Manager;
 const GENERIC_ICON_FILENAME: &str = "generic.png";
 const SE_ERR_NOASSOC_CODE: isize = 31;
 const SHELL_SUCCESS_MIN_CODE: isize = 32;
-const SW_SHOWNORMAL: i32 = 1;
-const SW_SHOWNOACTIVATE: i32 = 4;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ShortcutLaunchResult {
@@ -99,12 +97,8 @@ fn shortcut_launch_request(
     }
 }
 
-fn shortcut_show_command(request: &ShortcutLaunchRequest) -> i32 {
-    if request.kind == ShortcutTargetKind::File && !request.is_parameter_capable_executable {
-        SW_SHOWNOACTIVATE
-    } else {
-        SW_SHOWNORMAL
-    }
+fn shortcut_should_use_tauri_opener(request: &ShortcutLaunchRequest) -> bool {
+    request.kind == ShortcutTargetKind::File && !request.is_parameter_capable_executable
 }
 
 fn resolve_shortcut_from_settings(
@@ -243,11 +237,24 @@ fn shell_execute_shortcut(
             file.as_ptr(),
             parameter_ptr,
             std::ptr::null(),
-            shortcut_show_command(request),
+            1,
         )
     };
 
     result as isize
+}
+
+fn open_shortcut_with_tauri_opener(request: &ShortcutLaunchRequest) -> ShortcutLaunchResult {
+    match tauri_plugin_opener::open_path(&request.path, None::<&str>) {
+        Ok(()) => shortcut_launch_success(),
+        Err(err) => shortcut_launch_failure(
+            "Shortcut launch failed",
+            format!(
+                "Riftle could not open shortcut target {} with the system default app: {}.",
+                request.path, err
+            ),
+        ),
+    }
 }
 
 fn open_with_dialog(
@@ -300,6 +307,10 @@ pub fn launch_shortcut(
     let target_outcome = shortcut_command_outcome_from_target_policy(&request);
     if !target_outcome.result.success {
         return Ok(target_outcome.result);
+    }
+
+    if shortcut_should_use_tauri_opener(&request) {
+        return Ok(open_shortcut_with_tauri_opener(&request));
     }
 
     let owner_hwnd = launcher_hwnd(&app);
@@ -548,7 +559,7 @@ mod tests {
     }
 
     #[test]
-    fn shortcut_document_launches_do_not_request_window_activation() {
+    fn shortcut_documents_use_tauri_opener_instead_of_shell_execute() {
         let document_request =
             shortcut_launch_request(ShortcutTargetKind::File, "C:\\Docs\\config.toml", "");
         let exe_request =
@@ -556,9 +567,9 @@ mod tests {
         let dir_request =
             shortcut_launch_request(ShortcutTargetKind::Directory, "C:\\Projects", "");
 
-        assert_eq!(shortcut_show_command(&document_request), SW_SHOWNOACTIVATE);
-        assert_eq!(shortcut_show_command(&exe_request), SW_SHOWNORMAL);
-        assert_eq!(shortcut_show_command(&dir_request), SW_SHOWNORMAL);
+        assert!(shortcut_should_use_tauri_opener(&document_request));
+        assert!(!shortcut_should_use_tauri_opener(&exe_request));
+        assert!(!shortcut_should_use_tauri_opener(&dir_request));
     }
 
     #[test]
