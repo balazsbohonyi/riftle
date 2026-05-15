@@ -241,19 +241,23 @@ pub fn run() {
                 let is_indexing = Arc::new(AtomicBool::new(false));
 
                 // Spawn COM worker thread — owns the COM apartment for all .lnk resolution.
-                // Must be created before run_full_index and start_background_tasks.
+                // Must be created before start_background_tasks.
                 let com_tx = crate::indexer::spawn_com_worker();
-
-                // Run full index synchronously (window is hidden — startup latency OK)
-                crate::indexer::run_full_index(&db_arc, &data_dir, &settings, &com_tx);
 
                 // Phase 4: Ensure system command icon exists
                 if let Err(e) = crate::search::ensure_system_command_icon(&data_dir) {
                     eprintln!("[search] failed to write system_command icon: {}", e);
                 }
 
-                // Phase 4: Build nucleo search index from freshly-indexed DB
+                // Phase 4: Build nucleo search index from DB (may be empty on first run)
                 crate::search::init_search_index(app.handle());
+
+                // Count existing DB rows to decide deferred index strategy (D3/D4).
+                // Block scope ensures MutexGuard drops before start_background_tasks acquires the lock.
+                let app_count: i64 = {
+                    let conn = db_arc.lock().unwrap_or_else(|e| e.into_inner());
+                    crate::db::count_apps(&conn).unwrap_or(0)
+                };
 
                 // Phase 9: Register global hotkey (toggle launcher visibility)
                 // register() returns the actually-registered hotkey (may fall back to Alt+Space).
@@ -274,9 +278,11 @@ pub fn run() {
                 // Store COM worker SyncSender as managed state for reindex() command
                 app.manage(Arc::new(com_tx.clone()));
 
-                // Start background timer + watcher; get timer reset Sender
+                // Start background timer + watcher + deferred startup index; get timer reset Sender
                 let timer_tx = crate::indexer::start_background_tasks(
                     Arc::clone(&db_arc),
+                    app.handle().clone(),   // AppHandle for try_start_index → rebuild_index
+                    app_count,              // 0 = first run (immediate), >0 = 30s delay
                     data_dir.clone(),
                     &settings,
                     Arc::clone(&is_indexing),
