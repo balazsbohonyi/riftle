@@ -1,5 +1,6 @@
 // Phase 2: Settings persistence via tauri-plugin-store
 use crate::warnings::BackendWarning;
+use crate::shortcuts::{DirectoryShortcut, FileShortcut};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs;
@@ -38,6 +39,12 @@ pub struct Settings {
     /// in blocked paths like System32. Users can extend or trim this list.
     #[serde(default = "default_system_tool_allowlist")]
     pub system_tool_allowlist: Vec<String>,
+
+    #[serde(default)]
+    pub directory_shortcuts: Vec<DirectoryShortcut>,
+
+    #[serde(default)]
+    pub file_shortcuts: Vec<FileShortcut>,
 }
 
 fn default_hotkey() -> String { "Ctrl+Alt+Space".to_string() }
@@ -79,6 +86,8 @@ impl Default for Settings {
             excluded_paths: vec![],
             reindex_interval: default_reindex_interval(),
             system_tool_allowlist: default_system_tool_allowlist(),
+            directory_shortcuts: vec![],
+            file_shortcuts: vec![],
         }
     }
 }
@@ -245,6 +254,8 @@ pub fn get_settings_cmd(
         "excluded_paths": settings.excluded_paths,
         "reindex_interval": settings.reindex_interval,
         "system_tool_allowlist": settings.system_tool_allowlist,
+        "directory_shortcuts": settings.directory_shortcuts,
+        "file_shortcuts": settings.file_shortcuts,
         "data_dir": data_dir.to_string_lossy(),
         "is_portable": is_portable,
         "build_profile": build_profile,
@@ -258,6 +269,11 @@ pub fn set_settings_cmd(
     data_dir: tauri::State<std::path::PathBuf>,
     settings: Settings,
 ) -> Result<(), String> {
+    crate::shortcuts::validate_shortcuts(
+        &settings.directory_shortcuts,
+        &settings.file_shortcuts,
+    )?;
+
     set_settings(&app, &data_dir, &settings);
     // Notify the background timer thread of the new interval.
     // Uses try_state (not State parameter) so this command is safe in all build targets,
@@ -392,6 +408,57 @@ mod tests {
             !allowlist.is_empty(),
             "default system_tool_allowlist must not be empty"
         );
+    }
+
+    #[test]
+    fn shortcut_old_settings_json_defaults_to_empty_arrays() {
+        let old_settings = r#"{
+            "hotkey": "Ctrl+Alt+Space",
+            "theme": "system",
+            "show_path": false,
+            "autostart": false,
+            "additional_paths": [],
+            "excluded_paths": [],
+            "reindex_interval": 15,
+            "system_tool_allowlist": ["notepad.exe"]
+        }"#;
+
+        let settings: Settings = serde_json::from_str(old_settings).unwrap();
+
+        assert!(settings.directory_shortcuts.is_empty());
+        assert!(settings.file_shortcuts.is_empty());
+    }
+
+    #[test]
+    fn shortcut_default_settings_include_empty_arrays() {
+        let settings = Settings::default();
+
+        assert!(settings.directory_shortcuts.is_empty());
+        assert!(settings.file_shortcuts.is_empty());
+    }
+
+    #[test]
+    fn shortcut_get_settings_cmd_json_shape_includes_arrays() {
+        let s = Settings::default();
+        let json = serde_json::json!({
+            "hotkey": s.hotkey,
+            "theme": s.theme,
+            "show_path": s.show_path,
+            "autostart": s.autostart,
+            "additional_paths": s.additional_paths,
+            "excluded_paths": s.excluded_paths,
+            "reindex_interval": s.reindex_interval,
+            "system_tool_allowlist": s.system_tool_allowlist,
+            "directory_shortcuts": s.directory_shortcuts,
+            "file_shortcuts": s.file_shortcuts,
+            "data_dir": "C:\\test",
+            "is_portable": false,
+            "build_profile": "debug",
+            "can_autostart": false,
+        });
+
+        assert_eq!(json["directory_shortcuts"], serde_json::json!([]));
+        assert_eq!(json["file_shortcuts"], serde_json::json!([]));
     }
 
     #[test]
