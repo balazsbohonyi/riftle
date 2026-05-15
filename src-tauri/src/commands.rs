@@ -36,6 +36,12 @@ enum ShortcutShellFailureAction {
     Warn,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShortcutCommandOutcome {
+    result: ShortcutLaunchResult,
+    should_hide_launcher: bool,
+}
+
 fn lock_db<'a>(
     db_state: &'a crate::db::DbState,
     context: &str,
@@ -75,9 +81,8 @@ fn shortcut_launch_request(
     raw_parameters: &str,
 ) -> ShortcutLaunchRequest {
     let trimmed_parameters = raw_parameters.trim();
-    let is_parameter_capable_executable =
-        kind == ShortcutTargetKind::File
-            && crate::shortcuts::is_parameterized_executable_target(path);
+    let is_parameter_capable_executable = kind == ShortcutTargetKind::File
+        && crate::shortcuts::is_parameterized_executable_target(path);
     let parameters = if is_parameter_capable_executable && !trimmed_parameters.is_empty() {
         Some(raw_parameters.to_string())
     } else {
@@ -165,6 +170,129 @@ fn shortcut_shell_policy_result(
     )
 }
 
+fn shortcut_command_outcome(result: ShortcutLaunchResult) -> ShortcutCommandOutcome {
+    ShortcutCommandOutcome {
+        result,
+        should_hide_launcher: false,
+    }
+}
+
+fn shortcut_command_outcome_from_target_policy(
+    request: &ShortcutLaunchRequest,
+) -> ShortcutCommandOutcome {
+    shortcut_command_outcome(evaluate_shortcut_target_policy(request))
+}
+
+fn shortcut_command_outcome_from_shell_result(
+    request: &ShortcutLaunchRequest,
+    shell_result: isize,
+) -> ShortcutCommandOutcome {
+    shortcut_command_outcome(shortcut_shell_policy_result(request, shell_result))
+}
+
+fn shortcut_settings_load_result(
+    data_dir: &Path,
+) -> Result<crate::store::Settings, ShortcutLaunchResult> {
+    match crate::store::load_settings_outcome(data_dir) {
+        crate::store::SettingsLoadOutcome::Loaded(settings)
+        | crate::store::SettingsLoadOutcome::Missing(settings)
+        | crate::store::SettingsLoadOutcome::RecoveredWithDefaults { settings, .. } => Ok(settings),
+        crate::store::SettingsLoadOutcome::FatalBackupFailure { error } => {
+            Err(shortcut_launch_failure(
+                "Shortcut settings unavailable",
+                format!("Riftle could not load shortcut settings: {error}"),
+            ))
+        }
+    }
+}
+
+fn shell_execute_shortcut(request: &ShortcutLaunchRequest) -> isize {
+    let file = to_wide_null(&request.path);
+    let parameters = request
+        .parameters
+        .as_ref()
+        .map(|parameters| to_wide_null(parameters));
+    let parameter_ptr = parameters
+        .as_ref()
+        .map(|parameters| parameters.as_ptr())
+        .unwrap_or(std::ptr::null());
+
+    let result = unsafe {
+        windows_sys::Win32::UI::Shell::ShellExecuteW(
+            0,
+            std::ptr::null(),
+            file.as_ptr(),
+            parameter_ptr,
+            std::ptr::null(),
+            1,
+        )
+    };
+
+    result as isize
+}
+
+fn open_with_dialog(request: &ShortcutLaunchRequest) -> ShortcutLaunchResult {
+    let file = to_wide_null(&request.path);
+    let info = windows::Win32::UI::Shell::OPENASINFO {
+        pcszFile: windows::core::PCWSTR(file.as_ptr()),
+        pcszClass: windows::core::PCWSTR::null(),
+        oaifInFlags: windows::Win32::UI::Shell::OAIF_EXEC,
+    };
+
+    let result = unsafe {
+        windows::Win32::UI::Shell::SHOpenWithDialog(
+            windows::Win32::Foundation::HWND(std::ptr::null_mut()),
+            &info,
+        )
+    };
+
+    match result {
+        Ok(()) => shortcut_launch_success(),
+        Err(err) => shortcut_launch_failure(
+            "Shortcut launch failed",
+            format!(
+                "Windows could not choose an application for shortcut target {}: {}.",
+                request.path, err
+            ),
+        ),
+    }
+}
+
+#[tauri::command]
+pub fn launch_shortcut(
+    id: String,
+    _app: tauri::AppHandle,
+    data_dir: tauri::State<PathBuf>,
+) -> Result<ShortcutLaunchResult, String> {
+    let settings = match shortcut_settings_load_result(data_dir.inner().as_path()) {
+        Ok(settings) => settings,
+        Err(result) => return Ok(result),
+    };
+    let Some(request) = resolve_shortcut_from_settings(&settings, &id) else {
+        return Ok(shortcut_launch_failure(
+            "Shortcut not found",
+            format!("Shortcut is no longer configured: {id}"),
+        ));
+    };
+
+    let target_outcome = shortcut_command_outcome_from_target_policy(&request);
+    if !target_outcome.result.success {
+        return Ok(target_outcome.result);
+    }
+
+    let shell_result = shell_execute_shortcut(&request);
+    if !shortcut_shell_failed(shell_result) {
+        return Ok(shortcut_command_outcome_from_shell_result(&request, shell_result).result);
+    }
+
+    if shortcut_shell_failure_action(&request, shell_result) == ShortcutShellFailureAction::OpenWith
+    {
+        return Ok(open_with_dialog(&request));
+    }
+
+    Ok(shortcut_command_outcome_from_shell_result(&request, shell_result).result)
+}
+
 #[tauri::command]
 pub fn launch(id: String, app: tauri::AppHandle) -> Result<(), String> {
     // DB lookup in scoped block so MutexGuard drops before rebuild_index.
@@ -229,7 +357,9 @@ pub fn read_icon_bytes_from_data_dir(data_dir: &Path, filename: &str) -> Result<
     let requested_path = icon_path_under_data_dir(data_dir, filename)?;
     match std::fs::read(&requested_path) {
         Ok(bytes) => Ok(bytes),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound && filename != GENERIC_ICON_FILENAME => {
+        Err(err)
+            if err.kind() == std::io::ErrorKind::NotFound && filename != GENERIC_ICON_FILENAME =>
+        {
             let fallback_path = icon_path_under_data_dir(data_dir, GENERIC_ICON_FILENAME)?;
             std::fs::read(&fallback_path)
                 .map_err(|fallback_err| format!("failed to read fallback icon: {fallback_err}"))
@@ -334,7 +464,10 @@ pub fn quit_app(app: tauri::AppHandle) {
 fn to_wide_null(s: &str) -> Vec<u16> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-    OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+    OsStr::new(s)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }
 
 #[cfg(test)]
@@ -361,7 +494,9 @@ mod tests {
         let result = evaluate_shortcut_target_policy(&request);
 
         assert!(!result.success);
-        let warning = result.warning.expect("missing target should return warning");
+        let warning = result
+            .warning
+            .expect("missing target should return warning");
         assert_eq!(warning.kind, "shortcut-launch-failed");
         assert!(warning.message.contains("does not exist"));
     }
@@ -391,21 +526,12 @@ mod tests {
 
     #[test]
     fn shortcut_open_with_policy_only_for_non_executable_no_association_failures() {
-        let doc_request = shortcut_launch_request(
-            ShortcutTargetKind::File,
-            "C:\\Docs\\report.unknown",
-            "",
-        );
-        let exe_request = shortcut_launch_request(
-            ShortcutTargetKind::File,
-            "C:\\Tools\\cleanup.exe",
-            "",
-        );
-        let dir_request = shortcut_launch_request(
-            ShortcutTargetKind::Directory,
-            "C:\\Projects",
-            "",
-        );
+        let doc_request =
+            shortcut_launch_request(ShortcutTargetKind::File, "C:\\Docs\\report.unknown", "");
+        let exe_request =
+            shortcut_launch_request(ShortcutTargetKind::File, "C:\\Tools\\cleanup.exe", "");
+        let dir_request =
+            shortcut_launch_request(ShortcutTargetKind::Directory, "C:\\Projects", "");
 
         assert_eq!(
             shortcut_shell_failure_action(&doc_request, SE_ERR_NOASSOC_CODE),
@@ -427,11 +553,8 @@ mod tests {
 
     #[test]
     fn shortcut_command_helper_returns_success_for_shell_success_codes() {
-        let request = shortcut_launch_request(
-            ShortcutTargetKind::File,
-            "C:\\Tools\\cleanup.exe",
-            "",
-        );
+        let request =
+            shortcut_launch_request(ShortcutTargetKind::File, "C:\\Tools\\cleanup.exe", "");
 
         let outcome = shortcut_command_outcome_from_shell_result(&request, 33);
 
@@ -442,16 +565,16 @@ mod tests {
 
     #[test]
     fn shortcut_command_helper_returns_warning_for_shell_failure_codes() {
-        let request = shortcut_launch_request(
-            ShortcutTargetKind::File,
-            "C:\\Tools\\cleanup.exe",
-            "",
-        );
+        let request =
+            shortcut_launch_request(ShortcutTargetKind::File, "C:\\Tools\\cleanup.exe", "");
 
         let outcome = shortcut_command_outcome_from_shell_result(&request, 2);
 
         assert!(!outcome.result.success);
-        let warning = outcome.result.warning.expect("failure should return warning");
+        let warning = outcome
+            .result
+            .warning
+            .expect("failure should return warning");
         assert_eq!(warning.kind, "shortcut-launch-failed");
         assert!(warning.message.contains("ShellExecuteW code 2"));
         assert!(!outcome.should_hide_launcher);

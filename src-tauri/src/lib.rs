@@ -470,6 +470,7 @@ pub fn run() {
             crate::store::set_settings_cmd,
             crate::commands::launch,
             crate::commands::launch_elevated,
+            crate::commands::launch_shortcut,
             crate::commands::get_icon_bytes,
             crate::system_commands::run_system_command,
             crate::hotkey::update_hotkey,
