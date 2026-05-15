@@ -45,10 +45,12 @@ const activeShortcutTab = ref<'directory' | 'file'>('directory')
 const directoryShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const fileShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const settingsContentRef = ref<HTMLElement | null>(null)
+const hotkeyRowRef = ref<HTMLElement | null>(null)
 const isSettingsScrolling = ref(false)
 const settingsScrollThumbTop = ref(0)
 const settingsScrollThumbHeight = ref(0)
 let settingsScrollTimer: number | undefined
+let unlistenConflictRef: (() => void) | undefined
 
 const settingsScrollThumbStyle = computed(() => ({
   height: `${settingsScrollThumbHeight.value}px`,
@@ -109,6 +111,17 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to load settings:', e)
   }
+
+  // Listen for startup hotkey conflict (emitted by lib.rs when configured key is already taken)
+  const { listen } = await import('@tauri-apps/api/event')
+  unlistenConflictRef = await listen<string>('hotkey-conflict', (event) => {
+    const failedKey = event.payload
+    hotkeyError.value = `'${failedKey}' is already in use by another app — please set a different hotkey`
+    // Scroll hotkey section into view after DOM updates
+    nextTick(() => {
+      hotkeyRowRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  })
 })
 
 async function saveSettings() {
@@ -312,6 +325,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.clearTimeout(settingsScrollTimer)
   void setHotkeyCaptureActive(false)
+  unlistenConflictRef?.()
 })
 </script>
 
@@ -341,7 +355,7 @@ onUnmounted(() => {
       </Section>
 
       <Section title="Hotkey">
-        <Row label="Global shortcut">
+        <Row label="Global shortcut" ref="hotkeyRowRef">
           <div class="hotkey-row">
             <button
               v-if="settings.hotkey !== 'Ctrl+Alt+Space'"
