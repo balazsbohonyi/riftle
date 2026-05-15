@@ -30,6 +30,11 @@ interface BackendWarning {
   backup_path?: string | null
 }
 
+interface ShortcutLaunchResult {
+  success: boolean
+  warning?: BackendWarning | null
+}
+
 const GENERIC_ICON_FILENAME = 'generic.png'
 const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
 const SHADOW_PAD = 32
@@ -360,6 +365,10 @@ function getIconUrl(iconPath: string): string {
   return ''
 }
 
+function isShortcutResult(item: SearchResult): boolean {
+  return item.kind === 'shortcut_dir' || item.kind === 'shortcut_file'
+}
+
 // ---- Launch stubs (Phase 6 implements commands) ----
 async function launchItem(item: SearchResult) {
   if (item.kind === 'system' && CONFIRM_REQUIRED.has(item.id)) {
@@ -367,13 +376,33 @@ async function launchItem(item: SearchResult) {
     return
   }
   launchInProgress = true
-  if (item.kind === 'system') {
-    await invoke('run_system_command', { cmd: item.id }).catch(console.error)
-  } else {
-    await invoke('launch', { id: item.id }).catch(console.error)
+  try {
+    if (item.kind === 'system') {
+      await invoke('run_system_command', { cmd: item.id })
+      await hideWindow()
+      return
+    }
+
+    if (isShortcutResult(item)) {
+      const result = await invoke<ShortcutLaunchResult>('launch_shortcut', { id: item.id })
+      if (result.warning) {
+        appendBackendWarnings([result.warning])
+      }
+      if (result.success) {
+        await hideWindow()
+      } else {
+        await updateWindowHeight()
+      }
+      return
+    }
+
+    await invoke('launch', { id: item.id })
+    await hideWindow()
+  } catch (error) {
+    console.error(error)
+  } finally {
+    launchInProgress = false
   }
-  await hideWindow()
-  launchInProgress = false
 }
 
 async function launchElevated(item: SearchResult) {
@@ -459,7 +488,7 @@ function onKeyDown(e: KeyboardEvent) {
       }
       const item = results.value[selectedIndex.value]
       if (!item) break
-      if (e.ctrlKey && e.shiftKey) {
+      if (e.ctrlKey && e.shiftKey && !isShortcutResult(item)) {
         launchElevated(item)
       } else {
         launchItem(item)
