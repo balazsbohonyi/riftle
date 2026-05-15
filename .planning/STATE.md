@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase_name: packaging & distribution
-current_plan: Not started
-status: planning
-stopped_at: Phase 09.7 context gathered
-last_updated: "2026-05-14T23:17:21.296Z"
+current_phase_name: shortcuts support
+current_plan: 02
+status: executing
+stopped_at: Completed 09.7-01-PLAN.md
+last_updated: "2026-05-15T00:00:47.975Z"
 last_activity: 2026-03-12
 progress:
   total_phases: 17
   completed_phases: 12
-  total_plans: 47
-  completed_plans: 45
+  total_plans: 51
+  completed_plans: 46
 ---
 
 ---
@@ -74,13 +74,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-**Phase:** 09.5-backend-resilience
-**Current Phase Name:** packaging & distribution
-**Current Plan:** Not started
-**Total Plans in Phase:** 5
-**Status:** Ready to plan
-**Last Activity:** 2026-03-12
-**Last Activity Description:** Phase 9.6 complete, transitioned to Phase 10
+**Phase:** 09.7-shortcuts-support
+**Current Phase Name:** shortcuts support
+**Current Plan:** 02
+**Total Plans in Phase:** 4
+**Status:** In progress
+**Last Activity:** 2026-05-15
+**Last Activity Description:** Completed 09.7-01 backend shortcut settings contract
 
 ## Progress
 
@@ -208,6 +208,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.6-03]: lastRegisteredHotkey ref is the source of truth for the previous working hotkey — updated only on successful invoke, never on v-model updates which fire before change
 - [Phase 09.6-04]: SetWindowSubclass/DefSubclassProc live in windows::Win32::UI::Shell (not Win32::UI::Controls); subclass_proc is a free unsafe extern system fn inside cfg(target_os=windows); swallows WM_SYSCOMMAND where wParam & 0xFFF0 == SC_KEYMENU (0xF100) to fix Alt+Space capture in KeyCapture input
 - [Phase 09.6-05]: Inline confirmation row replaces floating overlay — v-if guards swap input vs confirm-row inside .search-area; divider and RecycleScroller also gated on !confirmPending
+- [Phase 09.7-shortcuts-support]: Shortcut identity uses deterministic FNV-1a hashing over the normalized path with kind prefixes.
+- [Phase 09.7-shortcuts-support]: Parameterized shortcuts are limited to .exe, .com, .bat, and .cmd targets; .lnk remains unsupported for parameters in this phase.
+- [Phase 09.7-shortcuts-support]: Parameterized executable shortcuts require an alias to avoid ambiguous display names.
 
 ## Performance Metrics
 
@@ -254,12 +257,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.6-ux-safety-gates P03 | 2min | 2 tasks | 2 files |
 | Phase 09.6-ux-safety-gates P04 | 4min | 1 tasks | 2 files |
 | Phase 09.6-ux-safety-gates P05 | 1min | 1 tasks | 1 files |
+| Phase 09.7-shortcuts-support P01 | 4min | 2 tasks | 3 files |
 
 ## Session
 
-**Last Date:** 2026-05-14T23:17:21.289Z
-**Stopped At:** Phase 09.7 context gathered
-**Resume File:** .planning/phases/09.7-shortcuts-support/09.7-CONTEXT.md
+**Last Date:** 2026-05-15T00:00:47.971Z
+**Stopped At:** Completed 09.7-01-PLAN.md
+**Resume File:** None
 
 ## Session Log
 
