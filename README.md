@@ -36,7 +36,7 @@ Inspired by Flow Launcher but intentionally smaller in scope, with a clean archi
 - **Keyboard navigation** — arrow keys, Enter, Escape
 - **Elevated launch** via Ctrl+Shift+Enter (UAC runas)
 - **System commands** — lock, shutdown, restart, sleep via `>` prefix
-- **Right-click context menu** — Settings and Quit
+- **Shortcuts** — named directory and file shortcuts surface directly in search
 - **Frameless floating window** — no taskbar entry, no tray icon
 - **Configurable global hotkey** with live rebinding
 - **Portable mode** — stores all data in `./data/` next to the exe
@@ -114,12 +114,13 @@ src-tauri/src/          — Rust backend
 
 | Action | Shortcut |
 |---|---|
-| Show / hide launcher | Configurable (default: Shift+Enter) |
+| Show / hide launcher | Configurable (default: Alt+Space) |
 | Navigate results | Arrow Up / Down |
 | Launch selected | Enter |
-| Launch as Administrator | Shift+Enter |
+| Launch as Administrator | Ctrl+Shift+Enter |
 | Dismiss | Escape |
 | System commands | Type `>` prefix (e.g. `> shutdown`) |
+| Open Settings | `Ctrl+,` or right-click → Settings |
 | Context menu | Right-click |
 
 ## Settings
@@ -128,7 +129,8 @@ Open the Settings window from the right-click context menu or by searching for "
 
 - **General** — autostart with Windows (hidden in portable mode)
 - **Hotkey** — live rebind the global shortcut
-- **Search** — additional/excluded paths, manual reindex trigger
+- **Search** — additional/excluded paths beyond Riftle's default Windows app scan locations, manual reindex trigger
+- **Shortcuts** — named directory/file shortcuts that appear directly in search results above apps
 - **Appearance** — theme, opacity, show/hide path under selected result
 
 ## License
