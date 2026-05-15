@@ -376,7 +376,7 @@ onUnmounted(() => {
 
       <Section
         title="Search"
-        description="Choose where Riftle looks for apps and which paths it should ignore while indexing."
+        description="Choose where Riftle looks for apps when building the searchable index. Add folders that contain applications or shortcuts, and exclude paths that should never be scanned."
       >
         <PathList
           label="Additional paths"
@@ -402,7 +402,7 @@ onUnmounted(() => {
 
       <Section
         title="Shortcuts"
-        description="Create named shortcuts that appear directly in search results for folders, files, or app-specific file launches."
+        description="Create named shortcuts that appear directly in search results. Use these for folders, files, or file launches that need a specific app or extra parameters."
       >
         <div class="shortcut-tabs">
           <button
