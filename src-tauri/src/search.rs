@@ -6,6 +6,8 @@ use std::path::Path;
 use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 use tauri::Manager;
 use crate::db::{AppRecord, get_all_apps};
+use crate::shortcuts::{shortcut_display_name, shortcut_id};
+use crate::store::Settings;
 
 static SYSTEM_COMMAND_ICON: &[u8] = include_bytes!("../icons/system_command.png");
 
@@ -15,6 +17,7 @@ const SYSTEM_COMMANDS: &[(&str, &str)] = &[
     ("system:restart",  "Restart"),
     ("system:sleep",    "Sleep"),
 ];
+const SEARCH_RESULT_LIMIT: usize = 50;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SearchResult {
@@ -159,8 +162,59 @@ pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
             .then_with(|| b.launch_count.cmp(&a.launch_count))
     });
 
-    scored.truncate(50);
+    scored.truncate(SEARCH_RESULT_LIMIT);
     scored.into_iter().map(|s| s.result).collect()
+}
+
+pub fn search_shortcuts(query: &str, settings: &Settings) -> Vec<SearchResult> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Vec::new();
+    }
+
+    let mut results = Vec::new();
+
+    for shortcut in &settings.directory_shortcuts {
+        let name = shortcut_display_name(&shortcut.path, &shortcut.alias);
+        if !name.to_lowercase().starts_with(&q) {
+            continue;
+        }
+
+        results.push(SearchResult {
+            id: shortcut_id("dir", &shortcut.path),
+            name,
+            icon_path: "generic.png".to_string(),
+            path: shortcut.path.clone(),
+            kind: "shortcut_dir".to_string(),
+            requires_elevation: false,
+        });
+
+        if results.len() == SEARCH_RESULT_LIMIT {
+            return results;
+        }
+    }
+
+    for shortcut in &settings.file_shortcuts {
+        let name = shortcut_display_name(&shortcut.path, &shortcut.alias);
+        if !name.to_lowercase().starts_with(&q) {
+            continue;
+        }
+
+        results.push(SearchResult {
+            id: shortcut_id("file", &shortcut.path),
+            name,
+            icon_path: "generic.png".to_string(),
+            path: shortcut.path.clone(),
+            kind: "shortcut_file".to_string(),
+            requires_elevation: false,
+        });
+
+        if results.len() == SEARCH_RESULT_LIMIT {
+            return results;
+        }
+    }
+
+    results
 }
 
 fn match_tier(q_lower: &str, name_lower: &str) -> u8 {
