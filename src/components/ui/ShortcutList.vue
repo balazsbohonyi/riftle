@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import Button from './Button.vue'
 import ShortcutForm from './ShortcutForm.vue'
 import ShortcutReadOnlyEntry from './ShortcutReadOnlyEntry.vue'
@@ -75,9 +76,19 @@ function isParameterizedExecutableTarget(path: string): boolean {
   return extension !== undefined && ['exe', 'com', 'bat', 'cmd'].includes(extension)
 }
 
-function validateDraft(draft: ShortcutEntry, originalIndex: number | null): string | null {
+async function validateDraft(draft: ShortcutEntry, originalIndex: number | null): Promise<string | null> {
   if (!draft.path.trim()) {
     return props.mode === 'directory' ? 'Directory shortcut path is required.' : 'File shortcut path is required.'
+  }
+
+  if (isTauriContext.value) {
+    const exists = await invoke<boolean>('shortcut_target_exists', {
+      path: draft.path,
+      directory: props.mode === 'directory',
+    }).catch(() => false)
+    if (!exists) {
+      return props.mode === 'directory' ? 'Directory shortcut path does not exist.' : 'File shortcut path does not exist.'
+    }
   }
 
   const pathKey = draft.path.trim().toLowerCase()
@@ -146,9 +157,9 @@ function cancelForm() {
   formError.value = null
 }
 
-function saveNew() {
+async function saveNew() {
   if (!newDraft.value) return
-  const error = validateDraft(newDraft.value, null)
+  const error = await validateDraft(newDraft.value, null)
   if (error) {
     formError.value = error
     return
@@ -158,9 +169,9 @@ function saveNew() {
   cancelForm()
 }
 
-function saveEdit() {
+async function saveEdit() {
   if (editIndex.value === null || !editDraft.value) return
-  const error = validateDraft(editDraft.value, editIndex.value)
+  const error = await validateDraft(editDraft.value, editIndex.value)
   if (error) {
     formError.value = error
     return

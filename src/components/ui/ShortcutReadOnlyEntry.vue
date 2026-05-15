@@ -77,8 +77,8 @@ function compactMiddle(value: string, maxLength = 76): string {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   font-weight: 500;
   line-height: 1.2;
   padding: 3px var(--spacing-xs);
@@ -92,6 +92,15 @@ function compactMiddle(value: string, maxLength = 76): string {
   gap: 2px;
   margin-left: auto;
   flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast);
+}
+
+.shortcut-entry:hover .shortcut-entry-actions,
+.shortcut-entry:focus-within .shortcut-entry-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .icon-btn {
@@ -123,6 +132,6 @@ function compactMiddle(value: string, maxLength = 76): string {
 }
 
 .shortcut-entry-parameters {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
 }
 </style>

@@ -307,6 +307,20 @@ onUnmounted(() => {
         <p v-if="hotkeyError" class="hotkey-error">{{ hotkeyError }}</p>
       </Section>
 
+      <Section title="Appearance">
+        <Row label="Theme">
+          <Dropdown
+            :options="[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]"
+            v-model="settings.theme"
+            @update:modelValue="onThemeChange"
+          />
+        </Row>
+
+        <Row label="Show path">
+          <Toggle v-model="settings.show_path" @update:modelValue="onShowPathChange" />
+        </Row>
+      </Section>
+
       <Section title="Search">
         <PathList
           label="Additional paths"
@@ -346,20 +360,6 @@ onUnmounted(() => {
           @change="onShortcutsChange('file_shortcuts', $event as FileShortcut[])"
         />
         <p v-if="shortcutsError" class="shortcuts-error">{{ shortcutsError }}</p>
-      </Section>
-
-      <Section title="Appearance">
-        <Row label="Theme">
-          <Dropdown
-            :options="[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]"
-            v-model="settings.theme"
-            @update:modelValue="onThemeChange"
-          />
-        </Row>
-
-        <Row label="Show path">
-          <Toggle v-model="settings.show_path" @update:modelValue="onShowPathChange" />
-        </Row>
       </Section>
 
     </div>

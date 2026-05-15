@@ -122,16 +122,14 @@ async function browsePath() {
   border-radius: var(--radius-sm);
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   padding: 0 var(--spacing-sm);
   outline: none;
 }
 
 .shortcut-input--path {
   padding-right: 72px;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
 }
 
 .shortcut-input:focus {

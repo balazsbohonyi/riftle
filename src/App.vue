@@ -512,7 +512,7 @@ async function onContextMenu(e: MouseEvent) {
   // Subtract SHADOW_PAD because transform on .launcher-app makes position:fixed
   // descendants use .launcher-app as their containing block, not the viewport.
   menuX.value = Math.min(e.clientX - SHADOW_PAD, 500 - 170)
-  menuY.value = e.clientY - SHADOW_PAD
+  menuY.value = e.clientY - SHADOW_PAD + 10
   menuVisible.value = true
   if (isTauriContext.value) {
     await nextTick()

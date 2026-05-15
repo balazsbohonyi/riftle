@@ -16,6 +16,16 @@ pub struct ShortcutLaunchResult {
     pub warning: Option<crate::warnings::BackendWarning>,
 }
 
+#[tauri::command]
+pub fn shortcut_target_exists(path: String, directory: bool) -> bool {
+    let target = Path::new(path.trim());
+    if directory {
+        target.is_dir()
+    } else {
+        target.is_file()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ShortcutTargetKind {
     Directory,
@@ -513,6 +523,30 @@ mod tests {
         let icons_dir = dir.join("icons");
         std::fs::create_dir_all(&icons_dir).unwrap();
         std::fs::write(icons_dir.join(filename), bytes).unwrap();
+    }
+
+    #[test]
+    fn shortcut_target_exists_distinguishes_files_and_directories() {
+        let temp = tempdir().unwrap();
+        let file_path = temp.path().join("config.toml");
+        std::fs::write(&file_path, "theme = 'dark'").unwrap();
+
+        assert!(shortcut_target_exists(
+            temp.path().to_string_lossy().to_string(),
+            true,
+        ));
+        assert!(shortcut_target_exists(
+            file_path.to_string_lossy().to_string(),
+            false,
+        ));
+        assert!(!shortcut_target_exists(
+            file_path.to_string_lossy().to_string(),
+            true,
+        ));
+        assert!(!shortcut_target_exists(
+            temp.path().join("missing.toml").to_string_lossy().to_string(),
+            false,
+        ));
     }
 
     #[test]
