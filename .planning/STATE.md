@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase_name: shortcuts support
-current_plan: 02
+current_plan: 3
 status: executing
-stopped_at: Completed 09.7-01-PLAN.md
-last_updated: "2026-05-15T00:00:47.975Z"
-last_activity: 2026-03-12
+stopped_at: Completed 09.7-02-PLAN.md
+last_updated: "2026-05-15T00:08:23.824Z"
+last_activity: 2026-05-15
 progress:
   total_phases: 17
   completed_phases: 12
   total_plans: 51
-  completed_plans: 46
+  completed_plans: 47
 ---
 
 ---
@@ -76,9 +76,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Phase:** 09.7-shortcuts-support
 **Current Phase Name:** shortcuts support
-**Current Plan:** 02
+**Current Plan:** 3
 **Total Plans in Phase:** 4
-**Status:** In progress
+**Status:** Ready to execute
 **Last Activity:** 2026-05-15
 **Last Activity Description:** Completed 09.7-01 backend shortcut settings contract
 
@@ -211,6 +211,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.7-shortcuts-support]: Shortcut identity uses deterministic FNV-1a hashing over the normalized path with kind prefixes.
 - [Phase 09.7-shortcuts-support]: Parameterized shortcuts are limited to .exe, .com, .bat, and .cmd targets; .lnk remains unsupported for parameters in this phase.
 - [Phase 09.7-shortcuts-support]: Parameterized executable shortcuts require an alias to avoid ambiguous display names.
+- [Phase 09.7-shortcuts-support]: Shortcut search remains prefix-only and case-insensitive; fuzzy matching stays app-only.
+- [Phase 09.7-shortcuts-support]: Shortcut rows use app-owned generic.png and stable shortcut IDs from shortcuts.rs.
+- [Phase 09.7-shortcuts-support]: The search IPC loads settings from the managed data directory and falls back to app-only results if settings loading fatally fails.
 
 ## Performance Metrics
 
@@ -258,11 +261,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.6-ux-safety-gates P04 | 4min | 1 tasks | 2 files |
 | Phase 09.6-ux-safety-gates P05 | 1min | 1 tasks | 1 files |
 | Phase 09.7-shortcuts-support P01 | 4min | 2 tasks | 3 files |
+| Phase 09.7-shortcuts-support P02 | 4min | 2 tasks | 1 files |
 
 ## Session
 
-**Last Date:** 2026-05-15T00:00:47.971Z
-**Stopped At:** Completed 09.7-01-PLAN.md
+**Last Date:** 2026-05-15T00:08:23.817Z
+**Stopped At:** Completed 09.7-02-PLAN.md
 **Resume File:** None
 
 ## Session Log
