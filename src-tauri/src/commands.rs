@@ -426,6 +426,55 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_command_helper_returns_success_for_shell_success_codes() {
+        let request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Tools\\cleanup.exe",
+            "",
+        );
+
+        let outcome = shortcut_command_outcome_from_shell_result(&request, 33);
+
+        assert!(outcome.result.success);
+        assert!(outcome.result.warning.is_none());
+        assert!(!outcome.should_hide_launcher);
+    }
+
+    #[test]
+    fn shortcut_command_helper_returns_warning_for_shell_failure_codes() {
+        let request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            "C:\\Tools\\cleanup.exe",
+            "",
+        );
+
+        let outcome = shortcut_command_outcome_from_shell_result(&request, 2);
+
+        assert!(!outcome.result.success);
+        let warning = outcome.result.warning.expect("failure should return warning");
+        assert_eq!(warning.kind, "shortcut-launch-failed");
+        assert!(warning.message.contains("ShellExecuteW code 2"));
+        assert!(!outcome.should_hide_launcher);
+    }
+
+    #[test]
+    fn shortcut_command_helper_returns_warning_for_missing_targets_without_hide() {
+        let temp = tempdir().unwrap();
+        let missing_path = temp.path().join("missing-file.exe");
+        let request = shortcut_launch_request(
+            ShortcutTargetKind::File,
+            missing_path.to_string_lossy().as_ref(),
+            "",
+        );
+
+        let outcome = shortcut_command_outcome_from_target_policy(&request);
+
+        assert!(!outcome.result.success);
+        assert!(outcome.result.warning.is_some());
+        assert!(!outcome.should_hide_launcher);
+    }
+
+    #[test]
     fn test_to_wide_null_hello() {
         let result = to_wide_null("hello");
         // "hello" = h, e, l, l, o = 5 chars + 1 null terminator = length 6
