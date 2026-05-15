@@ -376,7 +376,7 @@ onUnmounted(() => {
 
       <Section
         title="Search"
-        description="Choose where Riftle looks for apps when building the searchable index. Add folders that contain applications or shortcuts, and exclude paths that should never be scanned."
+        description="Riftle already scans the standard Windows app locations by default. Add extra folders here when you want the searchable index to include apps or shortcuts stored somewhere else, and exclude paths that should never be scanned."
       >
         <PathList
           label="Additional paths"
