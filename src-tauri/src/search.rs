@@ -1,21 +1,24 @@
 // Phase 4: Nucleo fuzzy search engine with MRU-weighted ranking
 
-use nucleo_matcher::{Matcher, Config, Utf32String, pattern::{Pattern, CaseMatching, Normalization}};
+use crate::db::{get_all_apps, AppRecord};
+use crate::shortcuts::{shortcut_display_name, shortcut_id};
+use crate::store::{load_settings_outcome, Settings, SettingsLoadOutcome};
+use nucleo_matcher::{
+    pattern::{CaseMatching, Normalization, Pattern},
+    Config, Matcher, Utf32String,
+};
 use serde::Serialize;
 use std::path::Path;
 use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 use tauri::Manager;
-use crate::db::{AppRecord, get_all_apps};
-use crate::shortcuts::{shortcut_display_name, shortcut_id};
-use crate::store::Settings;
 
 static SYSTEM_COMMAND_ICON: &[u8] = include_bytes!("../icons/system_command.png");
 
 const SYSTEM_COMMANDS: &[(&str, &str)] = &[
-    ("system:lock",     "Lock"),
+    ("system:lock", "Lock"),
     ("system:shutdown", "Shutdown"),
-    ("system:restart",  "Restart"),
-    ("system:sleep",    "Sleep"),
+    ("system:restart", "Restart"),
+    ("system:sleep", "Sleep"),
 ];
 const SEARCH_RESULT_LIMIT: usize = 50;
 
@@ -53,10 +56,7 @@ fn load_apps_for_index(
     get_all_apps(&conn)
 }
 
-fn replace_index_apps(
-    state: &SearchIndexState,
-    apps: Option<Vec<AppRecord>>,
-) -> bool {
+fn replace_index_apps(state: &SearchIndexState, apps: Option<Vec<AppRecord>>) -> bool {
     let Some(apps) = apps else {
         return false;
     };
@@ -82,7 +82,10 @@ pub fn ensure_system_command_icon(data_dir: &Path) -> std::io::Result<()> {
 pub fn init_search_index(app: &tauri::AppHandle) {
     let db_state = app.state::<crate::db::DbState>();
     let apps = load_apps_for_index(&db_state, "init_search_index").unwrap_or_else(|err| {
-        eprintln!("[search::init_search_index] failed to load apps from DB: {}", err);
+        eprintln!(
+            "[search::init_search_index] failed to load apps from DB: {}",
+            err
+        );
         Vec::new()
     });
     let index = SearchIndex { apps };
@@ -94,7 +97,10 @@ pub fn rebuild_index(app: &tauri::AppHandle) {
     let apps = match load_apps_for_index(&db_state, "rebuild_index") {
         Ok(apps) => Some(apps),
         Err(err) => {
-            eprintln!("[search::rebuild_index] failed to refresh apps from DB: {}", err);
+            eprintln!(
+                "[search::rebuild_index] failed to refresh apps from DB: {}",
+                err
+            );
             None
         }
     };
@@ -217,6 +223,46 @@ pub fn search_shortcuts(query: &str, settings: &Settings) -> Vec<SearchResult> {
     results
 }
 
+pub fn search_with_shortcuts(
+    query: &str,
+    apps: &[AppRecord],
+    settings: &Settings,
+) -> Vec<SearchResult> {
+    if query.is_empty() {
+        return Vec::new();
+    }
+    if query.starts_with('>') {
+        let suffix = query.trim_start_matches('>').trim_start();
+        return search_system_commands(suffix);
+    }
+
+    let mut results = search_shortcuts(query, settings);
+    let remaining = SEARCH_RESULT_LIMIT.saturating_sub(results.len());
+    if remaining == 0 {
+        return results;
+    }
+
+    let mut app_results = score_and_rank(query, apps);
+    app_results.truncate(remaining);
+    results.extend(app_results);
+    results
+}
+
+fn load_search_settings(data_dir: &Path) -> Option<Settings> {
+    match load_settings_outcome(data_dir) {
+        SettingsLoadOutcome::Loaded(settings)
+        | SettingsLoadOutcome::Missing(settings)
+        | SettingsLoadOutcome::RecoveredWithDefaults { settings, .. } => Some(settings),
+        SettingsLoadOutcome::FatalBackupFailure { error } => {
+            eprintln!(
+                "[search::search] failed to load shortcut settings: {}",
+                error
+            );
+            None
+        }
+    }
+}
+
 fn match_tier(q_lower: &str, name_lower: &str) -> u8 {
     if name_lower.starts_with(q_lower) {
         2
@@ -253,7 +299,11 @@ fn search_system_commands(suffix: &str) -> Vec<SearchResult> {
 }
 
 #[tauri::command]
-pub fn search(query: String, index_state: tauri::State<SearchIndexState>) -> Vec<SearchResult> {
+pub fn search(
+    query: String,
+    index_state: tauri::State<SearchIndexState>,
+    data_dir: tauri::State<std::path::PathBuf>,
+) -> Vec<SearchResult> {
     if query.is_empty() {
         return vec![];
     }
@@ -262,9 +312,12 @@ pub fn search(query: String, index_state: tauri::State<SearchIndexState>) -> Vec
         return search_system_commands(suffix);
     }
     let index = index_state.0.read().unwrap_or_else(|e| e.into_inner());
-    score_and_rank(&query, &index.apps)
+    if let Some(settings) = load_search_settings(&data_dir) {
+        search_with_shortcuts(&query, &index.apps, &settings)
+    } else {
+        score_and_rank(&query, &index.apps)
+    }
 }
-
 
 pub fn validate_icon_filename(filename: &str) -> bool {
     if filename == "generic.png" || filename == "system_command.png" {
@@ -331,7 +384,10 @@ mod tests {
         let results = search_shortcuts("wo", &settings);
 
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].id, crate::shortcuts::shortcut_id("dir", "C:\\Projects\\Riftle"));
+        assert_eq!(
+            results[0].id,
+            crate::shortcuts::shortcut_id("dir", "C:\\Projects\\Riftle")
+        );
         assert_eq!(results[0].name, "Work");
         assert_eq!(results[0].icon_path, "generic.png");
         assert_eq!(results[0].path, "C:\\Projects\\Riftle");
@@ -364,7 +420,10 @@ mod tests {
         let results = search_shortcuts("release", &settings);
 
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].id, crate::shortcuts::shortcut_id("file", "C:\\Docs\\Release Notes.pdf"));
+        assert_eq!(
+            results[0].id,
+            crate::shortcuts::shortcut_id("file", "C:\\Docs\\Release Notes.pdf")
+        );
         assert_eq!(results[0].name, "Release Notes");
         assert_eq!(results[0].kind, "shortcut_file");
         assert_eq!(results[0].path, "C:\\Docs\\Release Notes.pdf");
@@ -405,11 +464,19 @@ mod tests {
 
         assert_eq!(results.len(), 50);
         assert_eq!(
-            results.iter().filter(|result| result.kind.starts_with("shortcut_")).count(),
+            results
+                .iter()
+                .filter(|result| result.kind.starts_with("shortcut_"))
+                .count(),
             2
         );
-        assert_eq!(results.iter().filter(|result| result.kind == "app").count(), 48);
-        assert!(results[..2].iter().all(|result| result.kind == "shortcut_dir"));
+        assert_eq!(
+            results.iter().filter(|result| result.kind == "app").count(),
+            48
+        );
+        assert!(results[..2]
+            .iter()
+            .all(|result| result.kind == "shortcut_dir"));
     }
 
     #[test]
@@ -424,7 +491,9 @@ mod tests {
 
         assert!(!results.is_empty());
         assert!(results.iter().all(|result| result.kind == "system"));
-        assert!(results.iter().all(|result| !result.kind.starts_with("shortcut_")));
+        assert!(results
+            .iter()
+            .all(|result| !result.kind.starts_with("shortcut_")));
         assert!(results.iter().all(|result| result.kind != "app"));
     }
 
@@ -436,7 +505,10 @@ mod tests {
 
         let replaced = replace_index_apps(&state, None);
 
-        assert!(!replaced, "failed refresh should not replace the in-memory index");
+        assert!(
+            !replaced,
+            "failed refresh should not replace the in-memory index"
+        );
         let guard = state.0.read().unwrap();
         assert_eq!(guard.apps.len(), 1);
         assert_eq!(guard.apps[0].name, "Chrome");
@@ -446,7 +518,10 @@ mod tests {
     fn test_search_empty_returns_empty() {
         let apps = vec![make_app("chrome", "Chrome", 5)];
         let results = score_and_rank("", &apps);
-        assert!(results.is_empty(), "Empty query should return empty results");
+        assert!(
+            results.is_empty(),
+            "Empty query should return empty results"
+        );
     }
 
     #[test]
@@ -486,7 +561,10 @@ mod tests {
         let vs_pos = results2.iter().position(|r| r.name == "Visual Studio");
         let vbox_pos = results2.iter().position(|r| r.name == "VirtualBox");
         if let (Some(vs), Some(vb)) = (vs_pos, vbox_pos) {
-            assert!(vs < vb, "Visual Studio (acronym) should rank before VirtualBox (fuzzy)");
+            assert!(
+                vs < vb,
+                "Visual Studio (acronym) should rank before VirtualBox (fuzzy)"
+            );
         }
     }
 
@@ -505,10 +583,16 @@ mod tests {
         let vbox_pos = results.iter().position(|r| r.name == "VirtualBox");
         // Both acronym matches should appear before fuzzy
         if let (Some(vs), Some(vb)) = (vs_pos, vbox_pos) {
-            assert!(vs < vb, "Visual Studio (acronym) should rank before VirtualBox (fuzzy)");
+            assert!(
+                vs < vb,
+                "Visual Studio (acronym) should rank before VirtualBox (fuzzy)"
+            );
         }
         if let (Some(vs), Some(vb)) = (vstream_pos, vbox_pos) {
-            assert!(vs < vb, "Video Stream (acronym) should rank before VirtualBox (fuzzy)");
+            assert!(
+                vs < vb,
+                "Video Stream (acronym) should rank before VirtualBox (fuzzy)"
+            );
         }
         // Single-char query should NOT apply acronym tier
         let apps2 = vec![make_app("vbox", "VirtualBox", 5)];
@@ -530,7 +614,10 @@ mod tests {
         let notepadpp_pos = results.iter().position(|r| r.name == "Notepad++");
         let notepad_pos = results.iter().position(|r| r.name == "Notepad");
         if let (Some(pp), Some(np)) = (notepadpp_pos, notepad_pos) {
-            assert!(pp < np, "Notepad++ (higher launch_count) should rank before Notepad");
+            assert!(
+                pp < np,
+                "Notepad++ (higher launch_count) should rank before Notepad"
+            );
         }
     }
 
@@ -547,7 +634,11 @@ mod tests {
     #[test]
     fn test_search_system_prefix_all() {
         let results = search_system_commands("");
-        assert_eq!(results.len(), 4, "Empty suffix should return all 4 system commands");
+        assert_eq!(
+            results.len(),
+            4,
+            "Empty suffix should return all 4 system commands"
+        );
         let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
         assert!(names.contains(&"Lock"), "Should contain Lock");
         assert!(names.contains(&"Shutdown"), "Should contain Shutdown");
@@ -570,7 +661,10 @@ mod tests {
     fn test_search_system_no_space() {
         let results = search_system_commands("lo");
         assert!(!results.is_empty(), "Should return Lock for 'lo'");
-        assert!(results.iter().any(|r| r.name == "Lock"), "Should contain Lock");
+        assert!(
+            results.iter().any(|r| r.name == "Lock"),
+            "Should contain Lock"
+        );
     }
 
     #[test]
@@ -674,4 +768,3 @@ mod tests {
         assert!(validate_icon_filename("system_command.png"));
     }
 }
-
