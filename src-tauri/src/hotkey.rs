@@ -19,18 +19,19 @@ fn format_hotkey_register_error(hotkey: &str, error: impl std::fmt::Display) -> 
 }
 
 /// Registers the given hotkey string as a global shortcut that toggles launcher visibility.
-/// Returns the hotkey that was actually registered (may be the default fallback).
+/// Returns Ok(registered_hotkey) on success (may be the Alt+Space fallback),
+/// or Err(requested_hotkey) if nothing could be registered at all.
 ///
 /// When the hotkey is pressed:
 /// - If the launcher is visible → hide it immediately.
 /// - If the launcher is hidden, emit "launcher-show" so Vue clears state,
 ///   shows, centers, and focuses the input.
-pub fn register(app: &AppHandle, hotkey_str: &str) -> String {
+pub fn register(app: &AppHandle, hotkey_str: &str) -> Result<String, String> {
     let win: tauri::WebviewWindow = match app.get_webview_window("launcher") {
         Some(w) => w,
         None => {
             eprintln!("[hotkey] launcher window not found");
-            return hotkey_str.to_string();
+            return Err(hotkey_str.to_string());
         }
     };
 
@@ -50,7 +51,7 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> String {
     });
 
     match result {
-        Ok(_) => hotkey_str.to_string(),
+        Ok(_) => Ok(hotkey_str.to_string()),
         Err(e) => {
             eprintln!("[hotkey] failed to register '{}': {}", hotkey_str, e);
             const DEFAULT: &str = "Alt+Space";
@@ -58,10 +59,20 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> String {
                 eprintln!("[hotkey] falling back to '{}'", DEFAULT);
                 register(app, DEFAULT)
             } else {
-                hotkey_str.to_string()
+                Err(hotkey_str.to_string())
             }
         }
     }
+}
+
+/// Tauri command: returns and clears the startup hotkey conflict key (if any).
+/// Settings.vue calls this in onMounted to detect a conflict that occurred before the
+/// webview was ready to receive events.
+#[tauri::command]
+pub fn get_startup_hotkey_conflict(
+    state: tauri::State<'_, crate::HotkeyConflictState>,
+) -> Option<String> {
+    state.0.lock().unwrap_or_else(|e| e.into_inner()).take()
 }
 
 /// Tauri command: registers the new hotkey first; if that succeeds, unregisters the old one.

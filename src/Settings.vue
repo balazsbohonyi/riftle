@@ -45,10 +45,12 @@ const activeShortcutTab = ref<'directory' | 'file'>('directory')
 const directoryShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const fileShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const settingsContentRef = ref<HTMLElement | null>(null)
+const hotkeyRowRef = ref<HTMLElement | null>(null)
 const isSettingsScrolling = ref(false)
 const settingsScrollThumbTop = ref(0)
 const settingsScrollThumbHeight = ref(0)
 let settingsScrollTimer: number | undefined
+let unlistenConflictRef: (() => void) | undefined  // unused, kept for cleanup safety
 
 const settingsScrollThumbStyle = computed(() => ({
   height: `${settingsScrollThumbHeight.value}px`,
@@ -108,6 +110,21 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error('Failed to load settings:', e)
+  }
+
+  // Pull any startup hotkey conflict from Rust managed state.
+  // Event-based approach is unreliable — the webview loads after the setup() callback fires,
+  // so events emitted during setup are lost before the listener is registered.
+  try {
+    const conflictKey = await invoke<string | null>('get_startup_hotkey_conflict')
+    if (conflictKey) {
+      hotkeyError.value = `'${conflictKey}' is already in use by another app — please set a different hotkey`
+      nextTick(() => {
+        hotkeyRowRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    }
+  } catch (e) {
+    console.error('Failed to check startup hotkey conflict:', e)
   }
 })
 
@@ -312,6 +329,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.clearTimeout(settingsScrollTimer)
   void setHotkeyCaptureActive(false)
+  unlistenConflictRef?.()
 })
 </script>
 
@@ -341,7 +359,7 @@ onUnmounted(() => {
       </Section>
 
       <Section title="Hotkey">
-        <Row label="Global shortcut">
+        <Row label="Global shortcut" ref="hotkeyRowRef">
           <div class="hotkey-row">
             <button
               v-if="settings.hotkey !== 'Ctrl+Alt+Space'"
