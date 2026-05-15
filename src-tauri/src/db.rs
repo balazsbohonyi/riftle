@@ -179,6 +179,12 @@ pub fn get_all_apps(conn: &Connection) -> Result<Vec<AppRecord>> {
     rows.collect()
 }
 
+/// Returns the number of rows in the apps table.
+/// Used at startup to decide between immediate and deferred background indexing.
+pub fn count_apps(conn: &Connection) -> rusqlite::Result<i64> {
+    conn.query_row("SELECT COUNT(*) FROM apps", [], |row| row.get(0))
+}
+
 /// Increments launch_count by 1 and sets last_launched to current Unix timestamp for the app with id.
 /// Uses std::time (no chrono crate) per RESEARCH.md note.
 pub fn increment_launch_count(conn: &Connection, id: &str) -> Result<()> {
@@ -361,5 +367,28 @@ mod tests {
         assert!(init_db(&db_path).is_err());
         assert_eq!(fs::read_to_string(&db_path).unwrap(), original);
         cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn test_count_apps_empty() {
+        let conn = setup();
+        assert_eq!(count_apps(&conn).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_count_apps_returns_correct_count() {
+        let conn = setup();
+        for i in 0..2u8 {
+            upsert_app(&conn, &AppRecord {
+                id: format!("app{i}"),
+                name: format!("App {i}"),
+                path: format!("C:\\app{i}.exe"),
+                icon_path: None,
+                source: "test".to_string(),
+                last_launched: None,
+                launch_count: 0,
+            }).unwrap();
+        }
+        assert_eq!(count_apps(&conn).unwrap(), 2);
     }
 }
