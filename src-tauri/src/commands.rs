@@ -9,6 +9,8 @@ use tauri::Manager;
 const GENERIC_ICON_FILENAME: &str = "generic.png";
 const SE_ERR_NOASSOC_CODE: isize = 31;
 const SHELL_SUCCESS_MIN_CODE: isize = 32;
+const SW_SHOWNORMAL: i32 = 1;
+const SW_SHOWNOACTIVATE: i32 = 4;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ShortcutLaunchResult {
@@ -94,6 +96,14 @@ fn shortcut_launch_request(
         path: path.to_string(),
         parameters,
         is_parameter_capable_executable,
+    }
+}
+
+fn shortcut_show_command(request: &ShortcutLaunchRequest) -> i32 {
+    if request.kind == ShortcutTargetKind::File && !request.is_parameter_capable_executable {
+        SW_SHOWNOACTIVATE
+    } else {
+        SW_SHOWNORMAL
     }
 }
 
@@ -233,7 +243,7 @@ fn shell_execute_shortcut(
             file.as_ptr(),
             parameter_ptr,
             std::ptr::null(),
-            1,
+            shortcut_show_command(request),
         )
     };
 
@@ -535,6 +545,20 @@ mod tests {
         assert_eq!(exe_request.parameters.as_deref(), Some("--all --quiet"));
         assert_eq!(document_request.parameters, None);
         assert_eq!(lnk_request.parameters, None);
+    }
+
+    #[test]
+    fn shortcut_document_launches_do_not_request_window_activation() {
+        let document_request =
+            shortcut_launch_request(ShortcutTargetKind::File, "C:\\Docs\\config.toml", "");
+        let exe_request =
+            shortcut_launch_request(ShortcutTargetKind::File, "C:\\Tools\\cleanup.exe", "");
+        let dir_request =
+            shortcut_launch_request(ShortcutTargetKind::Directory, "C:\\Projects", "");
+
+        assert_eq!(shortcut_show_command(&document_request), SW_SHOWNOACTIVATE);
+        assert_eq!(shortcut_show_command(&exe_request), SW_SHOWNORMAL);
+        assert_eq!(shortcut_show_command(&dir_request), SW_SHOWNORMAL);
     }
 
     #[test]
