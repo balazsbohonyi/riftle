@@ -1,11 +1,40 @@
 // Phase 6: Launch commands - launch(id), launch_elevated(id) via ShellExecuteW
 
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::{MutexGuard, PoisonError};
 use std::time::Duration;
 use tauri::Manager;
 
 const GENERIC_ICON_FILENAME: &str = "generic.png";
+const SE_ERR_NOASSOC_CODE: isize = 31;
+const SHELL_SUCCESS_MIN_CODE: isize = 32;
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ShortcutLaunchResult {
+    pub success: bool,
+    pub warning: Option<crate::warnings::BackendWarning>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShortcutTargetKind {
+    Directory,
+    File,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShortcutLaunchRequest {
+    kind: ShortcutTargetKind,
+    path: String,
+    parameters: Option<String>,
+    is_parameter_capable_executable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShortcutShellFailureAction {
+    OpenWith,
+    Warn,
+}
 
 fn lock_db<'a>(
     db_state: &'a crate::db::DbState,
@@ -15,6 +44,125 @@ fn lock_db<'a>(
         eprintln!("[{context}] recovering from poisoned DB mutex");
         err.into_inner()
     })
+}
+
+fn shortcut_launch_warning(title: &str, message: String) -> crate::warnings::BackendWarning {
+    crate::warnings::BackendWarning {
+        kind: "shortcut-launch-failed".to_string(),
+        title: title.to_string(),
+        message,
+        backup_path: None,
+    }
+}
+
+fn shortcut_launch_failure(title: &str, message: String) -> ShortcutLaunchResult {
+    ShortcutLaunchResult {
+        success: false,
+        warning: Some(shortcut_launch_warning(title, message)),
+    }
+}
+
+fn shortcut_launch_success() -> ShortcutLaunchResult {
+    ShortcutLaunchResult {
+        success: true,
+        warning: None,
+    }
+}
+
+fn shortcut_launch_request(
+    kind: ShortcutTargetKind,
+    path: &str,
+    raw_parameters: &str,
+) -> ShortcutLaunchRequest {
+    let trimmed_parameters = raw_parameters.trim();
+    let is_parameter_capable_executable =
+        kind == ShortcutTargetKind::File
+            && crate::shortcuts::is_parameterized_executable_target(path);
+    let parameters = if is_parameter_capable_executable && !trimmed_parameters.is_empty() {
+        Some(raw_parameters.to_string())
+    } else {
+        None
+    };
+
+    ShortcutLaunchRequest {
+        kind,
+        path: path.to_string(),
+        parameters,
+        is_parameter_capable_executable,
+    }
+}
+
+fn resolve_shortcut_from_settings(
+    settings: &crate::store::Settings,
+    id: &str,
+) -> Option<ShortcutLaunchRequest> {
+    for shortcut in &settings.directory_shortcuts {
+        if crate::shortcuts::shortcut_id("dir", &shortcut.path) == id {
+            return Some(shortcut_launch_request(
+                ShortcutTargetKind::Directory,
+                &shortcut.path,
+                "",
+            ));
+        }
+    }
+
+    for shortcut in &settings.file_shortcuts {
+        if crate::shortcuts::shortcut_id("file", &shortcut.path) == id {
+            return Some(shortcut_launch_request(
+                ShortcutTargetKind::File,
+                &shortcut.path,
+                &shortcut.parameters,
+            ));
+        }
+    }
+
+    None
+}
+
+fn evaluate_shortcut_target_policy(request: &ShortcutLaunchRequest) -> ShortcutLaunchResult {
+    if !Path::new(&request.path).exists() {
+        return shortcut_launch_failure(
+            "Shortcut target is missing",
+            format!("Shortcut target does not exist: {}", request.path),
+        );
+    }
+
+    shortcut_launch_success()
+}
+
+fn shortcut_shell_failed(shell_result: isize) -> bool {
+    shell_result <= SHELL_SUCCESS_MIN_CODE
+}
+
+fn shortcut_shell_failure_action(
+    request: &ShortcutLaunchRequest,
+    shell_result: isize,
+) -> ShortcutShellFailureAction {
+    if shell_result == SE_ERR_NOASSOC_CODE
+        && request.kind == ShortcutTargetKind::File
+        && !request.is_parameter_capable_executable
+    {
+        ShortcutShellFailureAction::OpenWith
+    } else {
+        ShortcutShellFailureAction::Warn
+    }
+}
+
+fn shortcut_shell_policy_result(
+    request: &ShortcutLaunchRequest,
+    shell_result: isize,
+) -> ShortcutLaunchResult {
+    if !shortcut_shell_failed(shell_result) {
+        return shortcut_launch_success();
+    }
+
+    shortcut_launch_failure(
+        "Shortcut launch failed",
+        format!(
+            "Windows could not open shortcut target {} (ShellExecuteW code {}).",
+            request.path, shell_result
+        ),
+    )
 }
 
 #[tauri::command]
