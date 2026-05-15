@@ -206,7 +206,16 @@ fn shortcut_settings_load_result(
     }
 }
 
-fn shell_execute_shortcut(request: &ShortcutLaunchRequest) -> isize {
+fn launcher_hwnd(app: &tauri::AppHandle) -> Option<*mut std::ffi::c_void> {
+    app.get_webview_window("launcher")
+        .and_then(|window| window.hwnd().ok())
+        .map(|hwnd| hwnd.0)
+}
+
+fn shell_execute_shortcut(
+    request: &ShortcutLaunchRequest,
+    owner_hwnd: Option<*mut std::ffi::c_void>,
+) -> isize {
     let file = to_wide_null(&request.path);
     let parameters = request
         .parameters
@@ -219,7 +228,7 @@ fn shell_execute_shortcut(request: &ShortcutLaunchRequest) -> isize {
 
     let result = unsafe {
         windows_sys::Win32::UI::Shell::ShellExecuteW(
-            0,
+            owner_hwnd.map(|hwnd| hwnd as isize).unwrap_or(0),
             std::ptr::null(),
             file.as_ptr(),
             parameter_ptr,
@@ -231,7 +240,10 @@ fn shell_execute_shortcut(request: &ShortcutLaunchRequest) -> isize {
     result as isize
 }
 
-fn open_with_dialog(request: &ShortcutLaunchRequest) -> ShortcutLaunchResult {
+fn open_with_dialog(
+    request: &ShortcutLaunchRequest,
+    owner_hwnd: Option<*mut std::ffi::c_void>,
+) -> ShortcutLaunchResult {
     let file = to_wide_null(&request.path);
     let info = windows::Win32::UI::Shell::OPENASINFO {
         pcszFile: windows::core::PCWSTR(file.as_ptr()),
@@ -241,7 +253,7 @@ fn open_with_dialog(request: &ShortcutLaunchRequest) -> ShortcutLaunchResult {
 
     let result = unsafe {
         windows::Win32::UI::Shell::SHOpenWithDialog(
-            windows::Win32::Foundation::HWND(std::ptr::null_mut()),
+            windows::Win32::Foundation::HWND(owner_hwnd.unwrap_or(std::ptr::null_mut())),
             &info,
         )
     };
@@ -261,7 +273,7 @@ fn open_with_dialog(request: &ShortcutLaunchRequest) -> ShortcutLaunchResult {
 #[tauri::command]
 pub fn launch_shortcut(
     id: String,
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     data_dir: tauri::State<PathBuf>,
 ) -> Result<ShortcutLaunchResult, String> {
     let settings = match shortcut_settings_load_result(data_dir.inner().as_path()) {
@@ -280,14 +292,15 @@ pub fn launch_shortcut(
         return Ok(target_outcome.result);
     }
 
-    let shell_result = shell_execute_shortcut(&request);
+    let owner_hwnd = launcher_hwnd(&app);
+    let shell_result = shell_execute_shortcut(&request, owner_hwnd);
     if !shortcut_shell_failed(shell_result) {
         return Ok(shortcut_command_outcome_from_shell_result(&request, shell_result).result);
     }
 
     if shortcut_shell_failure_action(&request, shell_result) == ShortcutShellFailureAction::OpenWith
     {
-        return Ok(open_with_dialog(&request));
+        return Ok(open_with_dialog(&request, owner_hwnd));
     }
 
     Ok(shortcut_command_outcome_from_shell_result(&request, shell_result).result)
