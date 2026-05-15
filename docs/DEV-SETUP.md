@@ -136,3 +136,26 @@ Or download from https://wixtoolset.org/
 
 > **Tip:** You can skip this entirely during early development. NSIS (`.exe` installer) builds work out of the box with `pnpm tauri build` without WiX.
 
+---
+
+## 8. App Icons
+
+Riftle uses the Tauri CLI to generate icons for all platforms from a single source image.
+
+1. Place a high-resolution (**1024x1024**) PNG in the project root.
+2. The current source file is expected to be named `riftle-icon.png`.
+3. Run the following command to regenerate all icon formats (ico, icns, png) in `src-tauri/icons/`:
+
+```powershell
+pnpm tauri icon ./riftle-icon.png
+```
+
+### Troubleshooting Stale Icons
+If you run `pnpm tauri dev` and still see the old icon (especially in the system tray), try the following:
+
+1. **Clean Rust Cache:** Tauri embeds icons at compile time. Force a rebuild of the backend:
+   ```powershell
+   cd src-tauri; cargo clean -p riftle; cd ..; pnpm tauri dev
+   ```
+2. **Windows Icon Cache:** Windows often caches tray icons. If the files in `src-tauri/icons/` look correct but the app doesn't show them, try changing the `version` in `src-tauri/tauri.conf.json` slightly to force Windows to refresh its cache.
+

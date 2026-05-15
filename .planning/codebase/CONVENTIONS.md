@@ -57,6 +57,13 @@
 - Background work is spawned to avoid blocking UI commands.
 - Evidence: threads in `src-tauri/src/indexer.rs` and command execution flow in `src-tauri/src/commands.rs`.
 
+## Assets and Icons
+- Application icons are managed via the Tauri CLI.
+- Evidence: `src-tauri/icons/` contains multi-format assets generated from a single high-res source.
+- Source icon: A 1024x1024 PNG in the root (currently `riftle-icon.png`).
+- Generation: Use `pnpm tauri icon ./riftle-icon.png` to ensure consistent branding across desktop, taskbar, system tray, and installers.
+- Troubleshooting: If icons are stale in development, clean the Rust build cache with `cargo clean -p riftle` to force re-embedding of assets.
+
 ## Observed Convention Risks
 - Logging is mostly ad-hoc `println!/eprintln!`; no structured logging layer yet.
 - Evidence: repeated `eprintln!` use across `src-tauri/src/*.rs`.

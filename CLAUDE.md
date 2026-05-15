@@ -22,6 +22,10 @@ cd src-tauri && cargo test
 # Run a specific Rust test
 cd src-tauri && cargo test test_search_prefix_beats_fuzzy
 
+# Generate app icons (requires a high-res 1024x1024 ./riftle-icon.png)
+pnpm tauri icon ./riftle-icon.png
+# If icons are stale in dev, clean cache: cd src-tauri && cargo clean -p riftle
+
 # Build release installer (NSIS + MSI in src-tauri/target/release/bundle/)
 pnpm tauri build
 ```
