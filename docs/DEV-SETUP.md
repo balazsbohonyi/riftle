@@ -143,11 +143,11 @@ Or download from https://wixtoolset.org/
 Riftle uses the Tauri CLI to generate icons for all platforms from a single source image.
 
 1. Place a high-resolution (**1024x1024**) PNG in the project root.
-2. The current source file is expected to be named `riftle-icon.png`.
+2. The current source file is expected to be named `app-icon.png`.
 3. Run the following command to regenerate all icon formats (ico, icns, png) in `src-tauri/icons/`:
 
 ```powershell
-pnpm tauri icon ./riftle-icon.png
+pnpm tauri icon ./app-icon.png
 # Also replace internal placeholders with the generated 32x32 version
 cp src-tauri/icons/32x32.png src-tauri/icons/generic.png
 cp src-tauri/icons/32x32.png src-tauri/icons/system_command.png

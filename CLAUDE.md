@@ -22,8 +22,8 @@ cd src-tauri && cargo test
 # Run a specific Rust test
 cd src-tauri && cargo test test_search_prefix_beats_fuzzy
 
-# Generate app icons (requires a high-res 1024x1024 ./riftle-icon.png)
-pnpm tauri icon ./riftle-icon.png
+# Generate app icons (requires a high-res 1024x1024 ./app-icon.png)
+pnpm tauri icon ./app-icon.png
 # Also replace internal placeholders with the generated 32x32 version
 cp src-tauri/icons/32x32.png src-tauri/icons/generic.png
 cp src-tauri/icons/32x32.png src-tauri/icons/system_command.png
