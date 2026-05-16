@@ -62,7 +62,7 @@
 - Evidence: `src-tauri/icons/` contains multi-format assets generated from a single high-res source.
 - Source icon: A 1024x1024 PNG in the root (currently `riftle-icon.png`).
 - Generation: Use `pnpm tauri icon ./riftle-icon.png`.
-- Internal Assets: Manually replace `src-tauri/icons/generic.png` and `src-tauri/icons/system_command.png` with the custom icon, as these are bundled via `include_bytes!`.
+- Internal Assets: Manually replace `src-tauri/icons/generic.png` and `src-tauri/icons/system_command.png` with the generated `src-tauri/icons/32x32.png` version, as these are bundled via `include_bytes!`. Using a high-res image here would unnecessarily bloat the binary.
 - Troubleshooting: If icons are stale in development, clean the Rust build cache with `cargo clean -p riftle` to force re-embedding of assets.
 
 ## Observed Convention Risks

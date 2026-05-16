@@ -148,9 +148,9 @@ Riftle uses the Tauri CLI to generate icons for all platforms from a single sour
 
 ```powershell
 pnpm tauri icon ./riftle-icon.png
-# Also replace internal placeholders
-cp ./riftle-icon.png src-tauri/icons/generic.png
-cp ./riftle-icon.png src-tauri/icons/system_command.png
+# Also replace internal placeholders with the generated 32x32 version
+cp src-tauri/icons/32x32.png src-tauri/icons/generic.png
+cp src-tauri/icons/32x32.png src-tauri/icons/system_command.png
 ```
 
 ### Troubleshooting Stale Icons
