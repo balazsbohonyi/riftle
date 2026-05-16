@@ -69,6 +69,7 @@ const settings = ref<SettingsData>({
   theme: 'system',
 
   show_path: false,
+  play_sound: true,
   autostart: false,
   additional_paths: [],
   excluded_paths: [],
@@ -91,6 +92,7 @@ onMounted(async () => {
       theme: response.theme,
 
       show_path: response.show_path,
+      play_sound: response.play_sound ?? true,
       autostart: response.can_autostart ? response.autostart : false,
       additional_paths: response.additional_paths,
       excluded_paths: response.excluded_paths,

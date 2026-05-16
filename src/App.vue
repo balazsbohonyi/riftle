@@ -42,7 +42,7 @@ const SHADOW_PAD = 32
 const WINDOW_WIDTH = 564
 const SEARCH_AREA_HEIGHT = 56
 const RESULT_ROW_HEIGHT = 48
-const RESULT_PANEL_VERTICAL_PAD = 16
+const RESULT_PANEL_VERTICAL_PAD = 24
 const MAX_VISIBLE_RESULTS = 5
 
 // ---- State ----
@@ -64,6 +64,7 @@ const resultPanelOpen = ref(false)
 const resultPanelRendered = ref(false)
 const renderedResults = ref<SearchResult[]>([])
 const suppressResultPanelTransition = ref(false)
+const suppressSelectionTransition = ref(false)
 const scrollerScrollTop = ref(0)
 
 const iconRequests = new Map<string, Promise<string>>()
@@ -325,21 +326,29 @@ watch(selectedIndex, (newIdx, oldIdx) => {
     const isLoopingDown = oldIdx === results.value.length - 1 && newIdx === 0
     const isLoopingUp = oldIdx === 0 && newIdx === results.value.length - 1
 
-    if (isLoopingDown) {
-      scrollerRef.value.scrollToPosition(0)
-      return
-    }
-    if (isLoopingUp) {
-      const maxScroll = (results.value.length * RESULT_ROW_HEIGHT) - viewportHeight
-      scrollerRef.value.scrollToPosition(maxScroll)
+    if (isLoopingDown || isLoopingUp) {
+      suppressSelectionTransition.value = true
+      
+      if (isLoopingDown) {
+        scroller.scrollTo({ top: 0, behavior: 'instant' })
+      } else {
+        const maxScroll = (results.value.length * RESULT_ROW_HEIGHT) - viewportHeight
+        scroller.scrollTo({ top: maxScroll, behavior: 'instant' })
+      }
+      
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          suppressSelectionTransition.value = false
+        })
+      })
       return
     }
 
     // Normal scrolling
     if (itemTop < scrollTop) {
-      scrollerRef.value.scrollToPosition(itemTop)
+      scroller.scrollTo({ top: itemTop, behavior: 'smooth' })
     } else if (itemBottom > scrollTop + viewportHeight) {
-      scrollerRef.value.scrollToPosition(itemBottom - viewportHeight)
+      scroller.scrollTo({ top: itemBottom - viewportHeight, behavior: 'smooth' })
     }
   }
 })
@@ -830,6 +839,7 @@ onUnmounted(() => {
         >
           <div
             class="selection-bar"
+            :class="{ 'selection-bar--no-transition': suppressSelectionTransition }"
             :style="{
               transform: `translateY(${selectedIndex * RESULT_ROW_HEIGHT}px)`
             }"
@@ -1070,7 +1080,7 @@ html, body {
 .divider {
   height: 1px;
   background: var(--color-divider);
-  margin: 0;
+  margin: 0 0 8px 0;
 }
 
 /* ---- Result list ---- */
@@ -1116,6 +1126,10 @@ html, body {
   border-radius: var(--radius-sm);
   transition: transform var(--duration-fast) cubic-bezier(0.2, 0, 0, 1), opacity var(--duration-fast) ease;
   z-index: 0;
+}
+
+.selection-bar--no-transition {
+  transition: none !important;
 }
 
 /* ---- Result row ---- */

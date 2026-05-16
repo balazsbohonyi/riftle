@@ -870,12 +870,12 @@ pub(crate) fn extract_icon_png(source: &IconSource) -> Option<Vec<u8>> {
                     Ok(f) => f,
                     Err(_) => return None,
                 };
-                let hbitmap = match factory.GetImage(SIZE { cx: 32, cy: 32 }, SIIGBF_RESIZETOFIT) {
-                    Ok(b) => b,
+                let hbitmap_isize = match factory.GetImage(SIZE { cx: 32, cy: 32 }, SIIGBF_RESIZETOFIT) {
+                    Ok(b) => b.0 as isize,
                     Err(_) => return None,
                 };
-                let res = icon_png_from_hbitmap(hbitmap.0 as isize);
-                DeleteObject(hbitmap.0 as isize);
+                let res = icon_png_from_hbitmap(hbitmap_isize);
+                DeleteObject(hbitmap_isize);
                 res
             }
         }
