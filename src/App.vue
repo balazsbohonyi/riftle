@@ -7,6 +7,7 @@ import { LogicalSize } from '@tauri-apps/api/dpi'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import magnifierIcon from './assets/magnifier.svg'
+import launcherOpenSound from './assets/sounds/launcher_open.wav'
 
 interface SearchResult {
   id: string
@@ -50,6 +51,7 @@ const results       = ref<SearchResult[]>([])
 const selectedIndex = ref(0)
 const adminMode     = ref(false)
 const showPath      = ref(false)
+const playSound     = ref(true)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
 const confirmBtnRef = ref<HTMLButtonElement | null>(null)
@@ -600,6 +602,8 @@ async function hideWindow() {
   }
 }
 
+const launcherAudio = new Audio(launcherOpenSound)
+
 // ---- Lifecycle ----
 onMounted(async () => {
   console.log('[App] onMounted called')
@@ -612,12 +616,14 @@ onMounted(async () => {
       const settings = await invoke<{
         show_path: boolean
         theme: string
+        play_sound: boolean
       }>('get_settings_cmd')
       showPath.value = settings.show_path
+      playSound.value = settings.play_sound ?? true
       if (settings.theme) applyTheme(settings.theme)
       await loadIconUrl(GENERIC_ICON_FILENAME)
 
-      console.log('[App] settings loaded:', { showPath: showPath.value })
+      console.log('[App] settings loaded:', { showPath: showPath.value, playSound: playSound.value })
     } catch (e) {
       console.warn('[launcher] get_settings_cmd failed, using defaults:', e)
     }
@@ -657,6 +663,10 @@ onMounted(async () => {
 
   if (isTauriContext.value) {
     unlistenShow = await listen('launcher-show', async () => {
+      if (playSound.value) {
+        launcherAudio.currentTime = 0
+        launcherAudio.play().catch(e => console.warn('[App] play sound failed:', e))
+      }
       menuVisible.value = false
       confirmPending.value = false
       pendingCommand.value = null
@@ -675,9 +685,10 @@ onMounted(async () => {
   }
 
   if (isTauriContext.value) {
-    unlistenSettings = await listen<SettingsPayload>('settings-changed', ({ payload }) => {
+    unlistenSettings = await listen<SettingsPayload & { play_sound?: boolean }>('settings-changed', ({ payload }) => {
       if (payload.theme !== undefined) applyTheme(payload.theme)
       if (payload.show_path !== undefined) showPath.value = payload.show_path
+      if (payload.play_sound !== undefined) playSound.value = payload.play_sound
     })
   }
 })

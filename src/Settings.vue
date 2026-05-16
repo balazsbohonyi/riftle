@@ -15,6 +15,7 @@ import Button from './components/ui/Button.vue'
 interface SettingsData {
   hotkey: string
   theme: string
+  play_sound: boolean
 
   show_path: boolean
   autostart: boolean
@@ -308,6 +309,12 @@ async function onShowPathChange(v: boolean) {
   await emitTo('launcher', 'settings-changed', { show_path: v }).catch(console.error)
 }
 
+async function onPlaySoundChange(v: boolean) {
+  settings.value.play_sound = v
+  await saveSettings()
+  await emitTo('launcher', 'settings-changed', { play_sound: v }).catch(console.error)
+}
+
 async function closeWindow() {
   let shouldRestoreLauncher = true
   if (isTauriContext.value) {
@@ -355,6 +362,9 @@ onUnmounted(() => {
             :disabled="!canAutostart"
             @update:modelValue="onAutostartChange"
           />
+        </Row>
+        <Row label="Play sound on open">
+          <Toggle v-model="settings.play_sound" @update:modelValue="onPlaySoundChange" />
         </Row>
       </Section>
 

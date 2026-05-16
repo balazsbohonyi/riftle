@@ -1239,15 +1239,14 @@ mod tests {
         // Verifies that receiving SetInterval(5) arms the deadline and SetInterval(0) clears it.
         // Will PASS once TimerMsg enum and new loop are added in Plan 02.
         // For now the test uses the same inline logic expression to document the contract.
+        
+        // Initial state
         let mut interval_mins: u32 = 15;
-        let mut deadline: Option<std::time::Instant> = Some(
-            std::time::Instant::now() + std::time::Duration::from_secs(interval_mins as u64 * 60),
-        );
 
         // Simulate SetInterval(5)
         let new_interval: u32 = 5;
         interval_mins = new_interval;
-        deadline = if new_interval == 0 {
+        let mut deadline = if new_interval == 0 {
             None
         } else {
             Some(

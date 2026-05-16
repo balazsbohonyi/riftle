@@ -18,6 +18,8 @@ pub struct Settings {
     #[serde(default = "default_theme")]
     pub theme: String,
 
+    #[serde(default = "default_play_sound")]
+    pub play_sound: bool,
 
     #[serde(default)]
     pub show_path: bool,       // false by default
@@ -49,6 +51,7 @@ pub struct Settings {
 
 fn default_hotkey() -> String { "Ctrl+Alt+Space".to_string() }
 fn default_theme() -> String { "system".to_string() }
+fn default_play_sound() -> bool { true }
 
 fn default_reindex_interval() -> u32 { 15 }
 fn default_system_tool_allowlist() -> Vec<String> {
@@ -79,6 +82,7 @@ impl Default for Settings {
         Self {
             hotkey: default_hotkey(),
             theme: default_theme(),
+            play_sound: default_play_sound(),
 
             show_path: false,
             autostart: false,
@@ -247,6 +251,7 @@ pub fn get_settings_cmd(
     serde_json::json!({
         "hotkey": settings.hotkey,
         "theme": settings.theme,
+        "play_sound": settings.play_sound,
 
         "show_path": settings.show_path,
         "autostart": settings.autostart,
@@ -319,6 +324,7 @@ mod tests {
         let s = Settings::default();
         assert_eq!(s.hotkey, "Ctrl+Alt+Space");
         assert_eq!(s.theme, "system");
+        assert!(s.play_sound);
 
         assert!(!s.show_path);
         assert!(!s.autostart);
@@ -334,6 +340,7 @@ mod tests {
         let deserialized: Settings = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized.hotkey, original.hotkey);
         assert_eq!(deserialized.theme, original.theme);
+        assert_eq!(deserialized.play_sound, original.play_sound);
 
         assert_eq!(deserialized.show_path, original.show_path);
         assert_eq!(deserialized.autostart, original.autostart);
@@ -347,6 +354,7 @@ mod tests {
         let s: Settings = serde_json::from_str(partial).unwrap();
         assert_eq!(s.hotkey, "Ctrl+Alt+Space");
         assert_eq!(s.theme, "system");          // from serde default
+        assert!(s.play_sound);                  // from serde default
         assert_eq!(s.reindex_interval, 15);     // from serde default
         assert!(!s.show_path);                  // bool default
     }
@@ -388,6 +396,7 @@ mod tests {
         let json = serde_json::json!({
             "hotkey": s.hotkey,
             "theme": s.theme,
+            "play_sound": s.play_sound,
             "show_path": s.show_path,
             "autostart": s.autostart,
             "additional_paths": s.additional_paths,
@@ -443,6 +452,7 @@ mod tests {
         let json = serde_json::json!({
             "hotkey": s.hotkey,
             "theme": s.theme,
+            "play_sound": s.play_sound,
             "show_path": s.show_path,
             "autostart": s.autostart,
             "additional_paths": s.additional_paths,
