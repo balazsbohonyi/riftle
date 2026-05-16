@@ -24,6 +24,9 @@ cd src-tauri && cargo test test_search_prefix_beats_fuzzy
 
 # Generate app icons (requires a high-res 1024x1024 ./riftle-icon.png)
 pnpm tauri icon ./riftle-icon.png
+# Also replace internal placeholders
+cp ./riftle-icon.png src-tauri/icons/generic.png
+cp ./riftle-icon.png src-tauri/icons/system_command.png
 # If icons are stale in dev, clean cache: cd src-tauri && cargo clean -p riftle
 
 # Build release installer (NSIS + MSI in src-tauri/target/release/bundle/)

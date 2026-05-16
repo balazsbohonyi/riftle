@@ -61,7 +61,8 @@
 - Application icons are managed via the Tauri CLI.
 - Evidence: `src-tauri/icons/` contains multi-format assets generated from a single high-res source.
 - Source icon: A 1024x1024 PNG in the root (currently `riftle-icon.png`).
-- Generation: Use `pnpm tauri icon ./riftle-icon.png` to ensure consistent branding across desktop, taskbar, system tray, and installers.
+- Generation: Use `pnpm tauri icon ./riftle-icon.png`.
+- Internal Assets: Manually replace `src-tauri/icons/generic.png` and `src-tauri/icons/system_command.png` with the custom icon, as these are bundled via `include_bytes!`.
 - Troubleshooting: If icons are stale in development, clean the Rust build cache with `cargo clean -p riftle` to force re-embedding of assets.
 
 ## Observed Convention Risks
