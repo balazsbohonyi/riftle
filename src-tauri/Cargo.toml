@@ -53,6 +53,9 @@ windows = { version = "0.58", features = [
   "Win32_Storage_FileSystem", # WIN32_FIND_DATAW (required by IShellLinkW::GetPath)
   "Win32_Graphics_Dwm",       # DwmSetWindowAttribute — disable DWM border on launcher
   "Win32_UI_Controls",        # SetWindowSubclass, DefSubclassProc — swallow SC_KEYMENU on settings window
+  "Win32_UI_Shell_PropertiesSystem", # PKEY_AppUserModel_ID, IPropertyStore
+  "Win32_Storage_EnhancedStorage",    # PKEY_AppUserModel_ID
+  "Win32_Graphics_Gdi",               # HBITMAP
 ] }
 rayon = "^1"
 image = { version = "^0.25", default-features = false, features = ["png"] }

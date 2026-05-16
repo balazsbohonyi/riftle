@@ -204,7 +204,7 @@ fn ensure_shortcut_icon_file(
     std::fs::create_dir_all(&icons_dir).ok()?;
     let path = Path::new(source_path);
     let bytes = if is_executable {
-        crate::indexer::extract_icon_png(path)
+        crate::indexer::extract_icon_png(&crate::indexer::IconSource::File(path.to_path_buf()))
             .or_else(|| crate::indexer::extract_shell_icon_png(path, false))
     } else {
         crate::indexer::extract_shell_icon_png(path, is_directory)
