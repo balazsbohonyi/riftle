@@ -8,6 +8,8 @@ use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+#[cfg(not(target_os = "windows"))]
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 /// Tracks whether the settings window has been centered this session.
 /// First open: center then show. Subsequent opens: show at current position.
@@ -15,6 +17,10 @@ struct SettingsCentered(AtomicBool);
 struct SettingsCloseBehavior(AtomicBool);
 pub(crate) struct HotkeyCaptureActive(pub AtomicBool);
 pub(crate) struct HotkeyConflictState(pub Mutex<Option<String>>);
+
+const ALREADY_RUNNING_TITLE: &str = "Riftle is already running";
+const ALREADY_RUNNING_MESSAGE: &str =
+    "Riftle is already running. Use the tray icon or your configured shortcut to open the existing instance.";
 
 #[derive(Debug)]
 enum StartupSettingsAction {
@@ -50,6 +56,35 @@ fn startup_db_warning(backup_path: &std::path::Path) -> warnings::BackendWarning
         message: "Riftle could not read the existing launch history database and recreated it.".to_string(),
         backup_path: Some(backup_path.to_string_lossy().into_owned()),
     }
+}
+
+#[cfg(target_os = "windows")]
+fn show_already_running_warning(_app: &tauri::AppHandle) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        MessageBoxW, MB_ICONWARNING, MB_OK, MB_SETFOREGROUND, MB_TOPMOST,
+    };
+
+    let title: Vec<u16> = ALREADY_RUNNING_TITLE.encode_utf16().chain(Some(0)).collect();
+    let message: Vec<u16> = ALREADY_RUNNING_MESSAGE.encode_utf16().chain(Some(0)).collect();
+
+    unsafe {
+        MessageBoxW(
+            0 as _,
+            message.as_ptr(),
+            title.as_ptr(),
+            MB_OK | MB_ICONWARNING | MB_SETFOREGROUND | MB_TOPMOST,
+        );
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_already_running_warning(app: &tauri::AppHandle) {
+    app.dialog()
+        .message(ALREADY_RUNNING_MESSAGE)
+        .title(ALREADY_RUNNING_TITLE)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::Ok)
+        .show(|_| {});
 }
 
 fn show_launcher_window(app: &tauri::AppHandle) {
@@ -175,7 +210,16 @@ fn set_hotkey_capture_active(app: tauri::AppHandle, active: bool) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_already_running_warning(app);
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
