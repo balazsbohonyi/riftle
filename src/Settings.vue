@@ -146,6 +146,7 @@ async function setHotkeyCaptureActive(active: boolean) {
 
 // General
 async function onAutostartChange(v: boolean) {
+  settings.value.autostart = v
   if (!canAutostart.value) {
     settings.value.autostart = false
     return
@@ -293,7 +294,8 @@ function updateSettingsScrollThumb() {
 }
 
 // Appearance
-async function onThemeChange() {
+async function onThemeChange(v: string) {
+  settings.value.theme = v
   const theme = settings.value.theme
   if (theme === 'system') {
     document.documentElement.removeAttribute('data-theme')
