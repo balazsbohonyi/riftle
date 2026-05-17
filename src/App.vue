@@ -42,7 +42,7 @@ const SHADOW_PAD = 32
 const WINDOW_WIDTH = 564
 const SEARCH_AREA_HEIGHT = 56
 const RESULT_ROW_HEIGHT = 48
-const RESULT_PANEL_VERTICAL_PAD = 16
+const RESULT_PANEL_VERTICAL_PAD = 24
 const MAX_VISIBLE_RESULTS = 5
 
 // ---- State ----
@@ -64,6 +64,8 @@ const resultPanelOpen = ref(false)
 const resultPanelRendered = ref(false)
 const renderedResults = ref<SearchResult[]>([])
 const suppressResultPanelTransition = ref(false)
+const suppressSelectionTransition = ref(false)
+const scrollerScrollTop = ref(0)
 
 const iconRequests = new Map<string, Promise<string>>()
 let resultPanelFrame: number | null = null
@@ -89,7 +91,7 @@ let clearResultsForNextQueryChange = false
 
 // ---- Computed ----
 const listHeight = computed(() =>
-  Math.min(renderedResults.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD
+  Math.min(renderedResults.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT
 )
 
 const shouldShowResults = computed(() => results.value.length > 0 && !confirmPending.value)
@@ -97,7 +99,7 @@ const targetListHeight = computed(() =>
   shouldShowResults.value ? Math.min(results.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD : 0
 )
 const resultPanelHeight = computed(() =>
-  resultPanelOpen.value && resultPanelRendered.value ? 1 + listHeight.value : 0
+  resultPanelOpen.value && resultPanelRendered.value ? 1 + listHeight.value + RESULT_PANEL_VERTICAL_PAD : 0
 )
 
 function cancelResultPanelFrame() {
@@ -227,6 +229,10 @@ function primeIconUrl(iconPath: string) {
   void loadIconUrl(iconPath)
 }
 
+function onScroll(e: Event) {
+  scrollerScrollTop.value = (e.target as HTMLElement).scrollTop
+}
+
 // ---- Watchers ----
 watch(query, async (q) => {
   const requestId = ++searchRequestId
@@ -306,14 +312,43 @@ watch(menuVisible, async (visible) => {
   }
 })
 
-watch(selectedIndex, () => {
+watch(selectedIndex, (newIdx, oldIdx) => {
   if (scrollerRef.value && results.value.length > MAX_VISIBLE_RESULTS) {
-    const visibleRows = MAX_VISIBLE_RESULTS
-    const firstVisible = Math.floor((scrollerRef.value.$el?.scrollTop || 0) / RESULT_ROW_HEIGHT)
-    const lastVisible = firstVisible + visibleRows - 1
+    const scroller = scrollerRef.value.$el
+    if (!scroller) return
 
-    if (selectedIndex.value < firstVisible || selectedIndex.value > lastVisible) {
-      scrollerRef.value.scrollToItem(selectedIndex.value)
+    const scrollTop = scroller.scrollTop
+    const viewportHeight = MAX_VISIBLE_RESULTS * RESULT_ROW_HEIGHT
+    const itemTop = newIdx * RESULT_ROW_HEIGHT
+    const itemBottom = itemTop + RESULT_ROW_HEIGHT
+
+    // Infinite Loop: Handle jump from end to start (or vice-versa) instantly
+    const isLoopingDown = oldIdx === results.value.length - 1 && newIdx === 0
+    const isLoopingUp = oldIdx === 0 && newIdx === results.value.length - 1
+
+    if (isLoopingDown || isLoopingUp) {
+      suppressSelectionTransition.value = true
+      
+      if (isLoopingDown) {
+        scroller.scrollTo({ top: 0, behavior: 'instant' })
+      } else {
+        const maxScroll = (results.value.length * RESULT_ROW_HEIGHT) - viewportHeight
+        scroller.scrollTo({ top: maxScroll, behavior: 'instant' })
+      }
+      
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          suppressSelectionTransition.value = false
+        })
+      })
+      return
+    }
+
+    // Normal scrolling
+    if (itemTop < scrollTop) {
+      scroller.scrollTo({ top: itemTop, behavior: 'smooth' })
+    } else if (itemBottom > scrollTop + viewportHeight) {
+      scroller.scrollTo({ top: itemBottom - viewportHeight, behavior: 'smooth' })
     }
   }
 })
@@ -789,49 +824,72 @@ onUnmounted(() => {
       <div class="divider"></div>
 
       <!-- Result list (virtualised) -->
-      <RecycleScroller
-        ref="scrollerRef"
-        class="result-list"
-        :items="renderedResults"
-        :item-size="48"
-        key-field="id"
-        :style="{ height: listHeight + 'px' }"
-        v-slot="{ item, index, active }"
-      >
+      <div class="result-list-container" :style="{ height: listHeight + 'px' }">
+        <!-- 
+          Selection highlight layer:
+          - The viewport tracks scrollerScrollTop INSTANTLY (no transition).
+          - The bar inside it glides between indices SMOOTHLY (with transition).
+        -->
         <div
-          class="result-row"
-          :class="{ selected: active && index === selectedIndex }"
-          @mousedown.left.prevent="selectedIndex = index; launchItem(item)"
-          @mousemove="active && (selectedIndex = index)"
-          @contextmenu.prevent
+          class="selection-viewport"
+          :style="{
+            transform: `translateY(${-scrollerScrollTop}px)`,
+            opacity: results.length > 0 ? 1 : 0
+          }"
         >
-          <!-- Icon -->
-          <img
-            class="app-icon"
-            :src="getIconUrl(item.icon_path)"
-            :alt="item.name"
-            width="32"
-            height="32"
-            loading="eager"
-          />
-
-          <!-- Text -->
-          <div class="result-text">
-            <span class="app-name">{{ item.name }}</span>
-            <span
-              v-if="index === selectedIndex && showPath && item.kind !== 'system'"
-              class="path-line"
-            >{{ item.path }}</span>
-          </div>
-
-          <!-- Admin badge (right margin, no layout shift) -->
-          <span
-            v-if="item.requires_elevation"
-            class="admin-badge"
-            aria-label="Elevate with admin rights"
-          >[Admin]</span>
+          <div
+            class="selection-bar"
+            :class="{ 'selection-bar--no-transition': suppressSelectionTransition }"
+            :style="{
+              transform: `translateY(${selectedIndex * RESULT_ROW_HEIGHT}px)`
+            }"
+          ></div>
         </div>
-      </RecycleScroller>
+
+        <RecycleScroller
+          ref="scrollerRef"
+          class="result-list"
+          :items="renderedResults"
+          :item-size="48"
+          key-field="id"
+          :style="{ height: listHeight + 'px' }"
+          @scroll.passive="onScroll"
+          v-slot="{ item, index }"
+        >
+          <div
+            class="result-row"
+            :class="{ selected: item.id === results[selectedIndex]?.id }"
+            @mousedown.left.prevent="selectedIndex = index; launchItem(item)"
+            @contextmenu.prevent
+          >
+            <!-- Icon -->
+            <img
+              class="app-icon"
+              :src="getIconUrl(item.icon_path)"
+              :alt="item.name"
+              width="32"
+              height="32"
+              loading="eager"
+            />
+
+            <!-- Text -->
+            <div class="result-text">
+              <span class="app-name">{{ item.name }}</span>
+              <span
+                v-if="index === selectedIndex && showPath && item.kind !== 'system'"
+                class="path-line"
+              >{{ item.path }}</span>
+            </div>
+
+            <!-- Admin badge (right margin, no layout shift) -->
+            <span
+              v-if="item.requires_elevation"
+              class="admin-badge"
+              aria-label="Elevate with admin rights"
+            >[Admin]</span>
+          </div>
+        </RecycleScroller>
+      </div>
     </div>
 
     <!-- Context menu backdrop: click-outside closes menu -->
@@ -1022,13 +1080,14 @@ html, body {
 .divider {
   height: 1px;
   background: var(--color-divider);
-  margin: 0;
+  margin: 0 0 8px 0;
 }
 
 /* ---- Result list ---- */
 .result-panel {
   overflow: hidden;
   transition: height var(--duration-normal) cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 8px 0;
 }
 
 .result-panel--no-transition {
@@ -1039,9 +1098,39 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
-  padding: 8px;
 }
 .result-list::-webkit-scrollbar { display: none; }
+
+.result-list-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.selection-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* NO transition here: must track scroll instantly */
+}
+
+.selection-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 48px;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: transform var(--duration-fast) cubic-bezier(0.2, 0, 0, 1), opacity var(--duration-fast) ease;
+  z-index: 0;
+}
+
+.selection-bar--no-transition {
+  transition: none !important;
+}
 
 /* ---- Result row ---- */
 .result-row {
@@ -1052,11 +1141,15 @@ html, body {
   cursor: pointer;
   position: relative;
   gap: 10px;
+  z-index: 1;
 }
 
-.result-row.selected {
-  background: var(--color-accent);
-  border-radius: var(--radius-sm);
+.result-row.selected .app-name {
+  color: #ffffff;
+}
+
+.result-row.selected .path-line {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 /* ---- App icon ---- */
@@ -1086,12 +1179,26 @@ html, body {
   text-overflow: ellipsis;
 }
 
-.result-row.selected .app-name {
-  color: #ffffff;
+.path-line {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
-.result-row.selected .path-line {
-  color: rgba(255, 255, 255, 0.75);
+/* ---- Admin badge ---- */
+.admin-badge {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-accent);
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--spacing-sm);
 }
 
 .path-line {

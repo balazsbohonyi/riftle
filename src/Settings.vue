@@ -69,6 +69,7 @@ const settings = ref<SettingsData>({
   theme: 'system',
 
   show_path: false,
+  play_sound: true,
   autostart: false,
   additional_paths: [],
   excluded_paths: [],
@@ -91,6 +92,7 @@ onMounted(async () => {
       theme: response.theme,
 
       show_path: response.show_path,
+      play_sound: response.play_sound ?? true,
       autostart: response.can_autostart ? response.autostart : false,
       additional_paths: response.additional_paths,
       excluded_paths: response.excluded_paths,
@@ -144,6 +146,7 @@ async function setHotkeyCaptureActive(active: boolean) {
 
 // General
 async function onAutostartChange(v: boolean) {
+  settings.value.autostart = v
   if (!canAutostart.value) {
     settings.value.autostart = false
     return
@@ -291,7 +294,8 @@ function updateSettingsScrollThumb() {
 }
 
 // Appearance
-async function onThemeChange() {
+async function onThemeChange(v: string) {
+  settings.value.theme = v
   const theme = settings.value.theme
   if (theme === 'system') {
     document.documentElement.removeAttribute('data-theme')

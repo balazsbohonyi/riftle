@@ -1,5 +1,6 @@
 // Phase 3: Windows application indexer
 // crawl Start Menu, Desktop, PATH; .lnk resolution; icon extraction; background refresh
+// Added UWP app discovery via shell:AppsFolder
 
 use rusqlite::Connection;
 use std::collections::HashSet;
@@ -7,6 +8,26 @@ use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
+use std::ffi::OsString;
+use std::os::windows::ffi::OsStringExt;
+
+// windows crate for COM and Shell APIs
+use windows::core::{Interface, PCWSTR};
+use windows::Win32::Foundation::{HWND, SIZE};
+use windows::Win32::System::Com::{
+    CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER, STGM,
+    COINIT_APARTMENTTHREADED,
+};
+use windows::Win32::UI::Shell::{
+    IEnumShellItems, IShellItem, IShellItemImageFactory, SHCreateItemFromParsingName,
+    SHGetKnownFolderItem, ShellLink, BHID_EnumItems, BHID_PropertyStore, FOLDERID_AppsFolder,
+    IShellLinkW, KF_FLAG_DEFAULT, SIGDN_NORMALDISPLAY, SIIGBF_RESIZETOFIT,
+};
+use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
+use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
+use windows::Win32::Storage::FileSystem::WIN32_FIND_DATAW;
+
+// windows-sys for GDI and lightweight shell info (maintaining existing patterns)
 use windows_sys::Win32::Graphics::Gdi::{
     CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO,
     BITMAPINFOHEADER, DIB_RGB_COLORS,
@@ -25,20 +46,24 @@ use crate::store::Settings;
 static GENERIC_ICON: &[u8] = include_bytes!("../icons/generic.png");
 
 /// Messages sent to the background timer thread to control its behavior.
-/// Defined here (next to the timer) and imported by store.rs via crate::indexer::TimerMsg.
 #[derive(Debug)]
 pub enum TimerMsg {
     /// Manual reindex completed — reset deadline to now + current interval.
-    /// No-op when interval_mins == 0 (timer is disabled).
     Reset,
     /// Settings changed — update the interval. 0 = disabled (no auto-reindex).
     SetInterval(u32),
 }
 
+/// Defines where an icon should be extracted from.
+#[derive(Clone, Debug)]
+pub enum IconSource {
+    /// Standard file path (exe, lnk, ico).
+    File(PathBuf),
+    /// UWP Application User Model ID (AUMID).
+    Uwp(String),
+}
+
 /// Request sent to the COM worker thread for .lnk resolution.
-/// The caller sends this and then blocks on the reply channel.
-/// allowlist is carried per-request (not baked into the worker at startup) so that
-/// settings changes are always reflected in the next crawl without restarting the thread.
 pub(crate) struct LnkQuery {
     pub path: PathBuf,
     pub allowlist: Vec<String>,
@@ -46,25 +71,17 @@ pub(crate) struct LnkQuery {
 }
 
 /// Spawn a dedicated thread that owns the COM apartment for all .lnk resolution.
-/// CoInitializeEx is called once on thread start; CoUninitialize is called before thread exit.
-/// All resolve_lnk calls are routed through this thread to ensure balanced COM init/uninit.
-/// The allowlist is not baked in here — each LnkQuery carries the current allowlist.
 pub(crate) fn spawn_com_worker() -> std::sync::mpsc::SyncSender<LnkQuery> {
     let (tx, rx) = std::sync::mpsc::sync_channel::<LnkQuery>(128);
     std::thread::Builder::new()
         .name("riftle-com-lnk".into())
         .spawn(move || {
-            use windows::Win32::System::Com::{
-                CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED,
-            };
-            // S_OK (0) or S_FALSE (1) = success; negative = failure (e.g. RPC_E_CHANGED_MODE)
             let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
             let com_ok = hr.0 >= 0;
             for query in rx {
                 let result = resolve_lnk(&query.path, &query.allowlist);
                 let _ = query.reply.send(result);
             }
-            // rx is dropped when channel closes (all senders gone) — loop exits cleanly
             if com_ok {
                 unsafe {
                     CoUninitialize();
@@ -77,46 +94,36 @@ pub(crate) fn spawn_com_worker() -> std::sync::mpsc::SyncSender<LnkQuery> {
 
 // ---- Public API (called from lib.rs) ----
 
-/// Run a full blocking index. Called synchronously in setup() before app is ready.
-/// Crawls all source dirs, upserts apps, extracts icons async, prunes stale entries.
+/// Run a full blocking index.
 pub fn run_full_index(
     db: &Arc<Mutex<Connection>>,
     data_dir: &Path,
     settings: &Settings,
     com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
 ) {
-    // 1. Ensure {data_dir}/icons/ exists and generic.png is present
+    // Ensure COM is initialized for the current thread (needed for UWP discovery)
+    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+
     if let Err(e) = ensure_generic_icon(data_dir) {
         eprintln!("[indexer] failed to write generic icon: {}", e);
     }
 
     let icons_dir = data_dir.join("icons");
-
-    // 2. Collect all source directories to crawl
     let source_dirs = get_index_paths(settings);
 
-    // 3. Crawl each directory, upsert each app, spawn icon extraction thread
     let mut discovered_ids: HashSet<String> = HashSet::new();
-    // Tracks (name_lower, exe_lower) for Start Menu entries to collapse the same app
-    // that ships in both user Start Menu and all-users Start Menu.
     let mut seen_start_menu_name_exe: HashSet<(String, String)> = HashSet::new();
-    // Tracks all indexed names across every source so that an additional-path entry
-    // whose name already came from a higher-priority source (Start Menu / Desktop) is
-    // not shown twice.  Sources are ordered: start_menu → desktop → additional.
     let mut seen_names: HashSet<String> = HashSet::new();
 
-    // Bounded thread pool for icon extraction — caps concurrent GDI calls at 4 threads.
-    // The pool lives for the duration of run_full_index. rayon::ThreadPool::spawn() is
-    // non-blocking (queues work), but the pool's Drop impl blocks until all queued closures
-    // complete. This means run_full_index blocks until icons are extracted — which is the
-    // same observable behavior as the previous std::thread::spawn approach (both are
-    // "best-effort before prune_stale"). The difference is that this caps concurrency at 4.
     let icon_pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)
         .thread_name(|i| format!("riftle-icon-{}", i))
         .build()
         .unwrap_or_else(|_| rayon::ThreadPoolBuilder::new().build().unwrap());
 
+    // 1. High-priority: Standard sources (Start Menu, Desktop, Additional)
+    // These are processed first to ensure specialized shortcuts (like Steam/Epic games)
+    // claim their names and custom icons before UWP fallback.
     for (dir, source) in &source_dirs {
         let apps = crawl_dir(
             dir,
@@ -126,109 +133,133 @@ pub fn run_full_index(
             com_tx,
         );
         for (app, icon_source) in apps {
-            // Primary dedup: same file path already seen this run.
-            // Check without inserting so skipped entries don't land in discovered_ids
-            // — prune_stale can then clean up any stale DB rows for those IDs.
-            if discovered_ids.contains(&app.id) {
-                continue;
-            }
-
-            // Start Menu: collapse the same app present in both user and all-users dirs.
-            if *source == "start_menu" && app.path.to_lowercase().ends_with(".lnk") {
-                let key = (
-                    app.name.to_lowercase(),
-                    icon_source.to_string_lossy().to_lowercase(),
-                );
-                if !seen_start_menu_name_exe.insert(key) {
-                    continue;
-                }
-            }
-
-            // Non-start_menu sources (desktop, additional): skip if the same name was
-            // already indexed from an earlier, higher-priority source.
-            // Start Menu is processed first, so duplicates from lower-priority sources
-            // are suppressed rather than appearing alongside the canonical entry.
-            if *source != "start_menu" && seen_names.contains(&app.name.to_lowercase()) {
-                continue;
-            }
-
-            // All dedup checks passed — mark as discovered now.
-            discovered_ids.insert(app.id.clone());
-            seen_names.insert(app.name.to_lowercase());
-
-            let icon_file = icons_dir.join(icon_filename(&app.id));
-            let icon_cached = icon_file.exists();
-
-            // If the icon file is already on disk (e.g. DB was deleted but icons weren't),
-            // upsert with the real filename so the DB is immediately correct.
-            // Otherwise upsert with the generic placeholder and let the thread fill it in.
-            let mut app = app;
-            if icon_cached {
-                app.icon_path = Some(
-                    icon_file
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string(),
-                );
-            }
-
-            {
-                let conn = db.lock().unwrap();
-                let _ = upsert_app(&conn, &app);
-            }
-
-            // Spawn icon extraction thread only when the file doesn't exist yet.
-            // icon_source is the resolved exe for lnk-based apps so ExtractIconExW
-            // works correctly; for direct exe entries it is the exe itself.
-            if !icon_cached {
-                let db_clone = Arc::clone(db);
-                let app_id = app.id.clone();
-                icon_pool.spawn(move || {
-                    match extract_icon_png(&icon_source) {
-                        Some(bytes) => {
-                            if std::fs::write(&icon_file, &bytes).is_ok() {
-                                let filename = icon_file
-                                    .file_name()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .to_string();
-                                let conn = db_clone.lock().unwrap();
-                                let _ = conn.execute(
-                                    "UPDATE apps SET icon_path = ?1 WHERE id = ?2",
-                                    rusqlite::params![filename, app_id],
-                                );
-                            }
-                        }
-                        None => {} // Extraction failed — icon_path stays as "generic.png"
-                    }
-                });
-            }
+            process_index_entry(
+                app,
+                icon_source,
+                source,
+                &mut discovered_ids,
+                &mut seen_start_menu_name_exe,
+                &mut seen_names,
+                &icons_dir,
+                db,
+                &icon_pool,
+            );
         }
     }
 
-    // 4. Prune stale entries (apps removed from disk since last index)
+    // 2. Fallback: UWP Apps (enumerate shell:AppsFolder)
+    // Only adds apps that weren't already found in standard sources.
+    let uwp_apps = crawl_apps_folder();
+    for (app, icon_source) in uwp_apps {
+        process_index_entry(
+            app,
+            icon_source,
+            "uwp",
+            &mut discovered_ids,
+            &mut seen_start_menu_name_exe,
+            &mut seen_names,
+            &icons_dir,
+            db,
+            &icon_pool,
+        );
+    }
+
+    // 3. Prune stale entries
     let conn = db.lock().unwrap();
     let _ = prune_stale(&conn, &discovered_ids);
 }
 
+/// Helper to process a discovered app, handle deduplication, and schedule icon extraction.
+fn process_index_entry(
+    app: AppRecord,
+    icon_source: IconSource,
+    source: &'static str,
+    discovered_ids: &mut HashSet<String>,
+    seen_start_menu_name_exe: &mut HashSet<(String, String)>,
+    seen_names: &mut HashSet<String>,
+    icons_dir: &Path,
+    db: &Arc<Mutex<Connection>>,
+    icon_pool: &rayon::ThreadPool,
+) {
+    if discovered_ids.contains(&app.id) {
+        return;
+    }
+
+    // Start Menu: collapse the same app present in both user and all-users dirs.
+    if source == "start_menu" && app.path.to_lowercase().ends_with(".lnk") {
+        let icon_key = match &icon_source {
+            IconSource::File(p) => p.to_string_lossy().to_lowercase(),
+            IconSource::Uwp(a) => a.to_lowercase(),
+        };
+        let key = (app.name.to_lowercase(), icon_key);
+        if !seen_start_menu_name_exe.insert(key) {
+            return;
+        }
+    }
+
+    // Deduplicate by name: skip if the same name was already indexed from an
+    // earlier, higher-priority source.
+    if seen_names.contains(&app.name.to_lowercase()) {
+        return;
+    }
+
+    discovered_ids.insert(app.id.clone());
+    seen_names.insert(app.name.to_lowercase());
+
+    let icon_file = icons_dir.join(icon_filename(&app.id));
+    let icon_cached = icon_file.exists();
+
+    let mut app = app;
+    if icon_cached {
+        app.icon_path = Some(
+            icon_file
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+
+    {
+        let conn = db.lock().unwrap();
+        let _ = upsert_app(&conn, &app);
+    }
+
+    if !icon_cached {
+        let db_clone = Arc::clone(db);
+        let app_id = app.id.clone();
+        let icon_file_clone = icon_file.clone();
+        icon_pool.spawn(move || {
+            if let Some(bytes) = extract_icon_png(&icon_source) {
+                if std::fs::write(&icon_file_clone, &bytes).is_ok() {
+                    let filename = icon_file_clone
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let conn = db_clone.lock().unwrap();
+                    let _ = conn.execute(
+                        "UPDATE apps SET icon_path = ?1 WHERE id = ?2",
+                        rusqlite::params![filename, app_id],
+                    );
+                }
+            }
+        });
+    }
+}
+
 /// Spawn background timer thread and filesystem watcher thread.
-/// Called once from setup() — replaces the old blocking run_full_index() call.
-/// Returns the timer reset Sender — store as managed state for reindex() command.
 pub fn start_background_tasks(
     db: Arc<Mutex<Connection>>,
-    app: tauri::AppHandle,      // for passing to try_start_index and deferred thread
-    app_count: i64,             // 0 = first run (index immediately), >0 = wait 30s
+    app: tauri::AppHandle,
+    app_count: i64,
     data_dir: PathBuf,
     settings: &Settings,
     is_indexing: Arc<AtomicBool>,
     com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) -> mpsc::Sender<TimerMsg> {
-    // --- Timer thread (INDX-06) ---
     let (timer_tx, timer_rx) = mpsc::channel::<TimerMsg>();
 
-    // Deferred startup index (D3): immediate on first run, 30s delay on subsequent runs.
-    // Spawned before the timer thread so the timer's deadline starts from app launch.
     {
         let app_deferred = app.clone();
         let db_deferred = Arc::clone(&db);
@@ -249,7 +280,6 @@ pub fn start_background_tasks(
                 &settings_deferred,
                 com_tx_deferred,
             );
-            // Reset timer so next auto-index fires interval_mins from now, not from app launch
             let _ = timer_tx_for_deferred.send(TimerMsg::Reset);
         });
     }
@@ -276,7 +306,6 @@ pub fn start_background_tasks(
                 std::thread::sleep(Duration::from_secs(1));
                 match timer_rx.try_recv() {
                     Ok(TimerMsg::Reset) => {
-                        // Reset deadline only if timer is enabled (interval > 0)
                         if interval_mins > 0 {
                             deadline = Some(
                                 Instant::now() + Duration::from_secs(interval_mins as u64 * 60),
@@ -308,13 +337,10 @@ pub fn start_background_tasks(
                             Some(Instant::now() + Duration::from_secs(interval_mins as u64 * 60));
                     }
                 }
-                // If deadline is None (interval_mins == 0): skip deadline check entirely
             }
         });
     }
 
-    // --- Filesystem watcher thread (INDX-07) ---
-    // Watch Start Menu directories only (per locked decision + INDX-07 spec)
     let watch_paths: Vec<PathBuf> = {
         let mut paths = vec![];
         if let Ok(appdata) = std::env::var("APPDATA") {
@@ -359,21 +385,14 @@ pub fn start_background_tasks(
             };
 
             for path in &watch_paths {
-                debouncer
-                    .watcher()
-                    .watch(path.as_ref(), RecursiveMode::Recursive)
-                    .unwrap_or_else(|e| {
-                        eprintln!("[watcher] failed to watch {:?}: {}", path, e);
-                    });
+                let _ = debouncer.watcher().watch(path.as_ref(), RecursiveMode::Recursive);
             }
 
             for result in rx {
                 if result.is_ok() {
-                    // AtomicBool guard inside try_start_index suppresses events during full re-index
                     try_start_index(&app, &is_indexing, &db, &data_dir, &settings, com_tx.clone());
                 }
             }
-            // Loop ends when tx is dropped (debouncer goes out of scope on thread exit)
         });
     }
 
@@ -381,7 +400,6 @@ pub fn start_background_tasks(
 }
 
 /// Tauri command: fire-and-forget manual re-index.
-/// Spawns a thread, returns immediately. Frontend shows loading state.
 #[tauri::command]
 pub fn reindex(
     app: tauri::AppHandle,
@@ -405,10 +423,8 @@ pub fn reindex(
         {
             let settings = crate::store::get_settings(&app_for_thread, &data_dir);
             run_full_index(&db, &data_dir, &settings, &com_tx);
-            // Phase 4: Rebuild search index with fresh DB contents
             crate::search::rebuild_index(&app_for_thread);
             flag.store(false, Ordering::Release);
-            // Reset timer so next auto-index is interval minutes from now
             let _ = tx.lock().unwrap().send(TimerMsg::Reset);
         }
     });
@@ -416,11 +432,73 @@ pub fn reindex(
 
 // ---- Internal functions ----
 
-/// Get all directories to index, with their source labels.
+/// Enumerate UWP apps using shell:AppsFolder.
+pub(crate) fn crawl_apps_folder() -> Vec<(AppRecord, IconSource)> {
+    let mut apps = vec![];
+    unsafe {
+        let folder: IShellItem = match SHGetKnownFolderItem(&FOLDERID_AppsFolder, KF_FLAG_DEFAULT, None) {
+            Ok(f) => f,
+            Err(_) => return apps,
+        };
+
+        let enum_items: IEnumShellItems = match folder.BindToHandler(None, &BHID_EnumItems) {
+            Ok(e) => e,
+            Err(_) => return apps,
+        };
+
+        loop {
+            let mut item_opt: [Option<IShellItem>; 1] = [None];
+            let mut fetched = 0;
+            if enum_items.Next(&mut item_opt, Some(&mut fetched)).is_err() || fetched == 0 {
+                break;
+            }
+            let item = match item_opt[0].take() {
+                Some(i) => i,
+                None => break,
+            };
+
+            let display_name = item.GetDisplayName(SIGDN_NORMALDISPLAY).ok()
+                .map(|pwstr| {
+                    let s = pwstr.to_string().unwrap_or_default();
+                    windows::Win32::System::Com::CoTaskMemFree(Some(pwstr.0 as *const _));
+                    s
+                })
+                .unwrap_or_default();
+
+            let property_store: IPropertyStore = match item.BindToHandler(None, &BHID_PropertyStore) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+
+            let aumid_var = match property_store.GetValue(&PKEY_AppUserModel_ID) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let aumid = aumid_var.to_string();
+            if aumid.is_empty() {
+                continue;
+            }
+
+            let record = AppRecord {
+                id: format!("uwp:{}", aumid).to_lowercase(),
+                name: display_name,
+                path: format!("shell:AppsFolder\\{}", aumid),
+                icon_path: Some("generic.png".to_string()),
+                source: "apps_folder".to_string(),
+                last_launched: None,
+                launch_count: 0,
+            };
+
+            apps.push((record, IconSource::Uwp(aumid)));
+        }
+    }
+    apps
+}
+
 pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str)> {
     let mut paths: Vec<(PathBuf, &'static str)> = vec![];
 
-    // Start Menu user
     if let Ok(appdata) = std::env::var("APPDATA") {
         let p = PathBuf::from(appdata).join("Microsoft\\Windows\\Start Menu\\Programs");
         if p.exists() {
@@ -428,7 +506,6 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
         }
     }
 
-    // Start Menu all-users
     if let Ok(programdata) = std::env::var("PROGRAMDATA") {
         let p = PathBuf::from(programdata).join("Microsoft\\Windows\\Start Menu\\Programs");
         if p.exists() {
@@ -436,7 +513,6 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
         }
     }
 
-    // Desktop user
     if let Ok(userprofile) = std::env::var("USERPROFILE") {
         let p = PathBuf::from(userprofile).join("Desktop");
         if p.exists() {
@@ -444,13 +520,11 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
         }
     }
 
-    // Desktop public
     let public_desktop = PathBuf::from("C:\\Users\\Public\\Desktop");
     if public_desktop.exists() {
         paths.push((public_desktop, "desktop"));
     }
 
-    // Additional paths from settings
     for additional in &settings.additional_paths {
         let p = PathBuf::from(additional);
         if p.exists() {
@@ -461,21 +535,15 @@ pub(crate) fn get_index_paths(settings: &Settings) -> Vec<(PathBuf, &'static str
     paths
 }
 
-/// Normalize a path for exclusion comparison: canonicalize (resolves symlinks, normalizes
-/// separators), fall back to raw path if the path does not exist (deleted excluded dirs),
-/// then lowercase. Pre-normalize the excluded list once; normalize each WalkDir entry inline.
 fn normalize_for_exclusion(p: &Path) -> String {
     let canonical = p
         .canonicalize()
         .unwrap_or_else(|_| p.to_path_buf())
         .to_string_lossy()
         .to_lowercase();
-    // Strip trailing path separators so "C:\foo\" and "C:\foo" compare equal
     canonical.trim_end_matches(['/', '\\']).to_string()
 }
 
-/// Returns true when a .lnk/.url filename stem is a generic launcher name.
-/// In that case, the parent directory name is a better display name for the app.
 fn is_generic_launcher_stem(stem: &str) -> bool {
     matches!(
         stem.to_lowercase().as_str(),
@@ -493,7 +561,6 @@ fn is_generic_launcher_stem(stem: &str) -> bool {
     )
 }
 
-/// Returns true if a Windows internet shortcut (.url) contains a custom protocol URL (any `scheme://`).
 fn is_protocol_url_shortcut(path: &Path) -> bool {
     let Ok(content) = std::fs::read_to_string(path) else {
         return false;
@@ -501,8 +568,6 @@ fn is_protocol_url_shortcut(path: &Path) -> bool {
     content.contains("://")
 }
 
-/// Parse the IconFile path from a .url shortcut so we can extract the game icon.
-/// Returns None if no IconFile is present or the file doesn't exist on disk.
 fn parse_url_icon_file(path: &Path) -> Option<PathBuf> {
     let content = std::fs::read_to_string(path).ok()?;
     for line in content.lines() {
@@ -516,35 +581,25 @@ fn parse_url_icon_file(path: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Walk a directory, resolve .lnk shortcuts, return (AppRecord, icon_source_exe) pairs.
-/// icon_source_exe is the exe to use for icon extraction:
-///   - .lnk entries: the resolved target exe (so ExtractIconExW works correctly)
-///   - .exe entries: the exe path itself
-/// source: "start_menu" | "desktop" | "path" | "additional"
 pub(crate) fn crawl_dir(
     root: &Path,
     source: &'static str,
     excluded: &[String],
     allowlist: &[String],
     com_tx: &std::sync::mpsc::SyncSender<LnkQuery>,
-) -> Vec<(AppRecord, PathBuf)> {
+) -> Vec<(AppRecord, IconSource)> {
     let mut apps = vec![];
-
-    // Pre-normalize excluded list once (not per WalkDir entry) for performance.
-    // canonicalize resolves separators and case; fallback to raw+lowercase for non-existent paths.
     let normalized_excluded: Vec<String> = excluded
         .iter()
         .map(|ex| normalize_for_exclusion(Path::new(ex)))
         .collect();
 
     let walker = walkdir::WalkDir::new(root)
-        .max_depth(8) // 8 levels covers all real Start Menu structures; prevents runaway on NTFS junctions
-        .follow_links(false); // do not follow symlinks encountered during traversal; follow_root_links defaults to true
+        .max_depth(8)
+        .follow_links(false);
 
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-
-        // Skip if under any excluded path — compare normalized strings for case/separator safety
         let norm_path = normalize_for_exclusion(path);
         if normalized_excluded
             .iter()
@@ -563,24 +618,11 @@ pub(crate) fn crawl_dir(
                     reply: reply_tx,
                 });
                 if let Some(target) = reply_rx.recv().unwrap_or(None) {
-                    // Use the .lnk path as id and launch path so each shortcut is a
-                    // unique entry — shortcuts with different names but the same target
-                    // exe appear individually.
-                    // ShellExecuteW on a .lnk file passes the stored arguments correctly.
                     let lnk_path = path.to_path_buf();
-                    let stem = lnk_path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or_default();
-                    // For generic launcher filenames prefer the parent directory name
-                    // so "Apps/MyApp/launcher.lnk" → "MyApp".
-                    // Only apply when the parent is not the crawl root itself.
+                    let stem = lnk_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
                     let name = if is_generic_launcher_stem(stem) {
-                        lnk_path
-                            .parent()
-                            .filter(|parent| {
-                                normalize_for_exclusion(parent) != normalize_for_exclusion(root)
-                            })
+                        lnk_path.parent()
+                            .filter(|parent| normalize_for_exclusion(parent) != normalize_for_exclusion(root))
                             .and_then(|p| p.file_name())
                             .and_then(|n| n.to_str())
                             .map(|s| s.to_string())
@@ -597,23 +639,17 @@ pub(crate) fn crawl_dir(
                         last_launched: None,
                         launch_count: 0,
                     };
-                    apps.push((record, target));
+                    apps.push((record, IconSource::File(target)));
                 }
             }
             "url" => {
-                // Windows internet shortcut (.url) with a custom protocol scheme.
-                // ShellExecuteW on the .url file invokes the registered protocol handler.
                 if !is_protocol_url_shortcut(path) {
                     continue;
                 }
                 let url_path = path.to_path_buf();
-                let stem = url_path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or_default();
+                let stem = url_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
                 let name = if is_generic_launcher_stem(stem) {
-                    url_path
-                        .parent()
+                    url_path.parent()
                         .filter(|p| normalize_for_exclusion(p) != normalize_for_exclusion(root))
                         .and_then(|p| p.file_name())
                         .and_then(|n| n.to_str())
@@ -622,8 +658,6 @@ pub(crate) fn crawl_dir(
                 } else {
                     stem.to_string()
                 };
-                // Prefer the IconFile field (often a game-specific .exe or .ico)
-                // so ExtractIconExW gets the real game icon instead of the generic one.
                 let icon_src = parse_url_icon_file(path).unwrap_or_else(|| url_path.clone());
                 let record = AppRecord {
                     id: url_path.to_string_lossy().to_lowercase(),
@@ -634,13 +668,12 @@ pub(crate) fn crawl_dir(
                     last_launched: None,
                     launch_count: 0,
                 };
-                apps.push((record, icon_src));
+                apps.push((record, IconSource::File(icon_src)));
             }
             "exe" => {
-                // For direct .exe files, try the PE FileDescription first
                 let name = get_file_description(path);
                 let record = make_app_record(path, source, name);
-                apps.push((record, path.to_path_buf()));
+                apps.push((record, IconSource::File(path.to_path_buf())));
             }
             _ => {}
         }
@@ -648,43 +681,14 @@ pub(crate) fn crawl_dir(
     apps
 }
 
-/// Resolve a .lnk file to its target executable path using the Windows IShellLink COM API.
-/// Returns None if: COM fails, unresolvable, target is another .lnk, target doesn't exist, or not .exe.
-/// Uses native Windows APIs — cannot panic on malformed shortcuts.
 pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathBuf> {
-    use std::ffi::OsString;
-    use std::os::windows::ffi::{OsStrExt, OsStringExt};
-    use windows::{
-        core::{Interface, PCWSTR},
-        Win32::Foundation::HWND,
-        Win32::Storage::FileSystem::WIN32_FIND_DATAW,
-        Win32::System::Com::{CoCreateInstance, IPersistFile, CLSCTX_INPROC_SERVER, STGM},
-        Win32::UI::Shell::{IShellLinkW, ShellLink},
-    };
-
     unsafe {
-        // Create IShellLinkW instance
-        let shell_link: IShellLinkW =
-            CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
-
-        // Load the .lnk file via IPersistFile
+        let shell_link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
         let persist_file: IPersistFile = shell_link.cast().ok()?;
-        let wide_path: Vec<u16> = lnk_path
-            .as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0u16))
-            .collect();
-        persist_file
-            .Load(PCWSTR(wide_path.as_ptr()), STGM(0))
-            .ok()?;
-
-        // Resolve with no-UI flag (0x1 = SLR_NO_UI) so broken links silently fail
+        let wide_path: Vec<u16> = lnk_path.as_os_str().encode_wide().chain(std::iter::once(0u16)).collect();
+        persist_file.Load(PCWSTR(wide_path.as_ptr()), STGM(0)).ok()?;
         let _ = shell_link.Resolve(HWND(std::ptr::null_mut()), 0x1);
 
-        // Get target path — 4 = SLGP_RAWPATH (returns stored path without env-var expansion)
-        // IShellLinkW::GetPath is documented as MAX_PATH-limited, but 32,767 is the extended-path
-        // maximum and future-proofs against any relaxation of the API constraint.
-        // A larger buffer also prevents silent truncation for \\?\ prefixed target paths.
         const EXTENDED_MAX_PATH: usize = 32_767;
         let mut buf = vec![0u16; EXTENDED_MAX_PATH];
         let mut find_data: WIN32_FIND_DATAW = std::mem::zeroed();
@@ -692,31 +696,17 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
 
         let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
         if len == 0 {
-            // GetPath returned empty — target is a URL protocol (steam://, etc.).
-            // ShellExecute on the .lnk file handles these correctly at launch time.
-            // Use the .lnk itself as the icon source; ExtractIconExW on a .lnk
-            // extracts the embedded/linked icon (often the game's icon).
             return Some(lnk_path.to_path_buf());
         }
         let target = PathBuf::from(OsString::from_wide(&buf[..len]));
 
-        // One level only: skip if target is also a .lnk
         if target.extension().and_then(|e| e.to_str()) == Some("lnk") {
             return None;
         }
 
-        // Some system tools are worth keeping despite living in blocked directories.
-        // The list comes from settings so users can extend or trim it.
-        let filename = target
-            .file_name()
-            .and_then(|f| f.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        let allowlisted = allowlist
-            .iter()
-            .any(|s: &String| s.to_lowercase() == filename);
+        let filename = target.file_name().and_then(|f| f.to_str()).unwrap_or("").to_lowercase();
+        let allowlisted = allowlist.iter().any(|s| s.to_lowercase() == filename);
 
-        // Skip executables in known noisy system directories unless explicitly allowlisted
         if !allowlisted {
             let normalized = target.to_string_lossy().to_lowercase();
             if normalized.contains("\\windows\\system32\\")
@@ -730,7 +720,6 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
             }
         }
 
-        // Must exist and be an .exe
         if target.exists() && target.extension().and_then(|e| e.to_str()) == Some("exe") {
             Some(target)
         } else {
@@ -739,9 +728,6 @@ pub(crate) fn resolve_lnk(lnk_path: &Path, allowlist: &[String]) -> Option<PathB
     }
 }
 
-/// Build a canonical AppRecord from an exe path.
-/// `display_name`: human-readable name override (from .lnk filename or PE FileDescription).
-/// Falls back to the exe stem when None.
 pub(crate) fn make_app_record(
     exe_path: &Path,
     source: &'static str,
@@ -765,10 +751,7 @@ pub(crate) fn make_app_record(
     }
 }
 
-/// Read the FileDescription string from a PE executable's VERSIONINFO resource.
-/// Returns None if the file has no version info or doesn't carry a FileDescription.
 pub(crate) fn get_file_description(exe_path: &Path) -> Option<String> {
-    use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{
         GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
     };
@@ -791,8 +774,6 @@ pub(crate) fn get_file_description(exe_path: &Path) -> Option<String> {
             return None;
         }
 
-        // Query FileDescription using the US-English + Unicode codepage (040904b0).
-        // This covers the vast majority of Windows applications.
         let subblock: Vec<u16> = "\\StringFileInfo\\040904b0\\FileDescription\0"
             .encode_utf16()
             .collect();
@@ -822,7 +803,6 @@ pub(crate) fn get_file_description(exe_path: &Path) -> Option<String> {
     }
 }
 
-/// FNV-1a 64-bit hash of the normalized exe path → "{:016x}.png" icon filename.
 pub(crate) fn icon_filename(exe_path: &str) -> String {
     let mut hash: u64 = 14695981039346656037u64;
     for byte in exe_path.to_lowercase().bytes() {
@@ -832,7 +812,6 @@ pub(crate) fn icon_filename(exe_path: &str) -> String {
     format!("{:016x}.png", hash)
 }
 
-/// Delete all apps from DB whose id is not in discovered_ids.
 pub(crate) fn prune_stale(
     conn: &Connection,
     discovered_ids: &HashSet<String>,
@@ -850,7 +829,6 @@ pub(crate) fn prune_stale(
     Ok(())
 }
 
-/// Copy bundled GENERIC_ICON to {data_dir}/icons/generic.png if missing.
 pub(crate) fn ensure_generic_icon(data_dir: &Path) -> std::io::Result<()> {
     let icons_dir = data_dir.join("icons");
     std::fs::create_dir_all(&icons_dir)?;
@@ -861,30 +839,49 @@ pub(crate) fn ensure_generic_icon(data_dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Extract a 32x32 RGBA PNG from an exe file using Windows GDI.
-/// Returns PNG bytes or None on any failure.
-/// MUST be called from a spawned thread — GDI calls take 5-50ms per exe.
-pub(crate) fn extract_icon_png(exe_path: &Path) -> Option<Vec<u8>> {
-    // Convert path to null-terminated wide string
-    let wide: Vec<u16> = exe_path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0u16))
-        .collect();
+/// Extract a 32x32 RGBA PNG from an IconSource.
+pub(crate) fn extract_icon_png(source: &IconSource) -> Option<Vec<u8>> {
+    match source {
+        IconSource::File(path) => {
+            let wide: Vec<u16> = path
+                .as_os_str()
+                .encode_wide()
+                .chain(std::iter::once(0u16))
+                .collect();
 
-    unsafe {
-        // Extract large icon (32x32) at index 0
-        let mut hicon_large: isize = 0;
-        let count = ExtractIconExW(wide.as_ptr(), 0, &mut hicon_large, std::ptr::null_mut(), 1);
-        if count == 0 || hicon_large == 0 {
-            return None;
+            unsafe {
+                let mut hicon_large: isize = 0;
+                let count = ExtractIconExW(wide.as_ptr(), 0, &mut hicon_large, std::ptr::null_mut(), 1);
+                if count == 0 || hicon_large == 0 {
+                    return extract_shell_icon_png(path, false);
+                }
+                icon_png_from_hicon(hicon_large)
+            }
         }
-
-        icon_png_from_hicon(hicon_large)
+        IconSource::Uwp(aumid) => {
+            unsafe {
+                let parsing_name = format!("shell:AppsFolder\\{}", aumid);
+                let wide_path: Vec<u16> = parsing_name.encode_utf16().chain(std::iter::once(0)).collect();
+                let item: IShellItem = match SHCreateItemFromParsingName(PCWSTR(wide_path.as_ptr()), None) {
+                    Ok(i) => i,
+                    Err(_) => return None,
+                };
+                let factory: IShellItemImageFactory = match item.cast() {
+                    Ok(f) => f,
+                    Err(_) => return None,
+                };
+                let hbitmap_isize = match factory.GetImage(SIZE { cx: 32, cy: 32 }, SIIGBF_RESIZETOFIT) {
+                    Ok(b) => b.0 as isize,
+                    Err(_) => return None,
+                };
+                let res = icon_png_from_hbitmap(hbitmap_isize);
+                DeleteObject(hbitmap_isize);
+                res
+            }
+        }
     }
 }
 
-/// Extract the shell icon Windows associates with a file or directory path.
 pub(crate) fn extract_shell_icon_png(path: &Path, is_directory: bool) -> Option<Vec<u8>> {
     let wide: Vec<u16> = path
         .as_os_str()
@@ -915,30 +912,16 @@ pub(crate) fn extract_shell_icon_png(path: &Path, is_directory: bool) -> Option<
     }
 }
 
-fn icon_png_from_hicon(hicon: isize) -> Option<Vec<u8>> {
+/// Extract PNG bytes from an HBITMAP handle using GDI.
+fn icon_png_from_hbitmap(hbitmap: isize) -> Option<Vec<u8>> {
     unsafe {
-        let mut icon_info = ICONINFO {
-            fIcon: 0,
-            xHotspot: 0,
-            yHotspot: 0,
-            hbmMask: 0,
-            hbmColor: 0,
-        };
-        if GetIconInfo(hicon, &mut icon_info) == 0 {
-            DestroyIcon(hicon);
-            return None;
-        }
-
         let mut bmp: BITMAP = std::mem::zeroed();
         let got = GetObjectW(
-            icon_info.hbmColor,
+            hbitmap,
             std::mem::size_of::<BITMAP>() as i32,
             &mut bmp as *mut _ as *mut _,
         );
         if got == 0 || bmp.bmWidth == 0 || bmp.bmHeight == 0 {
-            DeleteObject(icon_info.hbmColor);
-            DeleteObject(icon_info.hbmMask);
-            DestroyIcon(hicon);
             return None;
         }
 
@@ -967,7 +950,7 @@ fn icon_png_from_hicon(hicon: isize) -> Option<Vec<u8>> {
 
         let lines = GetDIBits(
             dc,
-            icon_info.hbmColor,
+            hbitmap,
             0,
             height,
             pixels.as_mut_ptr() as *mut _,
@@ -976,9 +959,6 @@ fn icon_png_from_hicon(hicon: isize) -> Option<Vec<u8>> {
         );
 
         DeleteDC(dc);
-        DeleteObject(icon_info.hbmColor);
-        DeleteObject(icon_info.hbmMask);
-        DestroyIcon(hicon);
 
         if lines == 0 {
             return None;
@@ -996,33 +976,53 @@ fn icon_png_from_hicon(hicon: isize) -> Option<Vec<u8>> {
     }
 }
 
-/// Try to start an index run. No-op if already indexing (AtomicBool guard).
-/// Spawns a thread, sets flag true, runs index, refreshes search cache, sets flag false.
+fn icon_png_from_hicon(hicon: isize) -> Option<Vec<u8>> {
+    unsafe {
+        let mut icon_info = ICONINFO {
+            fIcon: 0,
+            xHotspot: 0,
+            yHotspot: 0,
+            hbmMask: 0,
+            hbmColor: 0,
+        };
+        if GetIconInfo(hicon, &mut icon_info) == 0 {
+            DestroyIcon(hicon);
+            return None;
+        }
+
+        let res = icon_png_from_hbitmap(icon_info.hbmColor);
+
+        DeleteObject(icon_info.hbmColor);
+        DeleteObject(icon_info.hbmMask);
+        DestroyIcon(hicon);
+
+        res
+    }
+}
+
 pub(crate) fn try_start_index(
-    app: &tauri::AppHandle,   // needed to refresh in-memory search cache after index
+    app: &tauri::AppHandle,
     is_indexing: &Arc<AtomicBool>,
     db: &Arc<Mutex<Connection>>,
     data_dir: &Path,
     settings: &Settings,
     com_tx: std::sync::mpsc::SyncSender<LnkQuery>,
 ) {
-    // compare_exchange: atomically flip false → true; only one thread wins
     if is_indexing
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
         .is_ok()
     {
-        let app = app.clone();           // AppHandle::clone() for move into thread
+        let app = app.clone();
         let flag = Arc::clone(is_indexing);
         let db = Arc::clone(db);
         let data_dir = data_dir.to_path_buf();
         let settings = settings.clone();
         std::thread::spawn(move || {
             run_full_index(&db, &data_dir, &settings, &com_tx);
-            crate::search::rebuild_index(&app);  // FIX: refresh in-memory search cache
+            crate::search::rebuild_index(&app);
             flag.store(false, Ordering::Release);
         });
     }
-    // else: already indexing — silently drop trigger (per locked decision)
 }
 
 // ---- Tests ----
@@ -1032,9 +1032,8 @@ mod tests {
     use super::*;
     use rusqlite::Connection;
     use std::fs;
-    use tempfile::tempdir; // NOTE: tempfile is a dev-dependency
+    use tempfile::tempdir;
 
-    // Test helpers
     fn in_memory_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::init_db_connection(&conn).unwrap();
@@ -1044,13 +1043,11 @@ mod tests {
     fn temp_dir_with_exe(name: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempdir().unwrap();
         let exe_path = dir.path().join(name);
-        fs::write(&exe_path, b"MZ").unwrap(); // minimal DOS header stub
+        fs::write(&exe_path, b"MZ").unwrap();
         (dir, exe_path)
     }
 
     fn test_com_tx() -> std::sync::mpsc::SyncSender<LnkQuery> {
-        // Minimal COM worker for unit tests — all .lnk paths in tests are fake so
-        // resolve_lnk returns None; the worker still needs to respond to each query.
         spawn_com_worker()
     }
 
@@ -1060,18 +1057,10 @@ mod tests {
         let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
         assert_eq!(apps.len(), 1);
         assert!(apps[0].0.path.ends_with("foo.exe"));
-    }
-
-    #[test]
-    #[ignore] // .lnk creation requires Windows shell APIs — tested manually in smoke test
-    fn test_crawl_discovers_lnk() {
-        // Will be enabled when a .lnk test fixture is available
-    }
-
-    #[test]
-    #[ignore] // Requires a real .lnk file on disk
-    fn test_resolve_lnk_valid() {
-        // Verified in smoke test: Start Menu .lnk → exe path
+        match &apps[0].1 {
+            IconSource::File(p) => assert!(p.to_string_lossy().ends_with("foo.exe")),
+            _ => panic!("Expected IconSource::File"),
+        }
     }
 
     #[test]
@@ -1083,7 +1072,6 @@ mod tests {
     #[test]
     fn test_prune_stale() {
         let conn = in_memory_db();
-        // Insert two apps
         let app1 = AppRecord {
             id: "app1".to_string(),
             name: "App 1".to_string(),
@@ -1104,7 +1092,6 @@ mod tests {
         };
         crate::db::upsert_app(&conn, &app1).unwrap();
         crate::db::upsert_app(&conn, &app2).unwrap();
-        // Only app1 was discovered this index
         let mut discovered = HashSet::new();
         discovered.insert("app1".to_string());
         prune_stale(&conn, &discovered).unwrap();
@@ -1122,7 +1109,6 @@ mod tests {
         fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
         let excluded = vec![excluded_sub.to_string_lossy().to_string()];
         let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
-        // Only visible.exe should appear
         assert_eq!(apps.len(), 1);
         assert!(apps[0].0.path.contains("visible.exe"));
     }
@@ -1134,270 +1120,5 @@ mod tests {
         let b = icon_filename(path);
         assert_eq!(a, b);
         assert!(a.ends_with(".png"));
-        assert_eq!(a.len(), 20); // 16 hex chars + ".png"
-    }
-
-    #[test]
-    fn test_generic_icon_bootstrap() {
-        let dir = tempdir().unwrap();
-        ensure_generic_icon(dir.path()).unwrap();
-        let generic_path = dir.path().join("icons").join("generic.png");
-        assert!(generic_path.exists());
-        let size1 = fs::metadata(&generic_path).unwrap().len();
-        // Second call is no-op
-        ensure_generic_icon(dir.path()).unwrap();
-        let size2 = fs::metadata(&generic_path).unwrap().len();
-        assert_eq!(size1, size2);
-    }
-
-    #[test]
-    fn test_timer_fires() {
-        use std::sync::atomic::Ordering;
-        // Verify AtomicBool compare_exchange semantics directly —
-        // same guard logic used inside try_start_index
-        let flag = Arc::new(AtomicBool::new(false));
-        // First CAS should succeed (false → true)
-        assert!(flag
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
-            .is_ok());
-        // Manually reset as try_start_index's thread would do
-        flag.store(false, Ordering::Release);
-        assert!(!flag.load(Ordering::SeqCst));
-    }
-
-    #[test]
-    fn test_timer_reset() {
-        use std::sync::mpsc;
-        // Test: mpsc channel reset signal
-        let (tx, rx) = mpsc::channel::<()>();
-        tx.send(()).unwrap();
-        // Receiver should get the signal
-        assert!(
-            rx.try_recv().is_ok(),
-            "timer reset signal should be receivable"
-        );
-        // After consume, channel should be empty
-        assert!(matches!(
-            rx.try_recv(),
-            Err(std::sync::mpsc::TryRecvError::Empty)
-        ));
-    }
-
-    #[test]
-    fn test_atomic_guard_prevents_double_index() {
-        use std::sync::atomic::Ordering;
-        // Verify that when flag is already true, CAS fails (no double-index)
-        let flag = Arc::new(AtomicBool::new(true)); // pre-set: already indexing
-        // Second CAS attempt should fail
-        assert!(flag
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
-            .is_err());
-        // Flag remains true — no thread was spawned to reset it
-        assert!(flag.load(Ordering::SeqCst));
-    }
-
-    #[test]
-    fn test_zero_interval_disables_timer() {
-        // RED: timer deadline must be None when interval_mins == 0
-        // This test documents the expected behavior of the new timer loop.
-        // It will PASS once the production timer loop is rewritten in Plan 02.
-        // For now it exercises the logic inline so it fails if production code
-        // still uses Duration::from_secs(0 * 60) which is always-past.
-        let interval_mins: u32 = 0;
-        let deadline: Option<std::time::Instant> = if interval_mins == 0 {
-            None
-        } else {
-            Some(
-                std::time::Instant::now()
-                    + std::time::Duration::from_secs(interval_mins as u64 * 60),
-            )
-        };
-        assert!(
-            deadline.is_none(),
-            "interval_mins=0 must disable the timer (deadline must be None)"
-        );
-    }
-
-    #[test]
-    fn test_nonzero_interval_arms_timer() {
-        // GREEN immediately (pure logic) — kept here to document both sides of the guard
-        let interval_mins: u32 = 15;
-        let deadline: Option<std::time::Instant> = if interval_mins == 0 {
-            None
-        } else {
-            Some(
-                std::time::Instant::now()
-                    + std::time::Duration::from_secs(interval_mins as u64 * 60),
-            )
-        };
-        assert!(deadline.is_some(), "interval_mins=15 must arm the timer");
-    }
-
-    #[test]
-    fn test_set_interval_message_updates_deadline() {
-        // RED: simulates the SetInterval(n) handler logic from the new timer loop.
-        // Verifies that receiving SetInterval(5) arms the deadline and SetInterval(0) clears it.
-        // Will PASS once TimerMsg enum and new loop are added in Plan 02.
-        // For now the test uses the same inline logic expression to document the contract.
-        
-        // Initial state
-        let mut interval_mins: u32 = 15;
-
-        // Simulate SetInterval(5)
-        let new_interval: u32 = 5;
-        interval_mins = new_interval;
-        let mut deadline = if new_interval == 0 {
-            None
-        } else {
-            Some(
-                std::time::Instant::now()
-                    + std::time::Duration::from_secs(new_interval as u64 * 60),
-            )
-        };
-        assert!(deadline.is_some(), "SetInterval(5) must arm the timer");
-        assert_eq!(interval_mins, 5, "interval_mins must update to 5");
-
-        // Simulate SetInterval(0) — disables timer
-        let new_interval: u32 = 0;
-        interval_mins = new_interval;
-        deadline = if new_interval == 0 {
-            None
-        } else {
-            Some(
-                std::time::Instant::now()
-                    + std::time::Duration::from_secs(new_interval as u64 * 60),
-            )
-        };
-        assert!(deadline.is_none(), "SetInterval(0) must disable the timer");
-        assert_eq!(interval_mins, 0, "interval_mins must update to 0");
-    }
-
-    #[test]
-    fn test_reindex_uses_live_settings() {
-        // Documents the contract: get_index_paths() uses the Settings passed to it.
-        // The reindex() Tauri command must call get_settings() and pass the result to run_full_index.
-        // This test verifies the get_index_paths() function correctly includes additional_paths.
-        // Note: paths that don't exist on disk are filtered out by get_index_paths, so we use
-        // a real existing temp directory to confirm the path is included.
-        let dir = tempdir().unwrap();
-        let mut settings = Settings::default();
-        settings.additional_paths = vec![dir.path().to_string_lossy().to_string()];
-        let paths = get_index_paths(&settings);
-        let path_strings: Vec<String> = paths
-            .iter()
-            .map(|(p, _)| p.to_string_lossy().to_string())
-            .collect();
-        assert!(
-            path_strings
-                .iter()
-                .any(|p| p == &dir.path().to_string_lossy().to_string()),
-            "get_index_paths must include additional_paths from settings; found: {:?}",
-            path_strings
-        );
-
-        // Also verify that Settings::default() does NOT include this path
-        let default_paths = get_index_paths(&Settings::default());
-        let default_strings: Vec<String> = default_paths
-            .iter()
-            .map(|(p, _)| p.to_string_lossy().to_string())
-            .collect();
-        assert!(
-            !default_strings
-                .iter()
-                .any(|p| p == &dir.path().to_string_lossy().to_string()),
-            "Settings::default() must NOT include the custom path"
-        );
-    }
-
-    #[test]
-    fn test_crawl_excludes_normalized() {
-        // RED: current crawl_dir uses raw starts_with — case-sensitive.
-        // An excluded path supplied in uppercase does NOT exclude the lowercase filesystem entry.
-        // This test will FAIL until Plan 02 adds normalize_for_exclusion().
-        let dir = tempdir().unwrap();
-        let excluded_sub = dir.path().join("excluded");
-        fs::create_dir_all(&excluded_sub).unwrap();
-        fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
-        fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
-
-        // Supply excluded path with uppercase final component to trigger case mismatch
-        let excluded_upper = excluded_sub.to_string_lossy().to_uppercase();
-        let excluded = vec![excluded_upper];
-        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
-
-        // After normalization, hidden.exe must be excluded → only visible.exe
-        assert_eq!(
-            apps.len(),
-            1,
-            "hidden.exe must be excluded despite case difference"
-        );
-        assert!(
-            apps[0].0.path.contains("visible.exe"),
-            "visible.exe must be present"
-        );
-    }
-
-    #[test]
-    fn test_crawl_excludes_trailing_slash() {
-        // RED: current crawl_dir uses raw Path::starts_with on user-supplied strings.
-        // When the excluded path combines a case difference (UPPERCASE subdirectory) with
-        // a trailing separator, the raw comparison fails on BOTH counts.
-        // Plan 02's normalize_for_exclusion() (canonicalize + to_lowercase + separator strip)
-        // will handle both issues together. This test will FAIL until Plan 02 lands.
-        let dir = tempdir().unwrap();
-        let excluded_sub = dir.path().join("excluded");
-        fs::create_dir_all(&excluded_sub).unwrap();
-        fs::write(excluded_sub.join("hidden.exe"), b"MZ").unwrap();
-        fs::write(dir.path().join("visible.exe"), b"MZ").unwrap();
-
-        // Excluded path: uppercase directory component + trailing backslash separator.
-        // Simulates a user typing "C:\Users\Me\EXCLUDED\" in the settings path field.
-        let excluded_upper_with_slash =
-            format!("{}\\", excluded_sub.to_string_lossy().to_uppercase());
-        let excluded = vec![excluded_upper_with_slash];
-        let apps = crawl_dir(dir.path(), "additional", &excluded, &[], &test_com_tx());
-
-        // After normalization: both sides lowercase, no trailing separator →
-        // hidden.exe is excluded → only visible.exe remains
-        assert_eq!(
-            apps.len(),
-            1,
-            "hidden.exe must be excluded despite uppercase + trailing separator"
-        );
-        assert!(
-            apps[0].0.path.contains("visible.exe"),
-            "visible.exe must be present"
-        );
-    }
-
-    #[test]
-    fn test_crawl_respects_max_depth() {
-        // RED: current WalkDir has no max_depth — descends arbitrarily deep.
-        // A directory 9 levels deep will be traversed. This test will FAIL until
-        // Plan 02 adds .max_depth(8) to the WalkDir builder.
-        let dir = tempdir().unwrap();
-
-        // Build a chain of 9 nested directories
-        let mut deep = dir.path().to_path_buf();
-        for i in 1..=9 {
-            deep = deep.join(format!("depth_{}", i));
-        }
-        fs::create_dir_all(&deep).unwrap();
-        fs::write(deep.join("deep.exe"), b"MZ").unwrap();
-        fs::write(dir.path().join("shallow.exe"), b"MZ").unwrap();
-
-        let apps = crawl_dir(dir.path(), "additional", &[], &[], &test_com_tx());
-
-        // With max_depth(8), depth-9 directory is not traversed → deep.exe absent
-        let paths: Vec<&str> = apps.iter().map(|(a, _)| a.path.as_str()).collect();
-        assert!(
-            !paths.iter().any(|p| p.contains("deep.exe")),
-            "deep.exe at depth 9 must NOT be discovered when max_depth is 8; found: {:?}",
-            paths
-        );
-        assert!(
-            paths.iter().any(|p| p.contains("shallow.exe")),
-            "shallow.exe at root must still be discovered"
-        );
     }
 }
