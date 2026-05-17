@@ -261,7 +261,7 @@ pub fn search_shortcuts(
         }
 
         results.push(SearchResult {
-            id: shortcut_id("dir", &shortcut.path),
+            id: shortcut_id("dir", &shortcut.path, ""),
             name,
             icon_path: directory_shortcut_icon(&shortcut.path, data_dir),
             path: shortcut.path.clone(),
@@ -281,7 +281,7 @@ pub fn search_shortcuts(
         }
 
         results.push(SearchResult {
-            id: shortcut_id("file", &shortcut.path),
+            id: shortcut_id("file", &shortcut.path, &shortcut.parameters),
             name,
             icon_path: file_shortcut_icon(&shortcut.path, apps, data_dir),
             path: shortcut.path.clone(),
@@ -473,7 +473,7 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(
             results[0].id,
-            crate::shortcuts::shortcut_id("dir", "C:\\Projects\\Riftle")
+            crate::shortcuts::shortcut_id("dir", "C:\\Projects\\Riftle", "")
         );
         assert_eq!(results[0].name, "Work");
         assert_eq!(results[0].icon_path, "generic.png");
@@ -509,7 +509,7 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(
             results[0].id,
-            crate::shortcuts::shortcut_id("file", "C:\\Docs\\Release Notes.pdf")
+            crate::shortcuts::shortcut_id("file", "C:\\Docs\\Release Notes.pdf", "")
         );
         assert_eq!(results[0].name, "Release Notes");
         assert_eq!(results[0].kind, "shortcut_file");

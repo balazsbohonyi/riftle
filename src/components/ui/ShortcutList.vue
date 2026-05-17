@@ -104,10 +104,14 @@ async function validateDraft(draft: ShortcutEntry, originalIndex: number | null)
   }
 
   const pathKey = draft.path.trim().toLowerCase()
-  const duplicatePath = props.modelValue.some((entry, index) => (
-    index !== originalIndex && entry.path.trim().toLowerCase() === pathKey
-  ))
-  if (duplicatePath) return 'Shortcut path already exists.'
+  const paramsKey = props.mode === 'file' ? (draft as FileShortcut).parameters.trim().toLowerCase() : ''
+  const isDuplicate = props.modelValue.some((entry, index) => {
+    if (index === originalIndex) return false
+    const entryPath = entry.path.trim().toLowerCase()
+    const entryParams = props.mode === 'file' ? (entry as FileShortcut).parameters.trim().toLowerCase() : ''
+    return entryPath === pathKey && entryParams === paramsKey
+  })
+  if (isDuplicate) return 'Shortcut already exists.'
 
   if (props.mode === 'file') {
     const file = draft as FileShortcut
@@ -140,18 +144,10 @@ function clearError() {
   formError.value = null
 }
 
-async function addShortcut() {
-  if (!isTauriContext.value) return
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const path = await open({
-    directory: props.mode === 'directory',
-    multiple: false,
-  })
-  if (!path || typeof path !== 'string') return
-
+function addShortcut() {
   editIndex.value = null
   editDraft.value = null
-  newDraft.value = blankEntry(path)
+  newDraft.value = blankEntry()
   formError.value = null
 }
 

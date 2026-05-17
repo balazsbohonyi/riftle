@@ -37,14 +37,22 @@ fn normalized_match_name(path: &str, alias: &str) -> String {
 }
 
 #[allow(dead_code)]
-pub fn shortcut_id(kind: &str, path: &str) -> String {
+pub fn shortcut_id(kind: &str, path: &str, parameters: &str) -> String {
     let normalized_kind = kind.trim().to_lowercase();
     let normalized_path = path.trim().to_lowercase();
+    let normalized_params = parameters.trim().to_lowercase();
     let mut hash = 0xcbf29ce484222325u64;
 
     for byte in normalized_path.as_bytes() {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x100000001b3);
+    }
+
+    if !normalized_params.is_empty() {
+        for byte in normalized_params.as_bytes() {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
     }
 
     format!("shortcut:{normalized_kind}:{hash:016x}")
@@ -163,14 +171,19 @@ mod tests {
     #[test]
     fn shortcut_ids_are_stable_and_kind_prefixed() {
         assert_eq!(
-            shortcut_id("dir", "C:\\Projects"),
-            shortcut_id("dir", "C:\\Projects")
+            shortcut_id("dir", "C:\\Projects", ""),
+            shortcut_id("dir", "C:\\Projects", "")
         );
-        assert!(shortcut_id("dir", "C:\\Projects").starts_with("shortcut:dir:"));
-        assert!(shortcut_id("file", "C:\\Tools\\cleanup.exe").starts_with("shortcut:file:"));
+        assert!(shortcut_id("dir", "C:\\Projects", "").starts_with("shortcut:dir:"));
+        assert!(shortcut_id("file", "C:\\Tools\\cleanup.exe", "").starts_with("shortcut:file:"));
         assert_ne!(
-            shortcut_id("dir", "C:\\Projects"),
-            shortcut_id("file", "C:\\Projects")
+            shortcut_id("dir", "C:\\Projects", ""),
+            shortcut_id("file", "C:\\Projects", "")
+        );
+        // Verify parameters change the ID
+        assert_ne!(
+            shortcut_id("file", "C:\\Code.exe", "--prj1"),
+            shortcut_id("file", "C:\\Code.exe", "--prj2")
         );
     }
 

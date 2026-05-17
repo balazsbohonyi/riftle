@@ -116,7 +116,7 @@ fn resolve_shortcut_from_settings(
     id: &str,
 ) -> Option<ShortcutLaunchRequest> {
     for shortcut in &settings.directory_shortcuts {
-        if crate::shortcuts::shortcut_id("dir", &shortcut.path) == id {
+        if crate::shortcuts::shortcut_id("dir", &shortcut.path, "") == id {
             return Some(shortcut_launch_request(
                 ShortcutTargetKind::Directory,
                 &shortcut.path,
@@ -126,7 +126,7 @@ fn resolve_shortcut_from_settings(
     }
 
     for shortcut in &settings.file_shortcuts {
-        if crate::shortcuts::shortcut_id("file", &shortcut.path) == id {
+        if crate::shortcuts::shortcut_id("file", &shortcut.path, &shortcut.parameters) == id {
             return Some(shortcut_launch_request(
                 ShortcutTargetKind::File,
                 &shortcut.path,

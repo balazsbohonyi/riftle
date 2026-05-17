@@ -42,7 +42,7 @@ const SHADOW_PAD = 32
 const WINDOW_WIDTH = 564
 const SEARCH_AREA_HEIGHT = 56
 const RESULT_ROW_HEIGHT = 48
-const RESULT_PANEL_VERTICAL_PAD = 24
+const RESULT_PANEL_VERTICAL_PAD = 16
 const MAX_VISIBLE_RESULTS = 5
 
 // ---- State ----
@@ -96,11 +96,15 @@ const listHeight = computed(() =>
 
 const shouldShowResults = computed(() => results.value.length > 0 && !confirmPending.value)
 const targetListHeight = computed(() =>
-  shouldShowResults.value ? Math.min(results.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD : 0
+  shouldShowResults.value ? 1 + Math.min(results.value.length, MAX_VISIBLE_RESULTS) * RESULT_ROW_HEIGHT + RESULT_PANEL_VERTICAL_PAD : 0
 )
 const resultPanelHeight = computed(() =>
   resultPanelOpen.value && resultPanelRendered.value ? 1 + listHeight.value + RESULT_PANEL_VERTICAL_PAD : 0
 )
+const visualSelectedIndex = computed(() => {
+  const relIdx = selectedIndex.value - scrollerScrollTop.value / RESULT_ROW_HEIGHT
+  return Math.max(0, Math.min(MAX_VISIBLE_RESULTS - 1, relIdx))
+})
 
 function cancelResultPanelFrame() {
   if (resultPanelFrame === null) return
@@ -241,6 +245,10 @@ watch(query, async (q) => {
   clearResultsForNextQueryChange = false
   restoredQuerySelected = false
   selectedIndex.value = 0
+  scrollerScrollTop.value = 0
+  if (scrollerRef.value) {
+    scrollerRef.value.$el.scrollTop = 0
+  }
 
   if (!trimmed) {
     results.value = []
@@ -345,10 +353,22 @@ watch(selectedIndex, (newIdx, oldIdx) => {
     }
 
     // Normal scrolling
-    if (itemTop < scrollTop) {
-      scroller.scrollTo({ top: itemTop, behavior: 'smooth' })
-    } else if (itemBottom > scrollTop + viewportHeight) {
-      scroller.scrollTo({ top: itemBottom - viewportHeight, behavior: 'smooth' })
+    const needsScrollUp = itemTop < scrollTop
+    const needsScrollDown = itemBottom > scrollTop + viewportHeight
+
+    if (needsScrollUp || needsScrollDown) {
+      suppressSelectionTransition.value = true
+      if (needsScrollUp) {
+        scroller.scrollTo({ top: itemTop, behavior: 'smooth' })
+      } else {
+        scroller.scrollTo({ top: itemBottom - viewportHeight, behavior: 'smooth' })
+      }
+      // Wait for smooth scroll to finish before re-enabling transition
+      setTimeout(() => {
+        suppressSelectionTransition.value = false
+      }, 350)
+    } else {
+      suppressSelectionTransition.value = false
     }
   }
 })
@@ -705,6 +725,11 @@ onMounted(async () => {
       menuVisible.value = false
       confirmPending.value = false
       pendingCommand.value = null
+      selectedIndex.value = 0
+      scrollerScrollTop.value = 0
+      if (scrollerRef.value) {
+        scrollerRef.value.$el.scrollTop = 0
+      }
       restoreResultPanelInstantly()
       await nextTick()
       await updateWindowHeight()
@@ -827,13 +852,13 @@ onUnmounted(() => {
       <div class="result-list-container" :style="{ height: listHeight + 'px' }">
         <!-- 
           Selection highlight layer:
-          - The viewport tracks scrollerScrollTop INSTANTLY (no transition).
+          - The viewport is stationary (window-relative).
           - The bar inside it glides between indices SMOOTHLY (with transition).
+          - At edges, visualSelectedIndex cancels out scroll movement, making it STAND STILL.
         -->
         <div
           class="selection-viewport"
           :style="{
-            transform: `translateY(${-scrollerScrollTop}px)`,
             opacity: results.length > 0 ? 1 : 0
           }"
         >
@@ -841,7 +866,7 @@ onUnmounted(() => {
             class="selection-bar"
             :class="{ 'selection-bar--no-transition': suppressSelectionTransition }"
             :style="{
-              transform: `translateY(${selectedIndex * RESULT_ROW_HEIGHT}px)`
+              transform: `translateY(${visualSelectedIndex * RESULT_ROW_HEIGHT}px)`
             }"
           ></div>
         </div>
@@ -1087,7 +1112,7 @@ html, body {
 .result-panel {
   overflow: hidden;
   transition: height var(--duration-normal) cubic-bezier(0.22, 1, 0.36, 1);
-  padding: 8px 0;
+  padding: 0 0 8px 0;
 }
 
 .result-panel--no-transition {
@@ -1119,6 +1144,7 @@ html, body {
 
 .selection-bar {
   position: absolute;
+  top: 0;
   left: 8px;
   right: 8px;
   height: 48px;
@@ -1202,6 +1228,7 @@ html, body {
 }
 
 .path-line {
+/* ---- Context menu ---- */
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   font-weight: 400;
