@@ -3,7 +3,7 @@
    <h1>Riftle Launcher</h1>
 </div>
 
-Riftle Launcher is a minimal Windows launcher for people who prefer the keyboard. Press the default hotkey, Ctrl+Alt+Space, type a few letters, and press Enter to open an app, folder, file, or custom shortcut.
+Riftle Launcher is a minimal Windows launcher for people who prefer the keyboard. Press the default hotkey, Alt+Space, type a few letters, and press Enter to open an app, folder, file, or custom shortcut.
 
 It is inspired by Flow Launcher, but intentionally smaller in scope: fast app search, a quiet floating window, and settings that focus on daily launcher behavior instead of plugin-heavy workflows.
 
@@ -35,7 +35,7 @@ It is inspired by Flow Launcher, but intentionally smaller in scope: fast app se
 
 ## First Run
 
-When Riftle starts for the first time, it builds a local search index of your installed apps and shortcuts. The launcher window stays out of the way until you summon it with Ctrl+Alt+Space or from the tray icon.
+When Riftle starts for the first time, it builds a local search index of your installed apps and shortcuts. The launcher window stays out of the way until you summon it with Alt+Space or from the tray icon.
 
 The first index pass may take a short moment depending on how many apps and shortcuts are on the machine. After that, Riftle keeps the index fresh in the background based on the re-index interval in Settings.
 
@@ -43,7 +43,7 @@ The first index pass may take a short moment depending on how many apps and shor
 
 | Action | Shortcut |
 |---|---|
-| Show or hide Riftle | Ctrl+Alt+Space by default |
+| Show or hide Riftle | Alt+Space by default |
 | Toggle Riftle from tray | Single-click the tray icon |
 | Open tray menu | Right-click the tray icon |
 | Move through results | Arrow Up / Arrow Down |
@@ -57,7 +57,7 @@ The configured hotkey opens Riftle over your current work. Type part of what you
 
 The system tray icon is also available while Riftle is running. Double-click it to summon the launcher, single-click it to toggle the launcher, or right-click it to open the tray menu with Settings and Quit Launcher.
 
-The default hotkey is Ctrl+Alt+Space. You can change it in Settings.
+The default hotkey is Alt+Space. You can change it in Settings.
 
 ## Search
 
@@ -135,7 +135,7 @@ Open Settings with Ctrl+, from the launcher context menu, from the tray menu, or
 ### Hotkey
 
 - **Global shortcut** controls the key combination that summons Riftle.
-- The default shortcut is Ctrl+Alt+Space.
+- The default shortcut is Alt+Space.
 - Changes apply immediately.
 - If Windows rejects a shortcut because another app owns it, Riftle falls back to the default shortcut and shows the active value.
 - Use **Reset** to return to the default.

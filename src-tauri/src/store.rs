@@ -49,7 +49,7 @@ pub struct Settings {
     pub file_shortcuts: Vec<FileShortcut>,
 }
 
-fn default_hotkey() -> String { "Ctrl+Alt+Space".to_string() }
+fn default_hotkey() -> String { "Alt+Space".to_string() }
 fn default_theme() -> String { "system".to_string() }
 fn default_play_sound() -> bool { true }
 
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn test_settings_defaults() {
         let s = Settings::default();
-        assert_eq!(s.hotkey, "Ctrl+Alt+Space");
+        assert_eq!(s.hotkey, "Alt+Space");
         assert_eq!(s.theme, "system");
         assert!(s.play_sound);
 
@@ -350,9 +350,9 @@ mod tests {
     #[test]
     fn test_partial_json_fills_defaults() {
         // JSON with only hotkey — all other fields should get their serde defaults
-        let partial = r#"{"hotkey": "Ctrl+Alt+Space"}"#;
+        let partial = r#"{"hotkey": "Alt+Space"}"#;
         let s: Settings = serde_json::from_str(partial).unwrap();
-        assert_eq!(s.hotkey, "Ctrl+Alt+Space");
+        assert_eq!(s.hotkey, "Alt+Space");
         assert_eq!(s.theme, "system");          // from serde default
         assert!(s.play_sound);                  // from serde default
         assert_eq!(s.reindex_interval, 15);     // from serde default
@@ -365,7 +365,7 @@ mod tests {
         let result: Result<Settings, _> = serde_json::from_str(malformed);
         let s = result.unwrap_or_default();
         // Should get defaults, not panic
-        assert_eq!(s.hotkey, "Ctrl+Alt+Space");
+        assert_eq!(s.hotkey, "Alt+Space");
         assert_eq!(s.reindex_interval, 15);
     }
 
@@ -422,7 +422,7 @@ mod tests {
     #[test]
     fn shortcut_old_settings_json_defaults_to_empty_arrays() {
         let old_settings = r#"{
-            "hotkey": "Ctrl+Alt+Space",
+            "hotkey": "Alt+Space",
             "theme": "system",
             "show_path": false,
             "autostart": false,
@@ -478,7 +478,7 @@ mod tests {
 
         match outcome {
             SettingsLoadOutcome::Missing(settings) => {
-                assert_eq!(settings.hotkey, "Ctrl+Alt+Space");
+                assert_eq!(settings.hotkey, "Alt+Space");
                 assert!(!backup_path(&settings_path(&dir)).exists());
             }
             other => panic!("expected missing outcome, got {:?}", other),

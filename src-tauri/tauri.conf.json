@@ -33,6 +33,8 @@
         "height": 600,
         "minWidth": 450,
         "minHeight": 400,
+        "resizable": false,
+        "maximizable": false,
         "decorations": false,
         "visible": false,
         "url": "settings.html"

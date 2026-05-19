@@ -9,6 +9,21 @@ fn hotkey_capture_active(app: &AppHandle) -> bool {
         .unwrap_or(false)
 }
 
+fn normalize_hotkey_for_registration(hotkey: &str) -> String {
+    hotkey
+        .split('+')
+        .map(|token| {
+            let trimmed = token.trim();
+            if trimmed.eq_ignore_ascii_case("Win") || trimmed.eq_ignore_ascii_case("Meta") {
+                "Super".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
 fn format_hotkey_register_error(hotkey: &str, error: impl std::fmt::Display) -> String {
     let raw = error.to_string();
     if raw.contains("already registered") {
@@ -36,8 +51,9 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> Result<String, String> {
     };
 
     let win_clone = win.clone();
+    let registration_hotkey = normalize_hotkey_for_registration(hotkey_str);
 
-    let result = app.global_shortcut().on_shortcut(hotkey_str, move |_app, _shortcut, event| {
+    let result = app.global_shortcut().on_shortcut(registration_hotkey.as_str(), move |_app, _shortcut, event| {
         if event.state == ShortcutState::Pressed {
             if hotkey_capture_active(_app) {
                 return;
@@ -90,6 +106,14 @@ pub fn update_hotkey(
 ) -> Result<(), String> {
     let mut settings = crate::store::get_settings(&app, &data_dir);
     let old_hotkey = settings.hotkey.clone();
+    let registration_hotkey = normalize_hotkey_for_registration(&hotkey);
+    let old_registration_hotkey = normalize_hotkey_for_registration(&old_hotkey);
+
+    if registration_hotkey.eq_ignore_ascii_case(&old_registration_hotkey) {
+        settings.hotkey = hotkey;
+        crate::store::set_settings(&app, &data_dir, &settings);
+        return Ok(());
+    }
 
     // Step 1: Get the launcher window (required to build the handler closure)
     let win = app
@@ -100,7 +124,7 @@ pub fn update_hotkey(
 
     // Step 2: Register the new hotkey FIRST — same handler body as register()
     app.global_shortcut()
-        .on_shortcut(hotkey.as_str(), move |_app, _shortcut, event| {
+        .on_shortcut(registration_hotkey.as_str(), move |_app, _shortcut, event| {
             if event.state == ShortcutState::Pressed {
                 if hotkey_capture_active(_app) {
                     return;
@@ -116,7 +140,7 @@ pub fn update_hotkey(
 
     // Step 3: New key registered — now safely unregister old. Non-fatal on failure.
     app.global_shortcut()
-        .unregister(old_hotkey.as_str())
+        .unregister(old_registration_hotkey.as_str())
         .unwrap_or_else(|e| eprintln!("[hotkey] unregister old failed: {}", e));
 
     // Step 4: Persist the newly registered hotkey
@@ -147,6 +171,14 @@ mod tests {
         assert_eq!(
             formatted,
             "'Alt+Space' could not be registered because it is already in use"
+        );
+    }
+
+    #[test]
+    fn test_win_hotkey_normalizes_to_super_for_backend_parser() {
+        assert_eq!(
+            super::normalize_hotkey_for_registration("Win+Alt+Space"),
+            "Super+Alt+Space"
         );
     }
 }

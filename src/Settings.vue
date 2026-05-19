@@ -41,7 +41,7 @@ const canAutostart = ref(false)
 const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
 const shortcutsError = ref<string | null>(null)
-const lastRegisteredHotkey = ref('Ctrl+Alt+Space')
+const lastRegisteredHotkey = ref('Alt+Space')
 const activeShortcutTab = ref<'directory' | 'file'>('directory')
 const directoryShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const fileShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
@@ -65,7 +65,7 @@ const autostartHint = computed(() => {
 })
 
 const settings = ref<SettingsData>({
-  hotkey: 'Ctrl+Alt+Space',
+  hotkey: 'Alt+Space',
   theme: 'system',
 
   show_path: false,
@@ -376,10 +376,10 @@ onUnmounted(() => {
         <Row label="Global shortcut" ref="hotkeyRowRef">
           <div class="hotkey-row">
             <button
-              v-if="settings.hotkey !== 'Ctrl+Alt+Space'"
+              v-if="settings.hotkey !== 'Alt+Space'"
               type="button"
               class="reset-link"
-              @click="onHotkeyChange('Ctrl+Alt+Space')"
+              @click="onHotkeyChange('Alt+Space')"
             >Reset</button>
             <KeyCapture
               v-model="settings.hotkey"

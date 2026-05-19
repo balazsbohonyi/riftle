@@ -697,7 +697,7 @@ onMounted(async () => {
   if (isTauriContext.value) {
     const win = getCurrentWindow()
     if (win.label === 'launcher') {
-      // Hotkey (Alt+Space) owns show/hide - do NOT call showWindow() here.
+      // Global hotkey owns show/hide - do NOT call showWindow() here.
     }
   } else {
     await nextTick()

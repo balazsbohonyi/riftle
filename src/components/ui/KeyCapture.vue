@@ -10,12 +10,14 @@ const emit = defineEmits<{
 const capturing = ref(false)
 const displayValue = ref(props.modelValue)
 const rootRef = ref<HTMLElement | null>(null)
+let metaDuringCapture = false
 
 watch(() => props.modelValue, v => { if (!capturing.value) displayValue.value = v })
 
 function startCapture() {
   if (capturing.value) return
   capturing.value = true
+  metaDuringCapture = false
   displayValue.value = 'Press shortcut…'
   emit('capture-start')
 }
@@ -40,21 +42,25 @@ function finishCapture(hotkey: string) {
   emit('change', hotkey)
 }
 
-function formatHotkey(e: KeyboardEvent): string | null {
-  const modKeys = ['Control', 'Alt', 'Shift', 'Meta']
-  if (modKeys.includes(e.key)) return null
-
+function formatModifiers(e: KeyboardEvent): string[] {
   const mods: string[] = []
+  if (e.metaKey || metaDuringCapture) mods.push('Win')
   if (e.ctrlKey) mods.push('Ctrl')
   if (e.altKey) mods.push('Alt')
   if (e.shiftKey) mods.push('Shift')
-  if (e.metaKey) mods.push('Meta')
+  return mods
+}
+
+function formatHotkey(e: KeyboardEvent): string | null {
+  const modKeys = ['Control', 'Alt', 'Shift', 'Meta']
+  if (e.key === 'Meta') metaDuringCapture = true
+  if (modKeys.includes(e.key)) return null
 
   const keyName = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar'
     ? 'Space'
     : e.key
 
-  return [...mods, keyName].join('+')
+  return [...formatModifiers(e), keyName].join('+')
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -78,7 +84,7 @@ function onKeyUp(e: KeyboardEvent) {
 
   e.preventDefault()
   e.stopPropagation()
-  finishCapture('Alt+Space')
+  finishCapture([...formatModifiers(e), 'Space'].join('+'))
 }
 
 function onWindowPointerDown(e: MouseEvent) {
