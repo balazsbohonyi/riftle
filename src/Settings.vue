@@ -18,6 +18,7 @@ interface SettingsData {
   play_sound: boolean
 
   show_path: boolean
+  pin_shortcuts_to_top: boolean
   autostart: boolean
   additional_paths: string[]
   excluded_paths: string[]
@@ -69,6 +70,7 @@ const settings = ref<SettingsData>({
   theme: 'system',
 
   show_path: false,
+  pin_shortcuts_to_top: false,
   play_sound: true,
   autostart: false,
   additional_paths: [],
@@ -92,6 +94,7 @@ onMounted(async () => {
       theme: response.theme,
 
       show_path: response.show_path,
+      pin_shortcuts_to_top: response.pin_shortcuts_to_top,
       play_sound: response.play_sound ?? true,
       autostart: response.can_autostart ? response.autostart : false,
       additional_paths: response.additional_paths,
@@ -313,6 +316,11 @@ async function onShowPathChange(v: boolean) {
   await emitTo('launcher', 'settings-changed', { show_path: v }).catch(console.error)
 }
 
+async function onPinShortcutsToTopChange(v: boolean) {
+  settings.value.pin_shortcuts_to_top = v
+  await saveSettings()
+}
+
 async function onPlaySoundChange(v: boolean) {
   settings.value.play_sound = v
   await saveSettings()
@@ -403,6 +411,13 @@ onUnmounted(() => {
 
         <Row label="Show path">
           <Toggle v-model="settings.show_path" @update:modelValue="onShowPathChange" />
+        </Row>
+
+        <Row label="Pin shortcuts to top">
+          <Toggle
+            v-model="settings.pin_shortcuts_to_top"
+            @update:modelValue="onPinShortcutsToTopChange"
+          />
         </Row>
       </Section>
 

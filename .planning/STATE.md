@@ -6,8 +6,8 @@ current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
 stopped_at: Completed 09.8-02-PLAN.md
-last_updated: "2026-05-15T21:52:14.474Z"
-last_activity: 2026-05-15
+last_updated: "2026-05-21T15:37:20.118Z"
+last_activity: 2026-05-21
 progress:
   total_phases: 18
   completed_phases: 14
@@ -336,8 +336,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 7 | extract custom dropdown into src/components/Dropdown.vue reusable component, fix arrow key navigation, apply accent color to all highlighted options | 2026-03-08 | 475235b | [7-extract-custom-dropdown-into-src-compone](./quick/7-extract-custom-dropdown-into-src-compone/) |
 | 8 | create Button component in src/components/ui with variant prop covering Add Folder and Re-index button styles, add accent variant for Re-index button, replace all Settings window buttons with this component | 2026-03-08 | bc0f535 | [8-create-button-component-in-src-component](./quick/8-create-button-component-in-src-component/) |
 | 10 | conflicting hotkey error - show Settings with error when hotkey registration fails | 2026-05-15 | 38797a4 | [10-conflicting-hotkey-error-show-settings-w](./quick/10-conflicting-hotkey-error-show-settings-w/) |
+| 11 | Change shortcut ordering setting | 2026-05-21 | pending | [11-change-shortcut-ordering-setting](./quick/11-change-shortcut-ordering-setting/) |
 
-Last activity: 2026-05-15 - Completed quick task 10: conflicting hotkey error - show Settings with error when hotkey registration fails
+Last activity: 2026-05-21 - Completed quick task 11: Change shortcut ordering setting
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working

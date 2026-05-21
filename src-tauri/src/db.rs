@@ -2,6 +2,7 @@
 
 use rusqlite::{Connection, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -45,6 +46,12 @@ pub fn init_db_connection(conn: &Connection) -> Result<()> {
             last_launched  INTEGER,
             launch_count   INTEGER NOT NULL DEFAULT 0
         );
+
+        CREATE TABLE IF NOT EXISTS shortcut_launches (
+            id             TEXT PRIMARY KEY,
+            last_launched  INTEGER,
+            launch_count   INTEGER NOT NULL DEFAULT 0
+        );
     ",
     )?;
     Ok(())
@@ -78,8 +85,9 @@ fn init_db_with_recovery(db_path: &Path) -> Result<(Connection, Option<PathBuf>)
     }
 
     let backup_path = backup_path(db_path);
-    backup_file_with_overwrite(db_path, &backup_path)
-        .map_err(|backup_error| db_recovery_error(db_path, Some(&backup_path), backup_error, &init_error))?;
+    backup_file_with_overwrite(db_path, &backup_path).map_err(|backup_error| {
+        db_recovery_error(db_path, Some(&backup_path), backup_error, &init_error)
+    })?;
 
     let conn = try_init_db(db_path)?;
     Ok((conn, Some(backup_path)))
@@ -125,10 +133,7 @@ fn db_recovery_error(
         message.push_str(&format!(" while creating {}", path.display()));
     }
     message.push_str(&format!(" (initialization error: {})", init_error));
-    rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-        io_error.kind(),
-        message,
-    )))
+    rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(io_error.kind(), message)))
 }
 
 /// Inserts or updates an app record.
@@ -200,6 +205,32 @@ pub fn increment_launch_count(conn: &Connection, id: &str) -> Result<()> {
         rusqlite::params![now, id],
     )?;
     Ok(())
+}
+
+/// Increments a settings-backed shortcut launch count.
+pub fn increment_shortcut_launch_count(conn: &Connection, id: &str) -> Result<()> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    conn.execute(
+        "INSERT INTO shortcut_launches (id, last_launched, launch_count)
+         VALUES (?1, ?2, 1)
+         ON CONFLICT(id) DO UPDATE SET
+             launch_count  = launch_count + 1,
+             last_launched = excluded.last_launched",
+        rusqlite::params![id, now],
+    )?;
+    Ok(())
+}
+
+/// Returns shortcut launch counts keyed by shortcut id.
+pub fn get_shortcut_launch_counts(conn: &Connection) -> Result<HashMap<String, i64>> {
+    let mut stmt = conn.prepare("SELECT id, launch_count FROM shortcut_launches")?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    })?;
+    rows.collect()
 }
 
 #[cfg(test)]
@@ -281,7 +312,10 @@ mod tests {
         let after = get_all_apps(&conn).unwrap();
         assert_eq!(after.len(), 1, "upsert must not duplicate the row");
         assert_eq!(after[0].name, "Notepad Updated");
-        assert_eq!(after[0].launch_count, 1, "launch_count must be preserved by upsert");
+        assert_eq!(
+            after[0].launch_count, 1,
+            "launch_count must be preserved by upsert"
+        );
     }
 
     #[test]
@@ -304,13 +338,29 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_launch_counts_increment_and_load_by_id() {
+        let conn = setup();
+
+        increment_shortcut_launch_count(&conn, "shortcut:dir:abc").unwrap();
+        increment_shortcut_launch_count(&conn, "shortcut:dir:abc").unwrap();
+        increment_shortcut_launch_count(&conn, "shortcut:file:def").unwrap();
+
+        let counts = get_shortcut_launch_counts(&conn).unwrap();
+        assert_eq!(counts.get("shortcut:dir:abc"), Some(&2));
+        assert_eq!(counts.get("shortcut:file:def"), Some(&1));
+    }
+
+    #[test]
     fn db_backup_is_created_before_recovery() {
         let dir = unique_temp_dir("backup-create");
         let db_path = dir.join("launcher.db");
         let original = "not a sqlite database";
         fs::write(&db_path, original).unwrap();
 
-        let DbInitOutcome::Recovered { connection: conn, .. } = init_db(&db_path).unwrap() else {
+        let DbInitOutcome::Recovered {
+            connection: conn, ..
+        } = init_db(&db_path).unwrap()
+        else {
             panic!("expected recovered database");
         };
         let backup = backup_path(&db_path);
@@ -379,15 +429,19 @@ mod tests {
     fn test_count_apps_returns_correct_count() {
         let conn = setup();
         for i in 0..2u8 {
-            upsert_app(&conn, &AppRecord {
-                id: format!("app{i}"),
-                name: format!("App {i}"),
-                path: format!("C:\\app{i}.exe"),
-                icon_path: None,
-                source: "test".to_string(),
-                last_launched: None,
-                launch_count: 0,
-            }).unwrap();
+            upsert_app(
+                &conn,
+                &AppRecord {
+                    id: format!("app{i}"),
+                    name: format!("App {i}"),
+                    path: format!("C:\\app{i}.exe"),
+                    icon_path: None,
+                    source: "test".to_string(),
+                    last_launched: None,
+                    launch_count: 0,
+                },
+            )
+            .unwrap();
         }
         assert_eq!(count_apps(&conn).unwrap(), 2);
     }

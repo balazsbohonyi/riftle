@@ -8,6 +8,7 @@ use nucleo_matcher::{
     Config, Matcher, Utf32String,
 };
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, MutexGuard, PoisonError, RwLock};
 use tauri::Manager;
@@ -111,10 +112,32 @@ struct ScoredResult {
     tier: u8,
     score: u32,
     launch_count: i64,
+    sequence: usize,
     result: SearchResult,
 }
 
-pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
+fn score_candidate(
+    query_lower: &str,
+    pattern: &Pattern,
+    matcher: &mut Matcher,
+    launch_count: i64,
+    sequence: usize,
+    result: SearchResult,
+) -> Option<ScoredResult> {
+    let haystack = Utf32String::from(result.name.as_str());
+    pattern.score(haystack.slice(..), matcher).map(|score| {
+        let name_lower = result.name.to_lowercase();
+        ScoredResult {
+            tier: match_tier(query_lower, &name_lower),
+            score,
+            launch_count,
+            sequence,
+            result,
+        }
+    })
+}
+
+fn score_apps(query: &str, apps: &[AppRecord]) -> Vec<ScoredResult> {
     if query.is_empty() {
         return Vec::new();
     }
@@ -123,51 +146,54 @@ pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
     let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
     let q_lower = query.to_lowercase();
 
-    let mut scored: Vec<ScoredResult> = apps
-        .iter()
-        .filter_map(|app| {
-            let haystack = Utf32String::from(app.name.as_str());
-            pattern
-                .score(haystack.slice(..), &mut matcher)
-                .map(|score| {
-                    let name_lower = app.name.to_lowercase();
-                    let tier = match_tier(&q_lower, &name_lower);
-                    ScoredResult {
-                        tier,
-                        score,
-                        launch_count: app.launch_count,
-                        result: SearchResult {
-                            id: app.id.clone(),
-                            name: app.name.clone(),
-                            icon_path: {
-                                let raw = app
-                                    .icon_path
-                                    .clone()
-                                    .unwrap_or_else(|| "generic.png".to_string());
-                                if validate_icon_filename(&raw) {
-                                    raw
-                                } else {
-                                    "generic.png".to_string()
-                                }
-                            },
-                            path: app.path.clone(),
-                            kind: "app".to_string(),
-                            requires_elevation: false,
-                        },
+    apps.iter()
+        .enumerate()
+        .filter_map(|(sequence, app)| {
+            let result = SearchResult {
+                id: app.id.clone(),
+                name: app.name.clone(),
+                icon_path: {
+                    let raw = app
+                        .icon_path
+                        .clone()
+                        .unwrap_or_else(|| "generic.png".to_string());
+                    if validate_icon_filename(&raw) {
+                        raw
+                    } else {
+                        "generic.png".to_string()
                     }
-                })
+                },
+                path: app.path.clone(),
+                kind: "app".to_string(),
+                requires_elevation: false,
+            };
+            score_candidate(
+                &q_lower,
+                &pattern,
+                &mut matcher,
+                app.launch_count,
+                sequence,
+                result,
+            )
         })
-        .collect();
+        .collect()
+}
 
+fn rank_scored_results(mut scored: Vec<ScoredResult>, limit: usize) -> Vec<SearchResult> {
     scored.sort_unstable_by(|a, b| {
         b.tier
             .cmp(&a.tier)
             .then_with(|| b.score.cmp(&a.score))
             .then_with(|| b.launch_count.cmp(&a.launch_count))
+            .then_with(|| a.sequence.cmp(&b.sequence))
     });
 
-    scored.truncate(SEARCH_RESULT_LIMIT);
+    scored.truncate(limit);
     scored.into_iter().map(|s| s.result).collect()
+}
+
+pub fn score_and_rank(query: &str, apps: &[AppRecord]) -> Vec<SearchResult> {
+    rank_scored_results(score_apps(query, apps), SEARCH_RESULT_LIMIT)
 }
 
 fn sanitized_icon_path(icon_path: Option<&str>) -> Option<String> {
@@ -241,66 +267,92 @@ fn file_shortcut_icon(path: &str, apps: &[AppRecord], data_dir: Option<&Path>) -
         .unwrap_or_else(|| "generic.png".to_string())
 }
 
-pub fn search_shortcuts(
+fn score_shortcuts(
     query: &str,
     settings: &Settings,
     apps: &[AppRecord],
+    shortcut_counts: &HashMap<String, i64>,
     data_dir: Option<&Path>,
-) -> Vec<SearchResult> {
-    let q = query.trim().to_lowercase();
-    if q.is_empty() {
+) -> Vec<ScoredResult> {
+    if query.is_empty() {
         return Vec::new();
     }
 
-    let mut results = Vec::new();
+    let mut matcher = Matcher::new(Config::DEFAULT);
+    let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
+    let q_lower = query.to_lowercase();
+    let mut scored = Vec::new();
+    let mut sequence = 0;
 
     for shortcut in &settings.directory_shortcuts {
         let name = shortcut_display_name(&shortcut.path, &shortcut.alias);
-        if !name.to_lowercase().starts_with(&q) {
-            continue;
-        }
-
-        results.push(SearchResult {
-            id: shortcut_id("dir", &shortcut.path, ""),
+        let id = shortcut_id("dir", &shortcut.path, "");
+        let result = SearchResult {
+            id: id.clone(),
             name,
             icon_path: directory_shortcut_icon(&shortcut.path, data_dir),
             path: shortcut.path.clone(),
             kind: "shortcut_dir".to_string(),
             requires_elevation: false,
-        });
-
-        if results.len() == SEARCH_RESULT_LIMIT {
-            return results;
+        };
+        if let Some(candidate) = score_candidate(
+            &q_lower,
+            &pattern,
+            &mut matcher,
+            *shortcut_counts.get(&id).unwrap_or(&0),
+            sequence,
+            result,
+        ) {
+            scored.push(candidate);
         }
+        sequence += 1;
     }
 
     for shortcut in &settings.file_shortcuts {
         let name = shortcut_display_name(&shortcut.path, &shortcut.alias);
-        if !name.to_lowercase().starts_with(&q) {
-            continue;
-        }
-
-        results.push(SearchResult {
-            id: shortcut_id("file", &shortcut.path, &shortcut.parameters),
+        let id = shortcut_id("file", &shortcut.path, &shortcut.parameters);
+        let result = SearchResult {
+            id: id.clone(),
             name,
             icon_path: file_shortcut_icon(&shortcut.path, apps, data_dir),
             path: shortcut.path.clone(),
             kind: "shortcut_file".to_string(),
             requires_elevation: false,
-        });
-
-        if results.len() == SEARCH_RESULT_LIMIT {
-            return results;
+        };
+        if let Some(candidate) = score_candidate(
+            &q_lower,
+            &pattern,
+            &mut matcher,
+            *shortcut_counts.get(&id).unwrap_or(&0),
+            sequence,
+            result,
+        ) {
+            scored.push(candidate);
         }
+        sequence += 1;
     }
 
-    results
+    scored
+}
+
+pub fn search_shortcuts(
+    query: &str,
+    settings: &Settings,
+    apps: &[AppRecord],
+    shortcut_counts: &HashMap<String, i64>,
+    data_dir: Option<&Path>,
+) -> Vec<SearchResult> {
+    rank_scored_results(
+        score_shortcuts(query, settings, apps, shortcut_counts, data_dir),
+        SEARCH_RESULT_LIMIT,
+    )
 }
 
 pub fn search_with_shortcuts(
     query: &str,
     apps: &[AppRecord],
     settings: &Settings,
+    shortcut_counts: &HashMap<String, i64>,
     data_dir: Option<&Path>,
 ) -> Vec<SearchResult> {
     if query.is_empty() {
@@ -311,7 +363,13 @@ pub fn search_with_shortcuts(
         return search_system_commands(suffix);
     }
 
-    let mut results = search_shortcuts(query, settings, apps, data_dir);
+    if !settings.pin_shortcuts_to_top {
+        let mut scored = score_shortcuts(query, settings, apps, shortcut_counts, data_dir);
+        scored.extend(score_apps(query, apps));
+        return rank_scored_results(scored, SEARCH_RESULT_LIMIT);
+    }
+
+    let mut results = search_shortcuts(query, settings, apps, shortcut_counts, data_dir);
     let remaining = SEARCH_RESULT_LIMIT.saturating_sub(results.len());
     if remaining == 0 {
         return results;
@@ -336,6 +394,17 @@ fn load_search_settings(data_dir: &Path) -> Option<Settings> {
             None
         }
     }
+}
+
+fn load_shortcut_launch_counts(db_state: &crate::db::DbState) -> HashMap<String, i64> {
+    let conn = lock_db(db_state, "load_shortcut_launch_counts");
+    crate::db::get_shortcut_launch_counts(&conn).unwrap_or_else(|err| {
+        eprintln!(
+            "[search::search] failed to load shortcut launch counts: {}",
+            err
+        );
+        HashMap::new()
+    })
 }
 
 fn match_tier(q_lower: &str, name_lower: &str) -> u8 {
@@ -377,6 +446,7 @@ fn search_system_commands(suffix: &str) -> Vec<SearchResult> {
 pub fn search(
     query: String,
     index_state: tauri::State<SearchIndexState>,
+    db_state: tauri::State<crate::db::DbState>,
     data_dir: tauri::State<std::path::PathBuf>,
 ) -> Vec<SearchResult> {
     if query.is_empty() {
@@ -388,7 +458,14 @@ pub fn search(
     }
     let index = index_state.0.read().unwrap_or_else(|e| e.into_inner());
     if let Some(settings) = load_search_settings(&data_dir) {
-        search_with_shortcuts(&query, &index.apps, &settings, Some(&data_dir))
+        let shortcut_counts = load_shortcut_launch_counts(&db_state);
+        search_with_shortcuts(
+            &query,
+            &index.apps,
+            &settings,
+            &shortcut_counts,
+            Some(&data_dir),
+        )
     } else {
         score_and_rank(&query, &index.apps)
     }
@@ -410,6 +487,7 @@ mod tests {
     use super::*;
     use crate::shortcuts::{DirectoryShortcut, FileShortcut};
     use crate::store::Settings;
+    use std::collections::HashMap;
 
     fn make_app(id: &str, name: &str, launch_count: i64) -> AppRecord {
         AppRecord {
@@ -446,6 +524,22 @@ mod tests {
         }
     }
 
+    fn make_pinned_settings_with_shortcuts(
+        directory_shortcuts: Vec<DirectoryShortcut>,
+        file_shortcuts: Vec<FileShortcut>,
+    ) -> Settings {
+        Settings {
+            pin_shortcuts_to_top: true,
+            directory_shortcuts,
+            file_shortcuts,
+            ..Settings::default()
+        }
+    }
+
+    fn no_shortcut_counts() -> HashMap<String, i64> {
+        HashMap::new()
+    }
+
     fn directory_shortcut(path: &str, alias: &str) -> DirectoryShortcut {
         DirectoryShortcut {
             path: path.to_string(),
@@ -468,7 +562,7 @@ mod tests {
             vec![],
         );
 
-        let results = search_shortcuts("wo", &settings, &[], None);
+        let results = search_shortcuts("wo", &settings, &[], &no_shortcut_counts(), None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(
@@ -489,7 +583,7 @@ mod tests {
             vec![],
         );
 
-        let results = search_shortcuts("rift", &settings, &[], None);
+        let results = search_shortcuts("rift", &settings, &[], &no_shortcut_counts(), None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "Riftle");
@@ -504,7 +598,7 @@ mod tests {
             vec![file_shortcut("C:\\Docs\\Release Notes.pdf", "")],
         );
 
-        let results = search_shortcuts("release", &settings, &[], None);
+        let results = search_shortcuts("release", &settings, &[], &no_shortcut_counts(), None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(
@@ -531,7 +625,7 @@ mod tests {
             "0123456789abcdef.png",
         )];
 
-        let results = search_shortcuts("config", &settings, &apps, None);
+        let results = search_shortcuts("config", &settings, &apps, &no_shortcut_counts(), None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].icon_path, "0123456789abcdef.png");
@@ -551,32 +645,73 @@ mod tests {
             "..\\bad.png",
         )];
 
-        let results = search_shortcuts("config", &settings, &apps, None);
+        let results = search_shortcuts("config", &settings, &apps, &no_shortcut_counts(), None);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].icon_path, "generic.png");
     }
 
     #[test]
-    fn shortcut_search_precedes_apps_when_both_match_same_query() {
+    fn shortcut_search_interleaves_with_apps_by_default() {
         let settings = make_settings_with_shortcuts(
-            vec![directory_shortcut("C:\\Projects\\Workbench", "Work")],
+            vec![directory_shortcut("C:\\Projects\\Workbench", "Workbench")],
             vec![],
         );
         let apps = vec![make_app("workbench", "Workbench", 99)];
+        let counts = no_shortcut_counts();
 
-        let results = search_with_shortcuts("wo", &apps, &settings, None);
+        let results = search_with_shortcuts("wo", &apps, &settings, &counts, None);
 
         assert_eq!(results.len(), 2);
-        assert_eq!(results[0].kind, "shortcut_dir");
-        assert_eq!(results[0].name, "Work");
-        assert_eq!(results[1].kind, "app");
+        assert_eq!(results[0].kind, "app");
+        assert_eq!(results[0].name, "Workbench");
+        assert_eq!(results[1].kind, "shortcut_dir");
         assert_eq!(results[1].name, "Workbench");
     }
 
     #[test]
-    fn shortcut_search_precedes_apps_and_consumes_result_cap() {
+    fn shortcut_launch_counts_break_ties_when_unpinned() {
+        let first_id = crate::shortcuts::shortcut_id("dir", "C:\\Projects\\First", "");
+        let second_id = crate::shortcuts::shortcut_id("dir", "C:\\Projects\\Second", "");
         let settings = make_settings_with_shortcuts(
+            vec![
+                directory_shortcut("C:\\Projects\\First", "Workbench"),
+                directory_shortcut("C:\\Projects\\Second", "Workbench"),
+            ],
+            vec![],
+        );
+        let mut counts = HashMap::new();
+        counts.insert(first_id, 1);
+        counts.insert(second_id, 7);
+
+        let results = search_with_shortcuts("work", &[], &settings, &counts, None);
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].path, "C:\\Projects\\Second");
+        assert_eq!(results[1].path, "C:\\Projects\\First");
+    }
+
+    #[test]
+    fn shortcuts_use_fuzzy_matching_when_unpinned() {
+        let settings = make_settings_with_shortcuts(
+            vec![directory_shortcut(
+                "C:\\Projects\\VisualStudioCode",
+                "Visual Studio Code",
+            )],
+            vec![],
+        );
+        let counts = no_shortcut_counts();
+
+        let results = search_with_shortcuts("vsc", &[], &settings, &counts, None);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].kind, "shortcut_dir");
+        assert_eq!(results[0].name, "Visual Studio Code");
+    }
+
+    #[test]
+    fn pinned_shortcut_search_precedes_apps_and_consumes_result_cap() {
+        let settings = make_pinned_settings_with_shortcuts(
             vec![
                 directory_shortcut("C:\\Projects\\AppOne", "App One"),
                 directory_shortcut("C:\\Projects\\AppTwo", "App Two"),
@@ -586,8 +721,9 @@ mod tests {
         let apps: Vec<AppRecord> = (0..60)
             .map(|i| make_app(&format!("app{}", i), &format!("AppFoo{}", i), i as i64))
             .collect();
+        let counts = no_shortcut_counts();
 
-        let results = search_with_shortcuts("app", &apps, &settings, None);
+        let results = search_with_shortcuts("app", &apps, &settings, &counts, None);
 
         assert_eq!(results.len(), 50);
         assert_eq!(
@@ -607,14 +743,15 @@ mod tests {
     }
 
     #[test]
-    fn shortcut_search_precedes_apps_system_commands_do_not_mix_shortcuts() {
+    fn shortcut_search_system_commands_do_not_mix_shortcuts() {
         let settings = make_settings_with_shortcuts(
             vec![directory_shortcut("C:\\Tools\\Shutdown", "Shutdown")],
             vec![],
         );
         let apps = vec![make_app("shutdown", "Shutdown Helper", 99)];
+        let counts = no_shortcut_counts();
 
-        let results = search_with_shortcuts("> sh", &apps, &settings, None);
+        let results = search_with_shortcuts("> sh", &apps, &settings, &counts, None);
 
         assert!(!results.is_empty());
         assert!(results.iter().all(|result| result.kind == "system"));
