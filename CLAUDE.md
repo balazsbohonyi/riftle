@@ -2,7 +2,7 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## What This Is
 
-Riftle is a keyboard-first, minimal Windows application launcher built with Tauri v2 (Rust backend + Vue 3 TypeScript frontend). Users summon it with a global hotkey (default: Alt+Space), type to fuzzy-search installed apps, and launch with Enter.
+Riftle is a keyboard-first, minimal Windows application launcher built with Tauri v2 (Rust backend + Vue 3 TypeScript frontend). Users summon it with a global hotkey (default: Ctrl+Space), type to fuzzy-search installed apps, and launch with Enter.
 
 ## Commands
 
@@ -133,7 +133,7 @@ riftle/
 5. `indexer::run_full_index()` runs synchronously (window hidden during startup)
 6. `search::ensure_system_command_icon()` copies embedded icon to data dir
 7. `search::init_search_index()` loads all apps into in-memory `SearchIndexState(Arc<RwLock<SearchIndex>>)`
-8. `hotkey::register()` registers global shortcut; falls back to `Alt+Space` and persists fallback if OS rejects the key
+8. `hotkey::register()` registers global shortcut; falls back to `Ctrl+Space` and persists fallback if OS rejects the key
 9. Background indexer + file watcher started
 10. `SettingsCentered(AtomicBool)` managed state initialized (centers settings window on first open only)
 11. DWM attributes set (no border, no corner rounding) — CSS owns all visuals
@@ -148,7 +148,7 @@ riftle/
 - **`isTauriContext`** guard in frontend — some code paths are skipped when running `vite dev` in browser (no Tauri APIs)
 - **Settings window** calls `.hide()` not `.close()` — kept alive so `open_settings_window` can re-show it without recreating state
 - **`launcher-show` event** is the unified show-and-focus signal emitted by both hotkey.rs (toggle) and Settings.vue (ESC); App.vue listener runs the appear animation
-- **Hotkey fallback:** `hotkey::register()` returns the actually-registered hotkey string; if the OS rejects the configured key, falls back to `Alt+Space` and persists the fallback so it is not retried on next startup
+- **Hotkey fallback:** `hotkey::register()` returns the actually-registered hotkey string; if the OS rejects the configured key, falls back to `Ctrl+Space` and persists the fallback so it is not retried on next startup
 - **CSS design tokens** in `src/styles/tokens.css` — all colors, spacing, and typography are token-driven; theme switching swaps the token set
 
 ## IPC Commands Registered

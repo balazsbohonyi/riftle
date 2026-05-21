@@ -17,7 +17,7 @@
 
 ### R03 · Data Layer — Settings Persistence
 - Settings persisted via `tauri-plugin-store` to `settings.json` (portable-aware path)
-- Default settings: hotkey `Alt+Space`, theme `system`, opacity `1.0`, show_path `false`, autostart `false`, additional_paths `[]`, excluded_paths `[]`, reindex_interval `15` (minutes)
+- Default settings: hotkey `Ctrl+Space`, theme `system`, opacity `1.0`, show_path `false`, autostart `false`, additional_paths `[]`, excluded_paths `[]`, reindex_interval `15` (minutes)
 - `store.rs` exposes `get_settings()` and `set_settings(patch)` with typed `Settings` struct
 - **Phase:** 2
 
@@ -125,7 +125,7 @@
 - **Phase:** 8
 
 ### R17 · Global Hotkey
-- Register `Alt+Space` (or user-configured hotkey) via `tauri-plugin-global-shortcut` on app start
+- Register `Ctrl+Space` (or user-configured hotkey) via `tauri-plugin-global-shortcut` on app start
 - Hotkey toggles launcher visibility (show if hidden, hide if visible)
 - When hotkey fires and window is shown: window is brought to front, search input is cleared and focused
 - When hotkey is changed in Settings: old hotkey is deregistered, new one is registered immediately
