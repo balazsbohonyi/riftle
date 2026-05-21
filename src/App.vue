@@ -7,6 +7,11 @@ import { LogicalSize } from '@tauri-apps/api/dpi'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import magnifierIcon from './assets/magnifier.svg'
+import hibernateIcon from './assets/hibernate.svg?raw'
+import lockIcon from './assets/lock.svg?raw'
+import restartIcon from './assets/restart.svg?raw'
+import shutdownIcon from './assets/shutdown.svg?raw'
+import sleepIcon from './assets/sleep.svg?raw'
 import launcherOpenSound from './assets/sounds/launcher_open.wav'
 
 interface SearchResult {
@@ -42,6 +47,13 @@ interface ShortcutLaunchResult {
 
 const GENERIC_ICON_FILENAME = 'generic.png'
 const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
+const SYSTEM_COMMAND_ICONS: Record<string, string> = {
+  'system:lock': lockIcon,
+  'system:hibernate': hibernateIcon,
+  'system:shutdown': shutdownIcon,
+  'system:restart': restartIcon,
+  'system:sleep': sleepIcon,
+}
 const SHADOW_PAD = 32
 const WINDOW_WIDTH = 564
 const SEARCH_AREA_HEIGHT = 56
@@ -428,6 +440,11 @@ function getIconUrl(iconPath: string): string {
 
 function isShortcutResult(item: SearchResult): boolean {
   return item.kind === 'shortcut_dir' || item.kind === 'shortcut_file'
+}
+
+function systemCommandIcon(item: SearchResult): string | null {
+  if (item.kind !== 'system') return null
+  return SYSTEM_COMMAND_ICONS[item.id] ?? null
 }
 
 // ---- Launch stubs (Phase 6 implements commands) ----
@@ -938,7 +955,14 @@ onUnmounted(() => {
             @contextmenu.prevent
           >
             <!-- Icon -->
+            <span
+              v-if="systemCommandIcon(item)"
+              class="app-icon system-command-icon"
+              aria-hidden="true"
+              v-html="systemCommandIcon(item)"
+            ></span>
             <img
+              v-else
               class="app-icon"
               :src="getIconUrl(item.icon_path)"
               :alt="item.name"
@@ -1228,6 +1252,10 @@ html, body {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.result-row.selected .system-command-icon {
+  color: #ffffff;
+}
+
 /* ---- App icon ---- */
 .app-icon {
   width: 32px;
@@ -1235,6 +1263,18 @@ html, body {
   flex-shrink: 0;
   object-fit: contain;
   border-radius: var(--radius-sm);
+}
+
+.system-command-icon {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-soft);
+}
+
+.system-command-icon svg {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 /* ---- Text block ---- */

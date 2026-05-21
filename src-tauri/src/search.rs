@@ -17,9 +17,10 @@ static SYSTEM_COMMAND_ICON: &[u8] = include_bytes!("../icons/system_command.png"
 
 const SYSTEM_COMMANDS: &[(&str, &str)] = &[
     ("system:lock", "Lock"),
+    ("system:sleep", "Sleep"),
+    ("system:hibernate", "Hibernate"),
     ("system:shutdown", "Shutdown"),
     ("system:restart", "Restart"),
-    ("system:sleep", "Sleep"),
 ];
 const SEARCH_RESULT_LIMIT: usize = 50;
 
@@ -900,14 +901,20 @@ mod tests {
         let results = search_system_commands("");
         assert_eq!(
             results.len(),
-            4,
-            "Empty suffix should return all 4 system commands"
+            5,
+            "Empty suffix should return all 5 system commands"
         );
         let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["Lock", "Sleep", "Hibernate", "Shutdown", "Restart"],
+            "System command order should match launcher menu order"
+        );
         assert!(names.contains(&"Lock"), "Should contain Lock");
+        assert!(names.contains(&"Sleep"), "Should contain Sleep");
+        assert!(names.contains(&"Hibernate"), "Should contain Hibernate");
         assert!(names.contains(&"Shutdown"), "Should contain Shutdown");
         assert!(names.contains(&"Restart"), "Should contain Restart");
-        assert!(names.contains(&"Sleep"), "Should contain Sleep");
     }
 
     #[test]
