@@ -1,6 +1,6 @@
 // Phase 2: Settings persistence via tauri-plugin-store
-use crate::warnings::BackendWarning;
 use crate::shortcuts::{DirectoryShortcut, FileShortcut};
+use crate::warnings::BackendWarning;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs;
@@ -22,16 +22,19 @@ pub struct Settings {
     pub play_sound: bool,
 
     #[serde(default)]
-    pub show_path: bool,       // false by default
+    pub show_path: bool, // false by default
 
     #[serde(default)]
-    pub autostart: bool,       // false by default
+    pub pin_shortcuts_to_top: bool, // false by default
 
     #[serde(default)]
-    pub additional_paths: Vec<String>,  // [] by default
+    pub autostart: bool, // false by default
 
     #[serde(default)]
-    pub excluded_paths: Vec<String>,    // [] by default
+    pub additional_paths: Vec<String>, // [] by default
+
+    #[serde(default)]
+    pub excluded_paths: Vec<String>, // [] by default
 
     #[serde(default = "default_reindex_interval")]
     pub reindex_interval: u32,
@@ -49,28 +52,52 @@ pub struct Settings {
     pub file_shortcuts: Vec<FileShortcut>,
 }
 
-fn default_hotkey() -> String { "Alt+Space".to_string() }
-fn default_theme() -> String { "system".to_string() }
-fn default_play_sound() -> bool { true }
+fn default_hotkey() -> String {
+    "Ctrl+Space".to_string()
+}
+fn default_theme() -> String {
+    "system".to_string()
+}
+fn default_play_sound() -> bool {
+    true
+}
 
-fn default_reindex_interval() -> u32 { 15 }
+fn default_reindex_interval() -> u32 {
+    15
+}
 fn default_system_tool_allowlist() -> Vec<String> {
     [
         // Text / media
-        "notepad.exe", "wordpad.exe", "write.exe", "mspaint.exe",
+        "notepad.exe",
+        "wordpad.exe",
+        "write.exe",
+        "mspaint.exe",
         "wmplayer.exe",
         // Calculators / utilities
-        "calc.exe", "charmap.exe", "snippingtool.exe",
+        "calc.exe",
+        "charmap.exe",
+        "snippingtool.exe",
         // Shell
-        "cmd.exe", "powershell.exe",
+        "cmd.exe",
+        "powershell.exe",
         // Remote / network
         "mstsc.exe",
         // System admin
-        "regedit.exe", "taskmgr.exe", "msconfig.exe", "msinfo32.exe",
-        "resmon.exe", "perfmon.exe", "eventvwr.exe", "compmgmt.exe",
-        "dfrgui.exe", "cleanmgr.exe", "optionalfeatures.exe",
+        "regedit.exe",
+        "taskmgr.exe",
+        "msconfig.exe",
+        "msinfo32.exe",
+        "resmon.exe",
+        "perfmon.exe",
+        "eventvwr.exe",
+        "compmgmt.exe",
+        "dfrgui.exe",
+        "cleanmgr.exe",
+        "optionalfeatures.exe",
         // Accessibility
-        "magnify.exe", "osk.exe", "narrator.exe",
+        "magnify.exe",
+        "osk.exe",
+        "narrator.exe",
     ]
     .iter()
     .map(|s| s.to_string())
@@ -85,6 +112,7 @@ impl Default for Settings {
             play_sound: default_play_sound(),
 
             show_path: false,
+            pin_shortcuts_to_top: false,
             autostart: false,
             additional_paths: vec![],
             excluded_paths: vec![],
@@ -127,8 +155,13 @@ fn load_settings_from_file(store_path: &Path) -> Result<Settings, String> {
         .cloned()
         .ok_or_else(|| format!("missing settings payload in {}", store_path.display()))?;
 
-    serde_json::from_value(settings)
-        .map_err(|err| format!("failed to deserialize settings from {}: {}", store_path.display(), err))
+    serde_json::from_value(settings).map_err(|err| {
+        format!(
+            "failed to deserialize settings from {}: {}",
+            store_path.display(),
+            err
+        )
+    })
 }
 
 fn backup_file_with_overwrite(source_path: &Path, backup_path: &Path) -> std::io::Result<()> {
@@ -175,9 +208,8 @@ pub fn load_settings_outcome(data_dir: &Path) -> SettingsLoadOutcome {
                 warning: BackendWarning {
                     kind: "settings-reset".to_string(),
                     title: "Settings were reset".to_string(),
-                    message:
-                        "Riftle could not read your existing settings and restored defaults."
-                            .to_string(),
+                    message: "Riftle could not read your existing settings and restored defaults."
+                        .to_string(),
                     backup_path: Some(backup_path.to_string_lossy().into_owned()),
                 },
             }
@@ -244,9 +276,16 @@ pub fn get_settings_cmd(
             Settings::default()
         }
     };
-    let is_portable = data_dir.ends_with("data") &&
-        data_dir.parent().map(|p| p.join("riftle-launcher.portable").exists()).unwrap_or(false);
-    let build_profile = if cfg!(debug_assertions) { "debug" } else { "release" };
+    let is_portable = data_dir.ends_with("data")
+        && data_dir
+            .parent()
+            .map(|p| p.join("riftle-launcher.portable").exists())
+            .unwrap_or(false);
+    let build_profile = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
     let can_autostart = !cfg!(debug_assertions) && !is_portable;
     serde_json::json!({
         "hotkey": settings.hotkey,
@@ -254,6 +293,7 @@ pub fn get_settings_cmd(
         "play_sound": settings.play_sound,
 
         "show_path": settings.show_path,
+        "pin_shortcuts_to_top": settings.pin_shortcuts_to_top,
         "autostart": settings.autostart,
         "additional_paths": settings.additional_paths,
         "excluded_paths": settings.excluded_paths,
@@ -274,10 +314,7 @@ pub fn set_settings_cmd(
     data_dir: tauri::State<std::path::PathBuf>,
     settings: Settings,
 ) -> Result<(), String> {
-    crate::shortcuts::validate_shortcuts(
-        &settings.directory_shortcuts,
-        &settings.file_shortcuts,
-    )?;
+    crate::shortcuts::validate_shortcuts(&settings.directory_shortcuts, &settings.file_shortcuts)?;
 
     set_settings(&app, &data_dir, &settings);
     // Notify the background timer thread of the new interval.
@@ -286,9 +323,13 @@ pub fn set_settings_cmd(
     // Pattern matches existing app.try_state usage in search.rs.
     use std::sync::{Arc, Mutex};
     use tauri::Manager;
-    if let Some(timer_state) = app.try_state::<Arc<Mutex<std::sync::mpsc::Sender<crate::indexer::TimerMsg>>>>() {
+    if let Some(timer_state) =
+        app.try_state::<Arc<Mutex<std::sync::mpsc::Sender<crate::indexer::TimerMsg>>>>()
+    {
         if let Ok(tx) = timer_state.lock() {
-            let _ = tx.send(crate::indexer::TimerMsg::SetInterval(settings.reindex_interval));
+            let _ = tx.send(crate::indexer::TimerMsg::SetInterval(
+                settings.reindex_interval,
+            ));
         }
     }
     Ok(())
@@ -322,11 +363,12 @@ mod tests {
     #[test]
     fn test_settings_defaults() {
         let s = Settings::default();
-        assert_eq!(s.hotkey, "Alt+Space");
+        assert_eq!(s.hotkey, "Ctrl+Space");
         assert_eq!(s.theme, "system");
         assert!(s.play_sound);
 
         assert!(!s.show_path);
+        assert!(!s.pin_shortcuts_to_top);
         assert!(!s.autostart);
         assert!(s.additional_paths.is_empty());
         assert!(s.excluded_paths.is_empty());
@@ -343,6 +385,10 @@ mod tests {
         assert_eq!(deserialized.play_sound, original.play_sound);
 
         assert_eq!(deserialized.show_path, original.show_path);
+        assert_eq!(
+            deserialized.pin_shortcuts_to_top,
+            original.pin_shortcuts_to_top
+        );
         assert_eq!(deserialized.autostart, original.autostart);
         assert_eq!(deserialized.reindex_interval, original.reindex_interval);
     }
@@ -350,13 +396,14 @@ mod tests {
     #[test]
     fn test_partial_json_fills_defaults() {
         // JSON with only hotkey — all other fields should get their serde defaults
-        let partial = r#"{"hotkey": "Alt+Space"}"#;
+        let partial = r#"{"hotkey": "Ctrl+Space"}"#;
         let s: Settings = serde_json::from_str(partial).unwrap();
-        assert_eq!(s.hotkey, "Alt+Space");
-        assert_eq!(s.theme, "system");          // from serde default
-        assert!(s.play_sound);                  // from serde default
-        assert_eq!(s.reindex_interval, 15);     // from serde default
-        assert!(!s.show_path);                  // bool default
+        assert_eq!(s.hotkey, "Ctrl+Space");
+        assert_eq!(s.theme, "system"); // from serde default
+        assert!(s.play_sound); // from serde default
+        assert_eq!(s.reindex_interval, 15); // from serde default
+        assert!(!s.show_path); // bool default
+        assert!(!s.pin_shortcuts_to_top); // bool default
     }
 
     #[test]
@@ -365,7 +412,7 @@ mod tests {
         let result: Result<Settings, _> = serde_json::from_str(malformed);
         let s = result.unwrap_or_default();
         // Should get defaults, not panic
-        assert_eq!(s.hotkey, "Alt+Space");
+        assert_eq!(s.hotkey, "Ctrl+Space");
         assert_eq!(s.reindex_interval, 15);
     }
 
@@ -378,8 +425,7 @@ mod tests {
         let json = serde_json::to_value(&s).unwrap();
         let restored: Settings = serde_json::from_value(json).unwrap();
         assert_eq!(
-            restored.system_tool_allowlist,
-            s.system_tool_allowlist,
+            restored.system_tool_allowlist, s.system_tool_allowlist,
             "system_tool_allowlist must survive serde round-trip"
         );
     }
@@ -398,6 +444,7 @@ mod tests {
             "theme": s.theme,
             "play_sound": s.play_sound,
             "show_path": s.show_path,
+            "pin_shortcuts_to_top": s.pin_shortcuts_to_top,
             "autostart": s.autostart,
             "additional_paths": s.additional_paths,
             "excluded_paths": s.excluded_paths,
@@ -422,7 +469,7 @@ mod tests {
     #[test]
     fn shortcut_old_settings_json_defaults_to_empty_arrays() {
         let old_settings = r#"{
-            "hotkey": "Alt+Space",
+            "hotkey": "Ctrl+Space",
             "theme": "system",
             "show_path": false,
             "autostart": false,
@@ -436,6 +483,7 @@ mod tests {
 
         assert!(settings.directory_shortcuts.is_empty());
         assert!(settings.file_shortcuts.is_empty());
+        assert!(!settings.pin_shortcuts_to_top);
     }
 
     #[test]
@@ -454,6 +502,7 @@ mod tests {
             "theme": s.theme,
             "play_sound": s.play_sound,
             "show_path": s.show_path,
+            "pin_shortcuts_to_top": s.pin_shortcuts_to_top,
             "autostart": s.autostart,
             "additional_paths": s.additional_paths,
             "excluded_paths": s.excluded_paths,
@@ -478,7 +527,7 @@ mod tests {
 
         match outcome {
             SettingsLoadOutcome::Missing(settings) => {
-                assert_eq!(settings.hotkey, "Alt+Space");
+                assert_eq!(settings.hotkey, "Ctrl+Space");
                 assert!(!backup_path(&settings_path(&dir)).exists());
             }
             other => panic!("expected missing outcome, got {:?}", other),
@@ -503,7 +552,10 @@ mod tests {
                 assert!(warning.message.contains("restored defaults"));
                 assert!(!warning.message.contains("settings.json.bak"));
                 assert!(!warning.message.contains(backup.to_string_lossy().as_ref()));
-                assert_eq!(warning.backup_path.as_deref(), Some(backup.to_string_lossy().as_ref()));
+                assert_eq!(
+                    warning.backup_path.as_deref(),
+                    Some(backup.to_string_lossy().as_ref())
+                );
             }
             other => panic!("expected recovery outcome, got {:?}", other),
         }

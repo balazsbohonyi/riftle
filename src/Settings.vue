@@ -18,6 +18,7 @@ interface SettingsData {
   play_sound: boolean
 
   show_path: boolean
+  pin_shortcuts_to_top: boolean
   autostart: boolean
   additional_paths: string[]
   excluded_paths: string[]
@@ -41,7 +42,8 @@ const canAutostart = ref(false)
 const reindexButtonText = ref('Re-index')
 const hotkeyError = ref<string | null>(null)
 const shortcutsError = ref<string | null>(null)
-const lastRegisteredHotkey = ref('Alt+Space')
+const defaultHotkey = 'Ctrl+Space'
+const lastRegisteredHotkey = ref(defaultHotkey)
 const activeShortcutTab = ref<'directory' | 'file'>('directory')
 const directoryShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const fileShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
@@ -65,10 +67,11 @@ const autostartHint = computed(() => {
 })
 
 const settings = ref<SettingsData>({
-  hotkey: 'Alt+Space',
+  hotkey: defaultHotkey,
   theme: 'system',
 
   show_path: false,
+  pin_shortcuts_to_top: false,
   play_sound: true,
   autostart: false,
   additional_paths: [],
@@ -92,6 +95,7 @@ onMounted(async () => {
       theme: response.theme,
 
       show_path: response.show_path,
+      pin_shortcuts_to_top: response.pin_shortcuts_to_top,
       play_sound: response.play_sound ?? true,
       autostart: response.can_autostart ? response.autostart : false,
       additional_paths: response.additional_paths,
@@ -313,6 +317,11 @@ async function onShowPathChange(v: boolean) {
   await emitTo('launcher', 'settings-changed', { show_path: v }).catch(console.error)
 }
 
+async function onPinShortcutsToTopChange(v: boolean) {
+  settings.value.pin_shortcuts_to_top = v
+  await saveSettings()
+}
+
 async function onPlaySoundChange(v: boolean) {
   settings.value.play_sound = v
   await saveSettings()
@@ -327,7 +336,7 @@ async function closeWindow() {
   }
 
   if (shouldRestoreLauncher) {
-    await emitTo('launcher', 'launcher-show').catch(console.error)
+    await emitTo('launcher', 'launcher-show', { source: 'settings' }).catch(console.error)
   }
   await getCurrentWindow().hide()
 }
@@ -376,10 +385,10 @@ onUnmounted(() => {
         <Row label="Global shortcut" ref="hotkeyRowRef">
           <div class="hotkey-row">
             <button
-              v-if="settings.hotkey !== 'Alt+Space'"
+              v-if="settings.hotkey !== defaultHotkey"
               type="button"
               class="reset-link"
-              @click="onHotkeyChange('Alt+Space')"
+              @click="onHotkeyChange(defaultHotkey)"
             >Reset</button>
             <KeyCapture
               v-model="settings.hotkey"
@@ -403,6 +412,13 @@ onUnmounted(() => {
 
         <Row label="Show path">
           <Toggle v-model="settings.show_path" @update:modelValue="onShowPathChange" />
+        </Row>
+
+        <Row label="Pin shortcuts to top">
+          <Toggle
+            v-model="settings.pin_shortcuts_to_top"
+            @update:modelValue="onPinShortcutsToTopChange"
+          />
         </Row>
       </Section>
 

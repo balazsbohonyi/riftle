@@ -6,8 +6,8 @@ current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
 stopped_at: Completed 09.8-02-PLAN.md
-last_updated: "2026-05-15T21:52:14.474Z"
-last_activity: 2026-05-15
+last_updated: "2026-05-21T15:37:20.118Z"
+last_activity: 2026-05-21
 progress:
   total_phases: 18
   completed_phases: 14
@@ -176,7 +176,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 06-launch-actions]: launch_elevated window-hide ownership: Rust owns hide decision so UAC cancel leaves launcher open; frontend must not call hideWindow() after invoke('launch_elevated')
 - [Phase 06-launch-actions]: system command IDs include 'system:' prefix from search index — strip in run_system_command before matching
 - [Phase 06-launch-actions]: app.state::<T>() temporary must be bound to local variable before .0.lock() — borrow checker requirement in Tauri commands
-- [Phase 09-global-hotkey]: update_hotkey Tauri command already implemented in hotkey.rs — Phase 8 Settings UI calls invoke('update_hotkey', { hotkey: 'Alt+Space' }) to rebind immediately; no Rust work needed in Phase 8 for SETT-04
+- [Phase 09-global-hotkey]: update_hotkey Tauri command already implemented in hotkey.rs; Phase 8 Settings UI calls invoke('update_hotkey', { hotkey }) to rebind immediately; no Rust work needed in Phase 8 for SETT-04
 - [Phase 07-context-menu]: AppHandle::exit(0) used for quit_app — no tauri-plugin-process needed in Tauri v2
 - [Phase 07-context-menu]: @mousedown.prevent on menu items prevents focus-loss auto-hide race (not @click)
 - [Phase 07-context-menu]: Menu state reset in both hideWindow() and launcher-show listener — menu never reappears with launcher on next summon
@@ -194,7 +194,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 08-settings-window]: Settings window width set to 450px — previous 800px was too wide for a settings panel
 - [Phase 08-settings-window]: Opacity setting removed — launcher opacity slider and --launcher-opacity CSS variable removed; plain opacity without backdrop-filter makes text unreadable, not a meaningful user setting
 - [Phase 08-settings-window]: Settings window uses hide() not close() — SettingsCentered(AtomicBool) managed state centers on first open only; subsequent opens restore last user-dragged position
-- [Phase 08-settings-window]: hotkey::register() returns actually-registered hotkey and falls back to Alt+Space when OS rejects requested key (e.g. Ctrl+Space blocked by Windows IME); fallback persisted to settings.json to avoid retry on next startup
+- [Phase 08-settings-window]: hotkey::register() returns actually-registered hotkey and falls back to Ctrl+Space when OS rejects the configured key; fallback persisted to settings.json to avoid retry on next startup
 - [Phase 08-settings-window]: launcher-show is the unified show-and-focus signal — Settings.vue closeWindow() emits launcher-show before hiding; App.vue launcher-show handler calls show() + setFocus() handling both hotkey-path (Rust) and settings-close-path (Vue)
 - [Phase 08-settings-window]: Background gradient uses solid CSS color tokens (not rgba); opacity: 0→1 on the container is the only opacity transition — text and icons are always at full opacity
 - [Phase 09.1-system-tray]: Use explicit post-double-click suppression window to prevent click-up toggle side effects.
@@ -225,7 +225,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.6-01]: hotkeyError cleared on each new attempt; saveSettings() skipped on failure since backend is unchanged
 - [Phase 09.6-02]: CONFIRM_REQUIRED uses Set for O(1) lookup; confirmAction calls hideWindow() before invoke; backdrop mousedown.prevent blocks focus-loss without closing on outside click
 - [Phase 09.6-03]: lastRegisteredHotkey ref is the source of truth for the previous working hotkey — updated only on successful invoke, never on v-model updates which fire before change
-- [Phase 09.6-04]: SetWindowSubclass/DefSubclassProc live in windows::Win32::UI::Shell (not Win32::UI::Controls); subclass_proc is a free unsafe extern system fn inside cfg(target_os=windows); swallows WM_SYSCOMMAND where wParam & 0xFFF0 == SC_KEYMENU (0xF100) to fix Alt+Space capture in KeyCapture input
+- [Phase 09.6-04]: SetWindowSubclass/DefSubclassProc live in windows::Win32::UI::Shell (not Win32::UI::Controls); subclass_proc is a free unsafe extern system fn inside cfg(target_os=windows); swallows WM_SYSCOMMAND where wParam & 0xFFF0 == SC_KEYMENU (0xF100) to prevent OS menu activation while recording a hotkey
 - [Phase 09.6-05]: Inline confirmation row replaces floating overlay — v-if guards swap input vs confirm-row inside .search-area; divider and RecycleScroller also gated on !confirmPending
 - [Phase 09.7-shortcuts-support]: Shortcut identity uses deterministic FNV-1a hashing over the normalized path with kind prefixes.
 - [Phase 09.7-shortcuts-support]: Parameterized shortcuts are limited to .exe, .com, .bat, and .cmd targets; .lnk remains unsupported for parameters in this phase.
@@ -336,8 +336,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 7 | extract custom dropdown into src/components/Dropdown.vue reusable component, fix arrow key navigation, apply accent color to all highlighted options | 2026-03-08 | 475235b | [7-extract-custom-dropdown-into-src-compone](./quick/7-extract-custom-dropdown-into-src-compone/) |
 | 8 | create Button component in src/components/ui with variant prop covering Add Folder and Re-index button styles, add accent variant for Re-index button, replace all Settings window buttons with this component | 2026-03-08 | bc0f535 | [8-create-button-component-in-src-component](./quick/8-create-button-component-in-src-component/) |
 | 10 | conflicting hotkey error - show Settings with error when hotkey registration fails | 2026-05-15 | 38797a4 | [10-conflicting-hotkey-error-show-settings-w](./quick/10-conflicting-hotkey-error-show-settings-w/) |
+| 11 | Change shortcut ordering setting | 2026-05-21 | pending | [11-change-shortcut-ordering-setting](./quick/11-change-shortcut-ordering-setting/) |
 
-Last activity: 2026-05-15 - Completed quick task 10: conflicting hotkey error - show Settings with error when hotkey registration fails
+Last activity: 2026-05-21 - Completed quick task 11: Change shortcut ordering setting
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working

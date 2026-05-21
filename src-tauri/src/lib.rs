@@ -93,7 +93,7 @@ fn show_launcher_window(app: &tauri::AppHandle) {
         return;
     };
 
-    let _ = win.emit("launcher-show", ());
+    let _ = win.emit("launcher-show", serde_json::json!({ "source": "programmatic" }));
 }
 
 #[tauri::command]
@@ -496,8 +496,8 @@ pub fn run() {
             }
 
             // Subclass the settings window HWND to swallow WM_SYSCOMMAND SC_KEYMENU messages.
-            // Without this, pressing Alt+Space in the KeyCapture input triggers the OS system menu
-            // before the DOM keydown event fires, making Alt+Space impossible to capture as a hotkey.
+            // Without this, menu-activation chords in the KeyCapture input can trigger the OS
+            // system menu before the DOM keydown event fires.
             #[cfg(target_os = "windows")]
             if let Some(settings_win) = app.get_webview_window("settings") {
                 use windows::Win32::Foundation::{HWND, LRESULT, WPARAM, LPARAM};
@@ -515,7 +515,7 @@ pub fn run() {
                     const SC_KEYMENU: usize = 0xF100;
                     if msg == WM_SYSCOMMAND && (wparam.0 & 0xFFF0) == SC_KEYMENU {
                         // Swallow Alt key menu activation — prevents OS system menu from appearing
-                        // when user presses Alt+Space in the KeyCapture input
+                        // while the user is recording a hotkey.
                         return LRESULT(0);
                     }
                     DefSubclassProc(hwnd, msg, wparam, lparam)

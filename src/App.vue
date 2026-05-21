@@ -7,6 +7,11 @@ import { LogicalSize } from '@tauri-apps/api/dpi'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import magnifierIcon from './assets/magnifier.svg'
+import hibernateIcon from './assets/hibernate.svg?raw'
+import lockIcon from './assets/lock.svg?raw'
+import restartIcon from './assets/restart.svg?raw'
+import shutdownIcon from './assets/shutdown.svg?raw'
+import sleepIcon from './assets/sleep.svg?raw'
 import launcherOpenSound from './assets/sounds/launcher_open.wav'
 
 interface SearchResult {
@@ -24,6 +29,10 @@ interface SettingsPayload {
   reindex_interval?: number
 }
 
+interface LauncherShowPayload {
+  source?: 'hotkey' | 'settings' | 'programmatic'
+}
+
 interface BackendWarning {
   kind: string
   title: string
@@ -38,6 +47,13 @@ interface ShortcutLaunchResult {
 
 const GENERIC_ICON_FILENAME = 'generic.png'
 const CONFIRM_REQUIRED = new Set(['system:shutdown', 'system:restart'])
+const SYSTEM_COMMAND_ICONS: Record<string, string> = {
+  'system:lock': lockIcon,
+  'system:hibernate': hibernateIcon,
+  'system:shutdown': shutdownIcon,
+  'system:restart': restartIcon,
+  'system:sleep': sleepIcon,
+}
 const SHADOW_PAD = 32
 const WINDOW_WIDTH = 564
 const SEARCH_AREA_HEIGHT = 56
@@ -426,6 +442,11 @@ function isShortcutResult(item: SearchResult): boolean {
   return item.kind === 'shortcut_dir' || item.kind === 'shortcut_file'
 }
 
+function systemCommandIcon(item: SearchResult): string | null {
+  if (item.kind !== 'system') return null
+  return SYSTEM_COMMAND_ICONS[item.id] ?? null
+}
+
 // ---- Launch stubs (Phase 6 implements commands) ----
 async function launchItem(item: SearchResult) {
   if (item.kind === 'system' && CONFIRM_REQUIRED.has(item.id)) {
@@ -658,6 +679,52 @@ async function hideWindow() {
 }
 
 const launcherAudio = new Audio(launcherOpenSound)
+launcherAudio.preload = 'auto'
+launcherAudio.load()
+
+let launcherAudioContext: AudioContext | null = null
+let launcherAudioBuffer: AudioBuffer | null = null
+let launcherAudioLoadPromise: Promise<void> | null = null
+
+function preloadLauncherSound() {
+  if (launcherAudioLoadPromise) return launcherAudioLoadPromise
+
+  launcherAudioLoadPromise = (async () => {
+    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContextCtor) return
+
+    launcherAudioContext = new AudioContextCtor()
+    const response = await fetch(launcherOpenSound)
+    const bytes = await response.arrayBuffer()
+    launcherAudioBuffer = await launcherAudioContext.decodeAudioData(bytes)
+  })().catch(e => {
+    launcherAudioContext = null
+    launcherAudioBuffer = null
+    console.warn('[App] preload sound failed:', e)
+  })
+
+  return launcherAudioLoadPromise
+}
+
+async function playLauncherOpenSound() {
+  if (launcherAudioContext && launcherAudioBuffer) {
+    try {
+      if (launcherAudioContext.state === 'suspended') {
+        await launcherAudioContext.resume()
+      }
+      const source = launcherAudioContext.createBufferSource()
+      source.buffer = launcherAudioBuffer
+      source.connect(launcherAudioContext.destination)
+      source.start()
+      return
+    } catch (e) {
+      console.warn('[App] buffered sound playback failed:', e)
+    }
+  }
+
+  launcherAudio.currentTime = 0
+  launcherAudio.play().catch(e => console.warn('[App] play sound failed:', e))
+}
 
 // ---- Lifecycle ----
 onMounted(async () => {
@@ -665,6 +732,7 @@ onMounted(async () => {
 
   isTauriContext.value = '__TAURI_INTERNALS__' in window
   console.log('[App] Tauri context available:', isTauriContext.value)
+  void preloadLauncherSound()
 
   if (isTauriContext.value) {
     try {
@@ -717,10 +785,9 @@ onMounted(async () => {
   }
 
   if (isTauriContext.value) {
-    unlistenShow = await listen('launcher-show', async () => {
-      if (playSound.value) {
-        launcherAudio.currentTime = 0
-        launcherAudio.play().catch(e => console.warn('[App] play sound failed:', e))
+    unlistenShow = await listen<LauncherShowPayload>('launcher-show', async ({ payload }) => {
+      if ((payload?.source === 'hotkey' || payload?.source === 'programmatic') && playSound.value) {
+        void playLauncherOpenSound()
       }
       menuVisible.value = false
       confirmPending.value = false
@@ -888,7 +955,14 @@ onUnmounted(() => {
             @contextmenu.prevent
           >
             <!-- Icon -->
+            <span
+              v-if="systemCommandIcon(item)"
+              class="app-icon system-command-icon"
+              aria-hidden="true"
+              v-html="systemCommandIcon(item)"
+            ></span>
             <img
+              v-else
               class="app-icon"
               :src="getIconUrl(item.icon_path)"
               :alt="item.name"
@@ -1178,6 +1252,10 @@ html, body {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.result-row.selected .system-command-icon {
+  color: #ffffff;
+}
+
 /* ---- App icon ---- */
 .app-icon {
   width: 32px;
@@ -1185,6 +1263,18 @@ html, body {
   flex-shrink: 0;
   object-fit: contain;
   border-radius: var(--radius-sm);
+}
+
+.system-command-icon {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-soft);
+}
+
+.system-command-icon svg {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 /* ---- Text block ---- */

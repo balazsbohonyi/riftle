@@ -34,7 +34,7 @@ fn format_hotkey_register_error(hotkey: &str, error: impl std::fmt::Display) -> 
 }
 
 /// Registers the given hotkey string as a global shortcut that toggles launcher visibility.
-/// Returns Ok(registered_hotkey) on success (may be the Alt+Space fallback),
+/// Returns Ok(registered_hotkey) on success (may be the default fallback),
 /// or Err(requested_hotkey) if nothing could be registered at all.
 ///
 /// When the hotkey is pressed:
@@ -61,7 +61,7 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> Result<String, String> {
             if win_clone.is_visible().unwrap_or(false) {
                 let _ = win_clone.hide();
             } else {
-                let _ = win_clone.emit("launcher-show", ());
+                let _ = win_clone.emit("launcher-show", serde_json::json!({ "source": "hotkey" }));
             }
         }
     });
@@ -70,7 +70,7 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> Result<String, String> {
         Ok(_) => Ok(hotkey_str.to_string()),
         Err(e) => {
             eprintln!("[hotkey] failed to register '{}': {}", hotkey_str, e);
-            const DEFAULT: &str = "Alt+Space";
+            const DEFAULT: &str = "Ctrl+Space";
             if hotkey_str != DEFAULT {
                 eprintln!("[hotkey] falling back to '{}'", DEFAULT);
                 register(app, DEFAULT)
@@ -132,7 +132,7 @@ pub fn update_hotkey(
                 if win_clone.is_visible().unwrap_or(false) {
                     let _ = win_clone.hide();
                 } else {
-                    let _ = win_clone.emit("launcher-show", ());
+                    let _ = win_clone.emit("launcher-show", serde_json::json!({ "source": "hotkey" }));
                 }
             }
         })
@@ -165,20 +165,20 @@ mod tests {
     #[test]
     fn test_update_hotkey_err_format_sanitizes_registered_message() {
         let formatted = super::format_hotkey_register_error(
-            "Alt+Space",
-            "HotKey already registered: HotKey { mods: Modifiers(ALT), key: Space, id: 65598 }",
+            "Ctrl+Space",
+            "HotKey already registered: HotKey { mods: Modifiers(CONTROL), key: Space, id: 65598 }",
         );
         assert_eq!(
             formatted,
-            "'Alt+Space' could not be registered because it is already in use"
+            "'Ctrl+Space' could not be registered because it is already in use"
         );
     }
 
     #[test]
     fn test_win_hotkey_normalizes_to_super_for_backend_parser() {
         assert_eq!(
-            super::normalize_hotkey_for_registration("Win+Alt+Space"),
-            "Super+Alt+Space"
+            super::normalize_hotkey_for_registration("Win+Ctrl+Space"),
+            "Super+Ctrl+Space"
         );
     }
 }

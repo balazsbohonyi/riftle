@@ -32,7 +32,15 @@ pub fn run_system_command(cmd: String, app: tauri::AppHandle) -> Result<(), Stri
         }
         "sleep" => {
             // bHibernate=false, bForce=false, bWakeupEventsDisabled=false
-            unsafe { windows_sys::Win32::System::Power::SetSuspendState(0, 0, 0); }
+            unsafe {
+                windows_sys::Win32::System::Power::SetSuspendState(0, 0, 0);
+            }
+        }
+        "hibernate" => {
+            // bHibernate=true, bForce=false, bWakeupEventsDisabled=false
+            unsafe {
+                windows_sys::Win32::System::Power::SetSuspendState(1, 0, 0);
+            }
         }
         _ => {
             eprintln!("[system_command] unknown command: {}", cmd);

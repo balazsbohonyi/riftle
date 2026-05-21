@@ -204,6 +204,19 @@ fn shortcut_command_outcome_from_shell_result(
     shortcut_command_outcome(shortcut_shell_policy_result(request, shell_result))
 }
 
+fn record_shortcut_launch_success(
+    app: &tauri::AppHandle,
+    id: &str,
+    result: ShortcutLaunchResult,
+) -> ShortcutLaunchResult {
+    if result.success {
+        let db_state = app.state::<crate::db::DbState>();
+        let conn = lock_db(&db_state, "launch_shortcut");
+        let _ = crate::db::increment_shortcut_launch_count(&conn, id);
+    }
+    result
+}
+
 fn shortcut_settings_load_result(
     data_dir: &Path,
 ) -> Result<crate::store::Settings, ShortcutLaunchResult> {
@@ -320,18 +333,21 @@ pub fn launch_shortcut(
     }
 
     if shortcut_should_use_tauri_opener(&request) {
-        return Ok(open_shortcut_with_tauri_opener(&request));
+        let result = open_shortcut_with_tauri_opener(&request);
+        return Ok(record_shortcut_launch_success(&app, &id, result));
     }
 
     let owner_hwnd = launcher_hwnd(&app);
     let shell_result = shell_execute_shortcut(&request, owner_hwnd);
     if !shortcut_shell_failed(shell_result) {
-        return Ok(shortcut_command_outcome_from_shell_result(&request, shell_result).result);
+        let result = shortcut_command_outcome_from_shell_result(&request, shell_result).result;
+        return Ok(record_shortcut_launch_success(&app, &id, result));
     }
 
     if shortcut_shell_failure_action(&request, shell_result) == ShortcutShellFailureAction::OpenWith
     {
-        return Ok(open_with_dialog(&request, owner_hwnd));
+        let result = open_with_dialog(&request, owner_hwnd);
+        return Ok(record_shortcut_launch_success(&app, &id, result));
     }
 
     Ok(shortcut_command_outcome_from_shell_result(&request, shell_result).result)
@@ -544,7 +560,10 @@ mod tests {
             true,
         ));
         assert!(!shortcut_target_exists(
-            temp.path().join("missing.toml").to_string_lossy().to_string(),
+            temp.path()
+                .join("missing.toml")
+                .to_string_lossy()
+                .to_string(),
             false,
         ));
     }
