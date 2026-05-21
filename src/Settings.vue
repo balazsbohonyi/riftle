@@ -336,7 +336,7 @@ async function closeWindow() {
   }
 
   if (shouldRestoreLauncher) {
-    await emitTo('launcher', 'launcher-show').catch(console.error)
+    await emitTo('launcher', 'launcher-show', { source: 'settings' }).catch(console.error)
   }
   await getCurrentWindow().hide()
 }

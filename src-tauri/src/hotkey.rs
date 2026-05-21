@@ -61,7 +61,7 @@ pub fn register(app: &AppHandle, hotkey_str: &str) -> Result<String, String> {
             if win_clone.is_visible().unwrap_or(false) {
                 let _ = win_clone.hide();
             } else {
-                let _ = win_clone.emit("launcher-show", ());
+                let _ = win_clone.emit("launcher-show", serde_json::json!({ "source": "hotkey" }));
             }
         }
     });
@@ -132,7 +132,7 @@ pub fn update_hotkey(
                 if win_clone.is_visible().unwrap_or(false) {
                     let _ = win_clone.hide();
                 } else {
-                    let _ = win_clone.emit("launcher-show", ());
+                    let _ = win_clone.emit("launcher-show", serde_json::json!({ "source": "hotkey" }));
                 }
             }
         })

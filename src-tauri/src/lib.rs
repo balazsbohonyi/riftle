@@ -93,7 +93,7 @@ fn show_launcher_window(app: &tauri::AppHandle) {
         return;
     };
 
-    let _ = win.emit("launcher-show", ());
+    let _ = win.emit("launcher-show", serde_json::json!({ "source": "programmatic" }));
 }
 
 #[tauri::command]

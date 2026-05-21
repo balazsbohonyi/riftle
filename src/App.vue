@@ -24,6 +24,10 @@ interface SettingsPayload {
   reindex_interval?: number
 }
 
+interface LauncherShowPayload {
+  source?: 'hotkey' | 'settings' | 'programmatic'
+}
+
 interface BackendWarning {
   kind: string
   title: string
@@ -658,6 +662,52 @@ async function hideWindow() {
 }
 
 const launcherAudio = new Audio(launcherOpenSound)
+launcherAudio.preload = 'auto'
+launcherAudio.load()
+
+let launcherAudioContext: AudioContext | null = null
+let launcherAudioBuffer: AudioBuffer | null = null
+let launcherAudioLoadPromise: Promise<void> | null = null
+
+function preloadLauncherSound() {
+  if (launcherAudioLoadPromise) return launcherAudioLoadPromise
+
+  launcherAudioLoadPromise = (async () => {
+    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContextCtor) return
+
+    launcherAudioContext = new AudioContextCtor()
+    const response = await fetch(launcherOpenSound)
+    const bytes = await response.arrayBuffer()
+    launcherAudioBuffer = await launcherAudioContext.decodeAudioData(bytes)
+  })().catch(e => {
+    launcherAudioContext = null
+    launcherAudioBuffer = null
+    console.warn('[App] preload sound failed:', e)
+  })
+
+  return launcherAudioLoadPromise
+}
+
+async function playLauncherOpenSound() {
+  if (launcherAudioContext && launcherAudioBuffer) {
+    try {
+      if (launcherAudioContext.state === 'suspended') {
+        await launcherAudioContext.resume()
+      }
+      const source = launcherAudioContext.createBufferSource()
+      source.buffer = launcherAudioBuffer
+      source.connect(launcherAudioContext.destination)
+      source.start()
+      return
+    } catch (e) {
+      console.warn('[App] buffered sound playback failed:', e)
+    }
+  }
+
+  launcherAudio.currentTime = 0
+  launcherAudio.play().catch(e => console.warn('[App] play sound failed:', e))
+}
 
 // ---- Lifecycle ----
 onMounted(async () => {
@@ -665,6 +715,7 @@ onMounted(async () => {
 
   isTauriContext.value = '__TAURI_INTERNALS__' in window
   console.log('[App] Tauri context available:', isTauriContext.value)
+  void preloadLauncherSound()
 
   if (isTauriContext.value) {
     try {
@@ -717,10 +768,9 @@ onMounted(async () => {
   }
 
   if (isTauriContext.value) {
-    unlistenShow = await listen('launcher-show', async () => {
-      if (playSound.value) {
-        launcherAudio.currentTime = 0
-        launcherAudio.play().catch(e => console.warn('[App] play sound failed:', e))
+    unlistenShow = await listen<LauncherShowPayload>('launcher-show', async ({ payload }) => {
+      if ((payload?.source === 'hotkey' || payload?.source === 'programmatic') && playSound.value) {
+        void playLauncherOpenSound()
       }
       menuVisible.value = false
       confirmPending.value = false
