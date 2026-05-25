@@ -16,7 +16,8 @@
 - Add portable packaging:
   - Build release normally, take `src-tauri/target/release/riftle.exe`.
   - Zip it with a sibling marker file named `riftle-launcher.portable`.
-  - Include a short `README_portable.txt` explaining that data is stored in `./data/` and autostart is unavailable in portable mode.
+  - Include `.github/release/README_portable.txt`, explaining that data is stored in `./data/`, autostart is unavailable in the current portable UI, and WebView2 may need to be installed.
+  - Automate this in `.github/workflows/release.yml` so each tagged release uploads `Riftle-<version>-portable-windows-x64.zip` to the draft GitHub Release.
 
 ## Admin-Rights Audit
 - App data is already user-scoped in installed mode: `%APPDATA%\riftle-launcher`.
@@ -39,6 +40,7 @@
 - Run the NSIS installer as a non-admin user and confirm no UAC shield appears on Install.
 - Confirm installed app launches, registers hotkey, writes settings/db/icons under `%APPDATA%\riftle-launcher`, and autostart toggles without UAC.
 - Build portable zip, run from an arbitrary user-writable folder, confirm `./data/` is created next to the exe and no installer/admin prompt appears.
+- Confirm the GitHub Release draft contains `Riftle-<version>-portable-windows-x64.zip`.
 - Document MSI separately as admin/per-machine unless a custom per-user WiX template is implemented.
 
 ## Assumptions

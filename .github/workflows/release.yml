@@ -34,7 +34,14 @@ jobs:
           version: 9
 
       - name: install frontend dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: read app version
+        id: app_version
+        shell: pwsh
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -44,5 +51,35 @@ jobs:
           releaseName: "Riftle v__VERSION__"
           releaseBody: "See the assets below to download the latest version of Riftle."
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
+
+      - name: create portable zip
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.app_version.outputs.version }}"
+          $portableDir = "portable/Riftle-$version-portable"
+          $portableZip = "Riftle-$version-portable-windows-x64.zip"
+          $releaseExe = "src-tauri/target/release/riftle.exe"
+
+          if (!(Test-Path $releaseExe)) {
+            throw "Expected release executable not found: $releaseExe"
+          }
+
+          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+          Copy-Item $releaseExe "$portableDir/riftle.exe"
+          Copy-Item ".github/release/README_portable.txt" "$portableDir/README_portable.txt"
+          New-Item -ItemType File -Force -Path "$portableDir/riftle-launcher.portable" | Out-Null
+
+          Compress-Archive -Path "$portableDir/*" -DestinationPath $portableZip -Force
+
+      - name: upload portable zip to draft release
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = "${{ steps.app_version.outputs.version }}"
+          $portableZip = "Riftle-$version-portable-windows-x64.zip"
+          gh release upload "v$version" $portableZip --clobber
