@@ -19,6 +19,7 @@ interface SearchResult {
   name: string
   icon_path: string
   path: string
+  parameters: string
   kind: string
   requires_elevation: boolean
 }
@@ -445,6 +446,24 @@ function isShortcutResult(item: SearchResult): boolean {
 function systemCommandIcon(item: SearchResult): string | null {
   if (item.kind !== 'system') return null
   return SYSTEM_COMMAND_ICONS[item.id] ?? null
+}
+
+function executableFileName(path: string): string {
+  const trimmed = path.trim()
+  if (!trimmed || /[\\/]$/.test(trimmed) || /^["'].*["']$/.test(trimmed)) {
+    return trimmed
+  }
+
+  const fileName = trimmed.split(/[\\/]/).pop()?.trim() ?? ''
+  return fileName && fileName.includes('.') ? fileName : trimmed
+}
+
+function resultSecondaryLine(item: SearchResult): string {
+  const parameters = item.parameters.trim()
+  if (!parameters) return item.path
+
+  const executable = executableFileName(item.path)
+  return executable ? `${executable} ${parameters}` : parameters
 }
 
 // ---- Launch stubs (Phase 6 implements commands) ----
@@ -977,7 +996,8 @@ onUnmounted(() => {
               <span
                 v-if="index === selectedIndex && showPath && item.kind !== 'system'"
                 class="path-line"
-              >{{ item.path }}</span>
+                :title="resultSecondaryLine(item)"
+              >{{ resultSecondaryLine(item) }}</span>
             </div>
 
             <!-- Admin badge (right margin, no layout shift) -->

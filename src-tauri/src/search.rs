@@ -30,6 +30,7 @@ pub struct SearchResult {
     pub name: String,
     pub icon_path: String,
     pub path: String,
+    pub parameters: String,
     pub kind: String,
     pub requires_elevation: bool,
 }
@@ -165,6 +166,7 @@ fn score_apps(query: &str, apps: &[AppRecord]) -> Vec<ScoredResult> {
                     }
                 },
                 path: app.path.clone(),
+                parameters: String::new(),
                 kind: "app".to_string(),
                 requires_elevation: false,
             };
@@ -293,6 +295,7 @@ fn score_shortcuts(
             name,
             icon_path: directory_shortcut_icon(&shortcut.path, data_dir),
             path: shortcut.path.clone(),
+            parameters: String::new(),
             kind: "shortcut_dir".to_string(),
             requires_elevation: false,
         };
@@ -317,6 +320,7 @@ fn score_shortcuts(
             name,
             icon_path: file_shortcut_icon(&shortcut.path, apps, data_dir),
             path: shortcut.path.clone(),
+            parameters: shortcut.parameters.clone(),
             kind: "shortcut_file".to_string(),
             requires_elevation: false,
         };
@@ -437,6 +441,7 @@ fn search_system_commands(suffix: &str) -> Vec<SearchResult> {
             name: name.to_string(),
             icon_path: "system_command.png".to_string(),
             path: String::new(),
+            parameters: String::new(),
             kind: "system".to_string(),
             requires_elevation: false,
         })
@@ -556,6 +561,14 @@ mod tests {
         }
     }
 
+    fn parameterized_file_shortcut(path: &str, parameters: &str, alias: &str) -> FileShortcut {
+        FileShortcut {
+            path: path.to_string(),
+            parameters: parameters.to_string(),
+            alias: alias.to_string(),
+        }
+    }
+
     #[test]
     fn shortcut_fallback_names_alias_prefix_matches_directory_shortcut() {
         let settings = make_settings_with_shortcuts(
@@ -610,6 +623,50 @@ mod tests {
         assert_eq!(results[0].kind, "shortcut_file");
         assert_eq!(results[0].path, "C:\\Docs\\Release Notes.pdf");
         assert_eq!(results[0].icon_path, "generic.png");
+        assert_eq!(results[0].parameters, "");
+    }
+
+    #[test]
+    fn parameterized_file_shortcuts_include_parameters_in_search_results() {
+        let parameters = "\"D:\\Projects\\Riftle\" --reuse-window";
+        let settings = make_settings_with_shortcuts(
+            vec![],
+            vec![parameterized_file_shortcut(
+                "C:\\Users\\Dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+                parameters,
+                "Riftle",
+            )],
+        );
+
+        let results = search_shortcuts("rift", &settings, &[], &no_shortcut_counts(), None);
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].kind, "shortcut_file");
+        assert_eq!(
+            results[0].path,
+            "C:\\Users\\Dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+        );
+        assert_eq!(results[0].parameters, parameters);
+    }
+
+    #[test]
+    fn non_parameterized_results_include_empty_parameters() {
+        let settings = make_settings_with_shortcuts(
+            vec![directory_shortcut("C:\\Projects\\Workbench", "Workbench")],
+            vec![file_shortcut("C:\\Docs\\Workbench.pdf", "Workbench Notes")],
+        );
+        let apps = vec![make_app("workbench", "Workbench App", 99)];
+        let counts = no_shortcut_counts();
+
+        let results = search_with_shortcuts("work", &apps, &settings, &counts, None);
+        let system_results = search_system_commands("lock");
+
+        assert!(!results.is_empty());
+        assert!(results.iter().all(|result| result.parameters.is_empty()));
+        assert!(!system_results.is_empty());
+        assert!(system_results
+            .iter()
+            .all(|result| result.parameters.is_empty()));
     }
 
     #[test]
