@@ -41,7 +41,7 @@ git push origin v0.1.0
 
 ### Step 4: Verification and Publishing
 The workflow creates a **Draft Release**. This allows for a final manual check:
-1. Verify the artifacts (installer EXE, MSI if enabled, and portable zip) were uploaded correctly.
+1. Verify the artifacts (installer EXE, MSI for stable releases, and portable zip) were uploaded correctly.
 2. Write release notes in the GitHub UI.
 3. Click "Publish release" to make it visible to the public.
 
@@ -80,7 +80,7 @@ Only add a separate personal access token if the release process later needs acc
 
 1. **Tag Push:** Push a dummy tag (e.g., `v0.0.0-test`) and verify the action starts.
 2. **Build Success:** Monitor the GitHub Actions tab for successful completion.
-3. **Artifact Check:** Ensure the draft release contains the expected Windows installers and `Riftle-<version>-portable-windows-x64.zip`.
+3. **Artifact Check:** Ensure the draft release contains the expected Windows installer assets and `Riftle-<version>-portable-windows-x64.zip`.
 4. **Cleanup:** Delete test tags and draft releases after verification.
 
 ## Release Procedures
@@ -98,6 +98,8 @@ The release workflow is tag-driven. The pushed tag must match the app version in
 3. `src-tauri/Cargo.toml`
 
 Tags containing a hyphen, such as `v1.0.0-beta.1`, are marked as GitHub prereleases by `.github/workflows/release.yml`.
+
+Prerelease tags build the NSIS installer and portable zip only. The MSI target rejects semantic prerelease labels such as `test.1` and `beta.1` because MSI versions require numeric-only version components. Stable tags without a hyphen keep the default full bundle behavior and include MSI.
 
 Every release also gets a portable zip named:
 
@@ -149,7 +151,7 @@ Use this to verify the real release path without publishing anything.
 
 6. In GitHub, open **Releases** and inspect the draft release `Riftle v0.0.0-test.1`.
 
-7. Verify that the expected Windows installer assets and `Riftle-0.0.0-test.1-portable-windows-x64.zip` were uploaded. Do not publish the test release.
+7. Verify that the NSIS installer asset and `Riftle-0.0.0-test.1-portable-windows-x64.zip` were uploaded. An MSI asset is not expected for prereleases. Do not publish the test release.
 
 8. Download `Riftle-0.0.0-test.1-portable-windows-x64.zip`, extract it to a user-writable folder, run `riftle.exe`, and confirm that a sibling `data` folder is created.
 
@@ -239,7 +241,7 @@ tag:     v1.0.0-beta.1
 
 10. Replace the placeholder release body with the full `1.0.0-beta.1` section copied manually from `CHANGELOG.md`.
 
-11. Verify the uploaded installer assets and `Riftle-1.0.0-beta.1-portable-windows-x64.zip`.
+11. Verify the uploaded NSIS installer asset and `Riftle-1.0.0-beta.1-portable-windows-x64.zip`. An MSI asset is not expected for prereleases.
 
 12. Download the portable zip, extract it to a user-writable folder, run `riftle.exe`, and confirm that a sibling `data` folder is created.
 

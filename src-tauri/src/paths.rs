@@ -1,5 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
+
+const PORTABLE_MARKER: &str = "riftle-launcher.portable";
 
 /// Returns the data directory for this install.
 /// Portable mode: exe_dir/data (when riftle-launcher.portable exists adjacent to exe).
@@ -15,9 +17,21 @@ pub fn data_dir(_app: &AppHandle) -> PathBuf {
     data_dir_from_exe_dir(&exe_dir)
 }
 
+pub fn current_exe_is_portable() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe_path| exe_path.parent().map(Path::to_path_buf))
+        .map(|exe_dir| exe_dir_is_portable(&exe_dir))
+        .unwrap_or(false)
+}
+
+fn exe_dir_is_portable(exe_dir: &Path) -> bool {
+    exe_dir.join(PORTABLE_MARKER).exists()
+}
+
 // Internal helper — takes exe_dir explicitly so unit tests can inject a tempdir.
 pub fn data_dir_from_exe_dir(exe_dir: &PathBuf) -> PathBuf {
-    let dir = if exe_dir.join("riftle-launcher.portable").exists() {
+    let dir = if exe_dir_is_portable(exe_dir) {
         exe_dir.join("data")
     } else {
         // Installed mode: use %APPDATA%\riftle-launcher\ on Windows
@@ -52,7 +66,7 @@ mod tests {
         let temp = std::env::temp_dir().join("riftle_paths_test");
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(&temp).unwrap();
-        fs::write(temp.join("riftle-launcher.portable"), "").unwrap();
+        fs::write(temp.join(PORTABLE_MARKER), "").unwrap();
 
         // Test the portable branch logic directly
         let dir = data_dir_from_exe_dir(&temp);
@@ -70,7 +84,7 @@ mod tests {
         fs::create_dir_all(&temp).unwrap();
         // No riftle-launcher.portable written
 
-        let is_portable = temp.join("riftle-launcher.portable").exists();
+        let is_portable = exe_dir_is_portable(&temp);
         assert!(!is_portable, "no portable marker should mean installed mode");
 
         // Cleanup

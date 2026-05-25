@@ -214,9 +214,11 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_already_running_warning(app);
-        }));
+        if !crate::paths::current_exe_is_portable() {
+            builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+                show_already_running_warning(app);
+            }));
+        }
     }
 
     builder

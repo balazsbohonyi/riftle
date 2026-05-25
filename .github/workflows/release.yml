@@ -14,7 +14,6 @@ jobs:
       matrix:
         include:
           - platform: "windows-latest"
-            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -43,6 +42,17 @@ jobs:
           $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
           "version=$version" >> $env:GITHUB_OUTPUT
 
+      - name: select bundle targets
+        id: bundle_targets
+        shell: pwsh
+        run: |
+          $refName = "${{ github.ref_name }}"
+          if ($refName.Contains("-")) {
+            "args=--bundles nsis" >> $env:GITHUB_OUTPUT
+          } else {
+            "args=" >> $env:GITHUB_OUTPUT
+          }
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,7 +62,7 @@ jobs:
           releaseBody: "See the assets below to download the latest version of Riftle."
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          args: ${{ matrix.args }}
+          args: ${{ steps.bundle_targets.outputs.args }}
 
       - name: create portable zip
         if: matrix.platform == 'windows-latest'

@@ -6,7 +6,6 @@ use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
-use tauri_plugin_store::StoreExt;
 
 // ---- Settings struct ----
 
@@ -164,6 +163,19 @@ fn load_settings_from_file(store_path: &Path) -> Result<Settings, String> {
     })
 }
 
+fn persist_settings_to_file(store_path: &Path, settings: &Settings) -> Result<(), String> {
+    if let Some(parent) = store_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("failed to create {}: {}", parent.display(), err))?;
+    }
+
+    let payload = json!({ "settings": settings });
+    let raw = serde_json::to_string_pretty(&payload)
+        .map_err(|err| format!("failed to serialize settings: {}", err))?;
+    fs::write(store_path, raw)
+        .map_err(|err| format!("failed to write {}: {}", store_path.display(), err))
+}
+
 fn backup_file_with_overwrite(source_path: &Path, backup_path: &Path) -> std::io::Result<()> {
     if backup_path.exists() {
         if backup_path.is_dir() {
@@ -218,17 +230,6 @@ pub fn load_settings_outcome(data_dir: &Path) -> SettingsLoadOutcome {
 }
 
 // ---- Store functions ----
-//
-// IMPORTANT: app.store() is called with an absolute PathBuf.
-// Per RESEARCH.md: Tauri's resolve_store_path uses BaseDirectory::AppData.
-// An absolute PathBuf is expected to bypass this via PathBuf::join() semantics,
-// but this is a LOW-confidence finding (source-inspected, not runtime-verified).
-//
-// If settings.json appears at %APPDATA%\riftle-launcher\settings.json
-// even in portable mode, replace app.store() with direct serde_json file I/O:
-//   let json_bytes = std::fs::read(store_path)?;
-//   serde_json::from_slice(&json_bytes).unwrap_or_default()
-// The smoke test in lib.rs setup will reveal this if absolute path is not respected.
 
 /// Returns current settings for non-startup call sites.
 /// Startup code should use load_settings_outcome() so it can branch on recovery state.
@@ -248,15 +249,10 @@ pub fn get_settings(_app: &AppHandle, data_dir: &Path) -> Settings {
 /// Persists the full Settings struct to settings.json.
 /// Accepts the complete struct — no partial patch (per CONTEXT.md decision).
 /// store_path must be the absolute path to settings.json (data_dir.join("settings.json")).
-pub fn set_settings(app: &AppHandle, data_dir: &Path, settings: &Settings) {
+pub fn set_settings(_app: &AppHandle, data_dir: &Path, settings: &Settings) {
     let store_path = data_dir.join("settings.json");
-    if let Ok(store) = app.store(store_path) {
-        store.set("settings", json!(settings));
-        if let Err(e) = store.save() {
-            eprintln!("[store] failed to persist settings: {}", e);
-        }
-    } else {
-        eprintln!("[store] failed to open settings store");
+    if let Err(e) = persist_settings_to_file(&store_path, settings) {
+        eprintln!("[store] {}", e);
     }
 }
 
@@ -531,6 +527,28 @@ mod tests {
                 assert!(!backup_path(&settings_path(&dir)).exists());
             }
             other => panic!("expected missing outcome, got {:?}", other),
+        }
+
+        cleanup_temp_dir(&dir);
+    }
+
+    #[test]
+    fn settings_persist_writes_to_requested_data_dir() {
+        let dir = unique_temp_dir("persist");
+        let store_path = settings_path(&dir);
+        let mut settings = Settings::default();
+        settings.theme = "dark".to_string();
+        settings.show_path = true;
+
+        persist_settings_to_file(&store_path, &settings).unwrap();
+
+        assert!(store_path.exists());
+        match load_settings_outcome(&dir) {
+            SettingsLoadOutcome::Loaded(loaded) => {
+                assert_eq!(loaded.theme, "dark");
+                assert!(loaded.show_path);
+            }
+            other => panic!("expected loaded settings, got {:?}", other),
         }
 
         cleanup_temp_dir(&dir);
