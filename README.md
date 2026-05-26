@@ -13,9 +13,8 @@ It is inspired by Flow Launcher, but intentionally smaller in scope: fast app se
 
 ## Status
 
-> **Work in progress - no stable release yet.**
->
-> Riftle is under active development. Core functionality works, including app search, launching, global hotkey settings, custom shortcuts, system commands, tray access, and appearance settings. Expect breaking changes between commits until a tagged release exists.
+> [!NOTE]
+> Riftle is currently in beta. Download the latest prerelease from the [Releases](https://github.com/balazsbohonyi/riftle/releases) page.
 
 ## What Riftle Does
 
