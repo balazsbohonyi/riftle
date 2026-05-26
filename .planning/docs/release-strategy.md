@@ -115,6 +115,8 @@ The portable zip contains:
 
 The marker file enables portable mode. When `riftle.exe` starts and sees `riftle-launcher.portable` next to it, Riftle stores settings, the database, and extracted icons in a sibling `data` folder.
 
+---
+
 ### Test Release: `v0.0.0-test.1`
 
 Use this to verify the real release path without publishing anything.
@@ -171,6 +173,8 @@ Use this to verify the real release path without publishing anything.
    git push origin --delete codex/test-release-v0.0.0-test.1
    ```
 
+---
+
 ### First Beta Release: `v1.0.0-beta.1`
 
 Use exactly:
@@ -180,12 +184,11 @@ version: 1.0.0-beta.1
 tag:     v1.0.0-beta.1
 ```
 
-1. Start from an up-to-date `main` branch and create a release prep branch:
+1. Start from an up-to-date `main` branch:
 
    ```powershell
    git switch main
    git pull
-   git switch -c codex/release-v1.0.0-beta.1
    ```
 
 2. Change the version to exactly `1.0.0-beta.1` in:
@@ -216,36 +219,34 @@ tag:     v1.0.0-beta.1
    cd ..
    ```
 
-5. Commit and push the release prep branch:
+5. Commit the release prep changes on `main`:
 
    ```powershell
    git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
    git commit -m "Prepare release v1.0.0-beta.1"
-   git push -u origin codex/release-v1.0.0-beta.1
    ```
 
-6. Open a pull request, review it, and merge it into `main`.
-
-7. Tag the merge commit on `main`:
+6. Tag the release commit on `main` and push `main` plus the tag:
 
    ```powershell
-   git switch main
-   git pull
    git tag v1.0.0-beta.1
+   git push origin main
    git push origin v1.0.0-beta.1
    ```
 
-8. In GitHub, open **Actions** and wait for the `publish` workflow run for `v1.0.0-beta.1` to complete.
+7. In GitHub, open **Actions** and wait for the `publish` workflow run for `v1.0.0-beta.1` to complete.
 
-9. In GitHub, open **Releases** and inspect the draft release `Riftle v1.0.0-beta.1`. It should be marked as a prerelease.
+8. In GitHub, open **Releases** and inspect the draft release `Riftle v1.0.0-beta.1`. It should be marked as a prerelease.
 
-10. Replace the placeholder release body with the full `1.0.0-beta.1` section copied manually from `CHANGELOG.md`.
+9. Replace the placeholder release body with the full `1.0.0-beta.1` section copied manually from `CHANGELOG.md`.
 
-11. Verify the uploaded NSIS installer asset and `Riftle-1.0.0-beta.1-portable-windows-x64.zip`. An MSI asset is not expected for prereleases.
+10. Verify the uploaded NSIS installer asset and `Riftle-1.0.0-beta.1-portable-windows-x64.zip`. An MSI asset is not expected for prereleases.
 
-12. Download the portable zip, extract it to a user-writable folder, run `riftle.exe`, and confirm that a sibling `data` folder is created.
+11. Download the portable zip, extract it to a user-writable folder, run `riftle.exe`, and confirm that a sibling `data` folder is created.
 
-13. Click **Publish release**.
+12. Click **Publish release**.
+
+---
 
 ### First Stable Release: `v1.0.0`
 
@@ -258,12 +259,11 @@ version: 1.0.0
 tag:     v1.0.0
 ```
 
-1. Start from an up-to-date `main` branch and create a release prep branch:
+1. Start from an up-to-date `main` branch:
 
    ```powershell
    git switch main
    git pull
-   git switch -c codex/release-v1.0.0
    ```
 
 2. Change the version to exactly `1.0.0` in:
@@ -300,33 +300,29 @@ tag:     v1.0.0
    cd ..
    ```
 
-5. Commit and push the release prep branch:
+5. Commit the release prep changes on `main`:
 
    ```powershell
    git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
    git commit -m "Prepare release v1.0.0"
-   git push -u origin codex/release-v1.0.0
    ```
 
-6. Open a pull request, review it, and merge it into `main`.
-
-7. Tag the merge commit on `main`:
+6. Tag the release commit on `main` and push `main` plus the tag:
 
    ```powershell
-   git switch main
-   git pull
    git tag v1.0.0
+   git push origin main
    git push origin v1.0.0
    ```
 
-8. In GitHub, open **Actions** and wait for the `publish` workflow run for `v1.0.0` to complete.
+7. In GitHub, open **Actions** and wait for the `publish` workflow run for `v1.0.0` to complete.
 
-9. In GitHub, open **Releases** and inspect the draft release `Riftle v1.0.0`. It should not be marked as a prerelease.
+8. In GitHub, open **Releases** and inspect the draft release `Riftle v1.0.0`. It should not be marked as a prerelease.
 
-10. Replace the placeholder release body with the full `1.0.0` section copied manually from `CHANGELOG.md`.
+9. Replace the placeholder release body with the full `1.0.0` section copied manually from `CHANGELOG.md`.
 
-11. Verify the uploaded installer assets and `Riftle-1.0.0-portable-windows-x64.zip`.
+10. Verify the uploaded installer assets and `Riftle-1.0.0-portable-windows-x64.zip`.
 
-12. Download the portable zip, extract it to a user-writable folder, run `riftle.exe`, and confirm that a sibling `data` folder is created.
+11. Download the portable zip, extract it to a user-writable folder, run `riftle.exe`, and confirm that a sibling `data` folder is created.
 
-13. Click **Publish release**.
+12. Click **Publish release**.
