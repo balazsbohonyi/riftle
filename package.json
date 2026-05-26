@@ -1,13 +1,13 @@
 {
   "name": "riftle",
   "private": true,
-  "version": "0.1.1",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "node scripts/tauri.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

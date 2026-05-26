@@ -1,14 +1,13 @@
-# Changelog
-
-Riftle is a keyboard-first Windows app launcher. This file tracks what changes between versions so users know what to expect when they update.
-
----
-
 ## Unreleased — In development
+
+No changes yet.
+
+
+## 1.0.0-beta.1 - 2025-05-26
 
 ### Launching apps
 
-- **App launcher.** Press a global hotkey, type part of an app name, and press Enter to launch it. No mouse required. The launcher appears quickly — indexing runs in the background so it never blocks at startup.
+- **App launcher.** Press a global hotkey, type part of an app name, and press Enter to launch it. No mouse required. The launcher appears quickly - indexing runs in the background so it never blocks at startup.
 - **Smart search ranking.** Typing the start of an app name or its initials ranks it higher than a loose fuzzy match. Frequently launched and recently launched apps break ties.
 - **App icons in results.** Each result shows the app's own icon, extracted automatically during indexing.
 - **UWP and Microsoft Store app support.** Riftle indexes and can launch apps installed from the Microsoft Store alongside traditional desktop apps. Apps that use custom protocol links, such as Steam games, are also handled correctly.
@@ -18,7 +17,7 @@ Riftle is a keyboard-first Windows app launcher. This file tracks what changes b
 
 ### Custom shortcuts
 
-- **Named shortcuts.** Add shortcuts to folders, files, scripts, and app launches with arguments. By default, shortcuts are scored and mixed in with app results — you can pin them above all apps in Settings.
+- **Named shortcuts.** Add shortcuts to folders, files, scripts, and app launches with arguments. By default, shortcuts are scored and mixed in with app results - you can pin them above all apps in Settings.
 - **File shortcut parameters.** Point a shortcut at an executable and supply command-line arguments, useful for launching the same app with different projects or profiles.
 
 ### Settings
