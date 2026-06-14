@@ -55,7 +55,7 @@ const SYSTEM_COMMAND_ICONS: Record<string, string> = {
   'system:restart': restartIcon,
   'system:sleep': sleepIcon,
 }
-const SHADOW_PAD = 32
+const SHADOW_PAD = 40
 const WINDOW_WIDTH = 564
 const SEARCH_AREA_HEIGHT = 56
 const RESULT_ROW_HEIGHT = 48
