@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Completed 09.9-01-PLAN.md
-last_updated: "2026-06-14T19:05:27.403Z"
+stopped_at: Completed 09.9-02-PLAN.md
+last_updated: "2026-06-14T19:09:56.293Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 19
-  completed_phases: 14
+  completed_phases: 15
   total_plans: 55
-  completed_plans: 52
+  completed_plans: 53
 ---
 
 ---
@@ -261,6 +261,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.8-improve-indexing-performance]: test_timer_fires and test_atomic_guard_prevents_double_index rewritten to test AtomicBool CAS semantics directly — avoids AppHandle in unit tests
 - [Phase 09.9-show-launcher-on-default-monitor]: Removed SettingsCentered(AtomicBool) one-time-center guard in favor of always-center-on-primary — With primary-monitor-aware positioning, always-centering is cleaner and more correct for multi-monitor setups
 - [Phase 09.9-show-launcher-on-default-monitor]: Monitor fallback chain: cursor (if follow_cursor=true) -> primary -> current -> center() — Ensures launcher always lands on a known monitor regardless of hidden window state
+- [Phase 09.9-show-launcher-on-default-monitor]: follow_cursor defaults to false (opt-in toggle), follows same pattern as existing boolean settings
 
 ## Performance Metrics
 
@@ -313,11 +314,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.8-improve-indexing-performance P01 | 2min | 1 tasks | 1 files |
 | Phase 09.8-improve-indexing-performance P02 | 4min | 2 tasks | 2 files |
 | Phase 09.9-show-launcher-on-default-monitor P01 | 2 min | 2 tasks | 2 files |
+| Phase 09.9-show-launcher-on-default-monitor P02 | 1 min | 3 tasks | 3 files |
 
 ## Session
 
-**Last Date:** 2026-06-14T19:05:27.398Z
-**Stopped At:** Completed 09.9-01-PLAN.md
+**Last Date:** 2026-06-14T19:09:56.289Z
+**Stopped At:** Completed 09.9-02-PLAN.md
 **Resume File:** None
 
 ## Session Log
