@@ -213,7 +213,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09.9-01-PLAN.md — Add follow_cursor to Settings struct + tests; primary-monitor-first positioning in show_positioned_launcher and show_settings_window; remove SettingsCentered
+- [x] 09.9-01-PLAN.md — Add follow_cursor to Settings struct + tests; primary-monitor-first positioning in show_positioned_launcher and show_settings_window; remove SettingsCentered
 - [ ] 09.9-02-PLAN.md — Wire App.vue followCursor tracking; Settings.vue "Show where cursor is" toggle; CHANGELOG entry
 
 ### Phase 09.8: improve indexing performance (INSERTED)
@@ -374,7 +374,7 @@ Plans:
 | 09.6 | UX Safety Gates | Inserted | Complete |
 | 09.7 | Shortcuts Support | 09.7-TBD-01–09 | Complete |
 | 09.8 | Improve Indexing Performance | 09.8-D1–D6 | Complete |
-| 09.9 | Show Launcher on Default Monitor | MON-01–05 | Planned |
+| 09.9 | Show Launcher on Default Monitor | MON-01–05 | In Progress (1/2) |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **16 phases** | **70 requirements** | All v1 requirements covered
