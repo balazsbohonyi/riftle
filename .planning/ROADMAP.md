@@ -375,7 +375,7 @@ Plans:
 | 09.6 | UX Safety Gates | Inserted | Complete |
 | 09.7 | Shortcuts Support | 09.7-TBD-01–09 | Complete |
 | 09.8 | Improve Indexing Performance | 09.8-D1–D6 | Complete |
-| 09.9 | Show Launcher on Default Monitor | MON-01–05 | Complete |
+| 09.9 | 3/3 | Complete   | 2026-06-14 |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **16 phases** | **70 requirements** | All v1 requirements covered

@@ -2,17 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase_name: packaging & distribution
-current_plan: Not started
-status: planning
-stopped_at: Completed 09.9-02-PLAN.md
-last_updated: "2026-06-14T19:09:56.293Z"
-last_activity: 2026-05-15
+current_phase_name: show-launcher-on-default-monitor
+current_plan: Completed
+status: completed
+stopped_at: Phase 09.9 complete - all 3 plans executed, documentation gaps closed
+last_updated: "2026-06-14T19:29:27.145Z"
+last_activity: 2026-06-14
 progress:
   total_phases: 19
   completed_phases: 15
-  total_plans: 55
-  completed_plans: 53
+  total_plans: 56
+  completed_plans: 54
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: show-launcher-on-default-monitor
+current_plan: Completed
+status: complete
+stopped_at: Completed 09.9-03-PLAN.md
+last_updated: "2026-06-14T19:28:25.000Z"
+last_activity: 2026-06-14
+progress:
+  total_phases: 19
+  completed_phases: 16
+  total_plans: 56
+  completed_plans: 56
 ---
 
 ---
@@ -111,13 +128,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-**Phase:** 09.7-shortcuts-support
-**Current Phase Name:** packaging & distribution
-**Current Plan:** Not started
-**Total Plans in Phase:** 4
-**Status:** Ready to plan
-**Last Activity:** 2026-05-15
-**Last Activity Description:** Phase 9.8 complete, transitioned to Phase 10
+**Phase:** 09.9-show-launcher-on-default-monitor
+**Current Phase Name:** show-launcher-on-default-monitor
+**Current Plan:** Completed
+**Total Plans in Phase:** 3
+**Status:** Complete
+**Last Activity:** 2026-06-14
+**Last Activity Description:** Phase 09.9 complete - MON-01 through MON-05 documentation gaps closed, VALIDATION.md signed off. Ready for Phase 10 (Packaging & Distribution).
 
 ## Progress
 
@@ -262,6 +279,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.9-show-launcher-on-default-monitor]: Removed SettingsCentered(AtomicBool) one-time-center guard in favor of always-center-on-primary — With primary-monitor-aware positioning, always-centering is cleaner and more correct for multi-monitor setups
 - [Phase 09.9-show-launcher-on-default-monitor]: Monitor fallback chain: cursor (if follow_cursor=true) -> primary -> current -> center() — Ensures launcher always lands on a known monitor regardless of hidden window state
 - [Phase 09.9-show-launcher-on-default-monitor]: follow_cursor defaults to false (opt-in toggle), follows same pattern as existing boolean settings
+- [Phase 09.9-show-launcher-on-default-monitor]: MON-01 through MON-05 added to REQUIREMENTS.md (definitions + traceability); coverage corrected from 53 to 64 total; VALIDATION.md signed off with nyquist_compliant: true
 
 ## Performance Metrics
 
@@ -318,8 +336,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Session
 
-**Last Date:** 2026-06-14T19:09:56.289Z
-**Stopped At:** Completed 09.9-02-PLAN.md
+**Last Date:** 2026-06-14T19:29:20.429Z
+**Stopped At:** Phase 09.9 complete - all 3 plans executed, documentation gaps closed
 **Resume File:** None
 
 ## Session Log
