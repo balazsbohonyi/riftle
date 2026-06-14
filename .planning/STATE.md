@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
-stopped_at: Phase 09.9 context gathered
-last_updated: "2026-06-14T18:44:07.398Z"
+stopped_at: Completed 09.9-01-PLAN.md
+last_updated: "2026-06-14T19:05:27.403Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 19
   completed_phases: 14
-  total_plans: 53
-  completed_plans: 51
+  total_plans: 55
+  completed_plans: 52
 ---
 
 ---
@@ -259,6 +259,8 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.8-improve-indexing-performance]: try_start_index takes app: &tauri::AppHandle as first parameter and calls rebuild_index before clearing AtomicBool flag
 - [Phase 09.8-improve-indexing-performance]: Blocking run_full_index removed from lib.rs startup; deferred startup thread fires immediately (empty DB) or after 30s (populated DB)
 - [Phase 09.8-improve-indexing-performance]: test_timer_fires and test_atomic_guard_prevents_double_index rewritten to test AtomicBool CAS semantics directly — avoids AppHandle in unit tests
+- [Phase 09.9-show-launcher-on-default-monitor]: Removed SettingsCentered(AtomicBool) one-time-center guard in favor of always-center-on-primary — With primary-monitor-aware positioning, always-centering is cleaner and more correct for multi-monitor setups
+- [Phase 09.9-show-launcher-on-default-monitor]: Monitor fallback chain: cursor (if follow_cursor=true) -> primary -> current -> center() — Ensures launcher always lands on a known monitor regardless of hidden window state
 
 ## Performance Metrics
 
@@ -310,12 +312,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.7-shortcuts-support P03 | 8min | 2 tasks | 2 files |
 | Phase 09.8-improve-indexing-performance P01 | 2min | 1 tasks | 1 files |
 | Phase 09.8-improve-indexing-performance P02 | 4min | 2 tasks | 2 files |
+| Phase 09.9-show-launcher-on-default-monitor P01 | 2 min | 2 tasks | 2 files |
 
 ## Session
 
-**Last Date:** 2026-06-14T18:44:07.387Z
-**Stopped At:** Phase 09.9 context gathered
-**Resume File:** .planning/phases/09.9-show-launcher-on-default-monitor/09.9-CONTEXT.md
+**Last Date:** 2026-06-14T19:05:27.398Z
+**Stopped At:** Completed 09.9-01-PLAN.md
+**Resume File:** None
 
 ## Session Log
 
