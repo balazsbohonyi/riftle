@@ -118,27 +118,21 @@ fn show_positioned_launcher(
         .or_else(|| win.current_monitor().ok().flatten());
 
     // Move the hidden window to the target monitor's work area FIRST.
-    // This triggers Windows to update the window's DPI context to match the
-    // target monitor (SetWindowPos associates the HWND with the new monitor
-    // even while hidden). With correct DPI context, subsequent set_size with
-    // LogicalSize maps to the right physical dimensions on the first frame.
+    // SetWindowPos (called by set_position) associates the HWND with the new
+    // monitor even while hidden, updating Windows DPI context. With correct DPI,
+    // subsequent set_size with LogicalSize maps to the right physical dimensions.
     if let Some(ref mon) = monitor {
         let wa = mon.work_area();
-        // Move to the top-left corner of the target monitor's work area.
-        // The window is still hidden, so no visual flash.
         let _ = win.set_position(tauri::PhysicalPosition::new(wa.position.x, wa.position.y));
     }
 
-    // Set size with LogicalSize — DPI context now matches target monitor,
-    // so the logical-to-physical mapping is correct from the start.
-    // No manual PhysicalSize computation needed — Tauri handles it.
+    // Set size with LogicalSize — DPI context now matches target monitor
     win.set_size(tauri::LogicalSize::new(window_width, window_height))
         .map_err(|e| e.to_string())?;
 
-    // Show window — already at correct size for this monitor's DPI, no flash
-    win.show().map_err(|e| e.to_string())?;
-
-    // Position using same resolved monitor and scale factor
+    // Compute centered position and move BEFORE show() — the window is still
+    // hidden, so no flash. This replaces the top-left hint position used above
+    // for DPI context with the correct centered position.
     if let Some(monitor) = monitor {
         let work_area = monitor.work_area();
         let scale_factor = monitor.scale_factor();
@@ -155,6 +149,8 @@ fn show_positioned_launcher(
         win.center().map_err(|e| e.to_string())?;
     }
 
+    // Show window — correctly sized AND centered from frame 1, no flash
+    win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
     Ok(())
 }
