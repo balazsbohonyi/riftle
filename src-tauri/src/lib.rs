@@ -105,6 +105,13 @@ fn show_positioned_launcher(
         .get_webview_window("launcher")
         .ok_or_else(|| "launcher window not found".to_string())?;
 
+    // Show window FIRST — triggers DPI re-evaluation on Windows when the target monitor
+    // has a different scale factor. DPI change notifications only fire when a hidden
+    // window becomes visible (WM_DPICHANGED on show()). Subsequent set_size() with
+    // LogicalSize then maps to the correct physical dimensions.
+    // The fade-in animation (opacity 0→1) prevents any visible flash from the reorder.
+    win.show().map_err(|e| e.to_string())?;
+
     win.set_size(tauri::LogicalSize::new(window_width, window_height))
         .map_err(|e| e.to_string())?;
 
@@ -136,7 +143,6 @@ fn show_positioned_launcher(
         win.center().map_err(|e| e.to_string())?;
     }
 
-    win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
     Ok(())
 }
