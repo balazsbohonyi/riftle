@@ -378,8 +378,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 8 | create Button component in src/components/ui with variant prop covering Add Folder and Re-index button styles, add accent variant for Re-index button, replace all Settings window buttons with this component | 2026-03-08 | bc0f535 | [8-create-button-component-in-src-component](./quick/8-create-button-component-in-src-component/) |
 | 10 | conflicting hotkey error - show Settings with error when hotkey registration fails | 2026-05-15 | 38797a4 | [10-conflicting-hotkey-error-show-settings-w](./quick/10-conflicting-hotkey-error-show-settings-w/) |
 | 11 | Change shortcut ordering setting | 2026-05-21 | pending | [11-change-shortcut-ordering-setting](./quick/11-change-shortcut-ordering-setting/) |
+| 12 | Fix multi-monitor DPI sizing on connect/disconnect — reorder show() before set_size() | 2026-06-14 | 2b7498a | [12-fix-multi-monitor-dpi-sizing-on-connect-](./quick/12-fix-multi-monitor-dpi-sizing-on-connect-/) |
 
-Last activity: 2026-05-21 - Completed quick task 11: Change shortcut ordering setting
+Last activity: 2026-06-14 - Completed quick task 12: Fix multi-monitor DPI sizing on connect/disconnect
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
