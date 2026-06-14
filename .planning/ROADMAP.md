@@ -210,11 +210,12 @@ Plans:
 **Goal:** Launcher and Settings windows appear on the primary monitor by default, with an optional "Show where cursor is" toggle to override launcher positioning to the cursor's monitor.
 **Requirements**: MON-01, MON-02, MON-03, MON-04, MON-05
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 09.9-01-PLAN.md — Add follow_cursor to Settings struct + tests; primary-monitor-first positioning in show_positioned_launcher and show_settings_window; remove SettingsCentered
-- [ ] 09.9-02-PLAN.md — Wire App.vue followCursor tracking; Settings.vue "Show where cursor is" toggle; CHANGELOG entry
+- [x] 09.9-02-PLAN.md — Wire App.vue followCursor tracking; Settings.vue "Show where cursor is" toggle; CHANGELOG entry
+- [x] 09.9-03-PLAN.md — Gap closure: add MON-01-05 traceability to REQUIREMENTS.md; mark Plan 02 complete in ROADMAP.md
 
 ### Phase 09.8: improve indexing performance (INSERTED)
 
@@ -374,7 +375,7 @@ Plans:
 | 09.6 | UX Safety Gates | Inserted | Complete |
 | 09.7 | Shortcuts Support | 09.7-TBD-01–09 | Complete |
 | 09.8 | Improve Indexing Performance | 09.8-D1–D6 | Complete |
-| 09.9 | Show Launcher on Default Monitor | MON-01–05 | In Progress (1/2) |
+| 09.9 | Show Launcher on Default Monitor | MON-01–05 | Complete |
 | 10 | Packaging & Distribution | PACK-01–05 | Pending |
 
 **16 phases** | **70 requirements** | All v1 requirements covered
