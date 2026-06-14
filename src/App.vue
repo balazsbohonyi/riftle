@@ -68,6 +68,7 @@ const results       = ref<SearchResult[]>([])
 const selectedIndex = ref(0)
 const adminMode     = ref(false)
 const showPath      = ref(false)
+const followCursor  = ref(false)       // NEW — mirrors Settings.follow_cursor
 const playSound     = ref(true)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const scrollerRef   = ref<any>(null)
@@ -426,6 +427,7 @@ async function showPositionedLauncher() {
     windowWidth: WINDOW_WIDTH,
     windowHeight: launcherWindowHeight(warningHeight, targetListHeight.value),
     anchorHeight: launcherCenterAnchorHeight(warningHeight),
+    followCursor: followCursor.value,     // NEW
   }).catch(console.error)
 }
 
@@ -757,10 +759,12 @@ onMounted(async () => {
     try {
       const settings = await invoke<{
         show_path: boolean
+        follow_cursor: boolean     // NEW
         theme: string
         play_sound: boolean
       }>('get_settings_cmd')
       showPath.value = settings.show_path
+      followCursor.value = settings.follow_cursor ?? false    // NEW
       playSound.value = settings.play_sound ?? true
       if (settings.theme) applyTheme(settings.theme)
       await loadIconUrl(GENERIC_ICON_FILENAME)
@@ -831,10 +835,11 @@ onMounted(async () => {
   }
 
   if (isTauriContext.value) {
-    unlistenSettings = await listen<SettingsPayload & { play_sound?: boolean }>('settings-changed', ({ payload }) => {
+    unlistenSettings = await listen<SettingsPayload & { play_sound?: boolean; follow_cursor?: boolean }>('settings-changed', ({ payload }) => {
       if (payload.theme !== undefined) applyTheme(payload.theme)
       if (payload.show_path !== undefined) showPath.value = payload.show_path
       if (payload.play_sound !== undefined) playSound.value = payload.play_sound
+      if (payload.follow_cursor !== undefined) followCursor.value = payload.follow_cursor      // NEW
     })
   }
 })
