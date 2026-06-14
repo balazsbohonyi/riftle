@@ -379,8 +379,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 10 | conflicting hotkey error - show Settings with error when hotkey registration fails | 2026-05-15 | 38797a4 | [10-conflicting-hotkey-error-show-settings-w](./quick/10-conflicting-hotkey-error-show-settings-w/) |
 | 11 | Change shortcut ordering setting | 2026-05-21 | pending | [11-change-shortcut-ordering-setting](./quick/11-change-shortcut-ordering-setting/) |
 | 12 | Fix multi-monitor DPI sizing on connect/disconnect — reorder show() before set_size() | 2026-06-14 | 2b7498a | [12-fix-multi-monitor-dpi-sizing-on-connect-](./quick/12-fix-multi-monitor-dpi-sizing-on-connect-/) |
+| 13 | Eliminate stale-size flash on DPI change — resolve monitor before show(), use PhysicalSize | 2026-06-14 | 0188694 | [13-eliminate-flash-when-showing-launcher-on](./quick/13-eliminate-flash-when-showing-launcher-on/) |
 
-Last activity: 2026-06-14 - Completed quick task 12: Fix multi-monitor DPI sizing on connect/disconnect
+Last activity: 2026-06-14 - Completed quick task 13: Eliminate stale-size flash on DPI change
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
