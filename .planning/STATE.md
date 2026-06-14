@@ -5,6 +5,23 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Phase 09.9 context gathered
+last_updated: "2026-06-14T18:44:07.398Z"
+last_activity: 2026-05-15
+progress:
+  total_phases: 19
+  completed_phases: 14
+  total_plans: 53
+  completed_plans: 51
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Completed 09.8-02-PLAN.md
 last_updated: "2026-05-21T15:37:20.118Z"
 last_activity: 2026-05-21
@@ -83,6 +100,7 @@ progress:
 - Phase 09.6 inserted after Phase 9: UX Safety Gates — confirmation gate before shutdown/restart in system_commands.rs; two-phase hotkey swap in hotkey.rs so a failed registration rolls back rather than leaving no active hotkey. (URGENT)
 - Phase 09.7 inserted after Phase 9: Add support for shortcuts: - ability to specify directories and files, with a specific alias (not mandatory) and with arguments/parameters (not mandatory, and only for executable files, not for directories) (URGENT)
 - Phase 09.8 inserted after Phase 9: improve indexing performance (URGENT)
+- Phase 09.9 inserted after Phase 9: show launcher on default monitor (URGENT)
 
 ## Project Reference
 
@@ -295,9 +313,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Session
 
-**Last Date:** 2026-05-15T21:50:13.253Z
-**Stopped At:** Completed 09.8-02-PLAN.md
-**Resume File:** None
+**Last Date:** 2026-06-14T18:44:07.387Z
+**Stopped At:** Phase 09.9 context gathered
+**Resume File:** .planning/phases/09.9-show-launcher-on-default-monitor/09.9-CONTEXT.md
 
 ## Session Log
 
