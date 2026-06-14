@@ -105,9 +105,7 @@ fn show_positioned_launcher(
         .get_webview_window("launcher")
         .ok_or_else(|| "launcher window not found".to_string())?;
 
-    // Resolve target monitor FIRST: cursor (if follow_cursor) → primary → current
-    // Must happen before show() so we can compute physical size from the correct
-    // monitor's scale factor — avoiding stale DPI geometry from the previous monitor.
+    // Resolve target monitor: cursor (if follow_cursor) → primary → current
     let monitor = if follow_cursor {
         win.cursor_position()
             .ok()
@@ -119,27 +117,31 @@ fn show_positioned_launcher(
         .or_else(|| win.primary_monitor().ok().flatten())
         .or_else(|| win.current_monitor().ok().flatten());
 
-    // Get scale factor from the resolved monitor — use 1.0 fallback if no monitor found
-    let scale_factor = monitor
-        .as_ref()
-        .map(|m| m.scale_factor())
-        .unwrap_or(1.0);
+    // Move the hidden window to the target monitor's work area FIRST.
+    // This triggers Windows to update the window's DPI context to match the
+    // target monitor (SetWindowPos associates the HWND with the new monitor
+    // even while hidden). With correct DPI context, subsequent set_size with
+    // LogicalSize maps to the right physical dimensions on the first frame.
+    if let Some(ref mon) = monitor {
+        let wa = mon.work_area();
+        // Move to the top-left corner of the target monitor's work area.
+        // The window is still hidden, so no visual flash.
+        let _ = win.set_position(tauri::PhysicalPosition::new(wa.position.x, wa.position.y));
+    }
 
-    // Set size using PhysicalSize BEFORE show() — PhysicalSize bypasses stale DPI
-    // conversion, so the window is correctly sized before it's ever visible.
-    // This eliminates the one-frame flash of stale geometry.
-    win.set_size(tauri::PhysicalSize::new(
-        (window_width * scale_factor).round() as u32,
-        (window_height * scale_factor).round() as u32,
-    ))
-    .map_err(|e| e.to_string())?;
+    // Set size with LogicalSize — DPI context now matches target monitor,
+    // so the logical-to-physical mapping is correct from the start.
+    // No manual PhysicalSize computation needed — Tauri handles it.
+    win.set_size(tauri::LogicalSize::new(window_width, window_height))
+        .map_err(|e| e.to_string())?;
 
-    // Show window — now at correct physical size, no flash
+    // Show window — already at correct size for this monitor's DPI, no flash
     win.show().map_err(|e| e.to_string())?;
 
     // Position using same resolved monitor and scale factor
     if let Some(monitor) = monitor {
         let work_area = monitor.work_area();
+        let scale_factor = monitor.scale_factor();
         let physical_width = window_width * scale_factor;
         let physical_anchor_height = anchor_height * scale_factor;
         let x = work_area.position.x
