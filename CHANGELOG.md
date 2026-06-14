@@ -1,6 +1,6 @@
 ## Unreleased — In development
 
-No changes yet.
+- Launcher and Settings now appear on the primary monitor by default. Optionally show the launcher on the monitor where the mouse cursor is.
 
 
 ## 1.0.0-beta.1 - 2025-05-26
