@@ -19,6 +19,7 @@ interface SettingsData {
 
   show_path: boolean
   pin_shortcuts_to_top: boolean
+  follow_cursor: boolean          // NEW
   autostart: boolean
   additional_paths: string[]
   excluded_paths: string[]
@@ -72,6 +73,7 @@ const settings = ref<SettingsData>({
 
   show_path: false,
   pin_shortcuts_to_top: false,
+  follow_cursor: false,             // NEW
   play_sound: true,
   autostart: false,
   additional_paths: [],
@@ -96,6 +98,7 @@ onMounted(async () => {
 
       show_path: response.show_path,
       pin_shortcuts_to_top: response.pin_shortcuts_to_top,
+      follow_cursor: response.follow_cursor ?? false,
       play_sound: response.play_sound ?? true,
       autostart: response.can_autostart ? response.autostart : false,
       additional_paths: response.additional_paths,
@@ -322,6 +325,12 @@ async function onPinShortcutsToTopChange(v: boolean) {
   await saveSettings()
 }
 
+async function onFollowCursorChange(v: boolean) {
+  settings.value.follow_cursor = v
+  await saveSettings()
+  await emitTo('launcher', 'settings-changed', { follow_cursor: v }).catch(console.error)
+}
+
 async function onPlaySoundChange(v: boolean) {
   settings.value.play_sound = v
   await saveSettings()
@@ -418,6 +427,13 @@ onUnmounted(() => {
           <Toggle
             v-model="settings.pin_shortcuts_to_top"
             @update:modelValue="onPinShortcutsToTopChange"
+          />
+        </Row>
+
+        <Row label="Show where cursor is">
+          <Toggle
+            v-model="settings.follow_cursor"
+            @update:modelValue="onFollowCursorChange"
           />
         </Row>
       </Section>

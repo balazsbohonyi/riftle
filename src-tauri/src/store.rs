@@ -49,6 +49,9 @@ pub struct Settings {
 
     #[serde(default)]
     pub file_shortcuts: Vec<FileShortcut>,
+
+    #[serde(default)]
+    pub follow_cursor: bool,
 }
 
 fn default_hotkey() -> String {
@@ -119,6 +122,7 @@ impl Default for Settings {
             system_tool_allowlist: default_system_tool_allowlist(),
             directory_shortcuts: vec![],
             file_shortcuts: vec![],
+            follow_cursor: false,
         }
     }
 }
@@ -297,6 +301,7 @@ pub fn get_settings_cmd(
         "system_tool_allowlist": settings.system_tool_allowlist,
         "directory_shortcuts": settings.directory_shortcuts,
         "file_shortcuts": settings.file_shortcuts,
+        "follow_cursor": settings.follow_cursor,
         "data_dir": data_dir.to_string_lossy(),
         "is_portable": is_portable,
         "build_profile": build_profile,
@@ -369,6 +374,7 @@ mod tests {
         assert!(s.additional_paths.is_empty());
         assert!(s.excluded_paths.is_empty());
         assert_eq!(s.reindex_interval, 15);
+        assert!(!s.follow_cursor);
     }
 
     #[test]
@@ -387,6 +393,7 @@ mod tests {
         );
         assert_eq!(deserialized.autostart, original.autostart);
         assert_eq!(deserialized.reindex_interval, original.reindex_interval);
+        assert_eq!(deserialized.follow_cursor, original.follow_cursor);
     }
 
     #[test]
@@ -400,6 +407,18 @@ mod tests {
         assert_eq!(s.reindex_interval, 15); // from serde default
         assert!(!s.show_path); // bool default
         assert!(!s.pin_shortcuts_to_top); // bool default
+        assert!(!s.follow_cursor); // bool default when absent
+    }
+
+    #[test]
+    fn test_follow_cursor_true_round_trips() {
+        let json_with_true = r#"{"hotkey": "Ctrl+Space", "follow_cursor": true}"#;
+        let s: Settings = serde_json::from_str(json_with_true).unwrap();
+        assert!(s.follow_cursor);
+
+        let json = serde_json::to_value(&s).unwrap();
+        let restored: Settings = serde_json::from_value(json).unwrap();
+        assert!(restored.follow_cursor);
     }
 
     #[test]
@@ -446,6 +465,7 @@ mod tests {
             "excluded_paths": s.excluded_paths,
             "reindex_interval": s.reindex_interval,
             "system_tool_allowlist": s.system_tool_allowlist,
+            "follow_cursor": s.follow_cursor,
             "data_dir": "C:\\test",
             "is_portable": false,
             "build_profile": "debug",
@@ -459,6 +479,14 @@ mod tests {
         assert!(
             !allowlist.is_empty(),
             "default system_tool_allowlist must not be empty"
+        );
+        assert!(
+            json.get("follow_cursor").is_some(),
+            "get_settings_cmd JSON must include follow_cursor field"
+        );
+        assert!(
+            !json["follow_cursor"].as_bool().unwrap(),
+            "follow_cursor defaults to false"
         );
     }
 
@@ -504,6 +532,7 @@ mod tests {
             "excluded_paths": s.excluded_paths,
             "reindex_interval": s.reindex_interval,
             "system_tool_allowlist": s.system_tool_allowlist,
+            "follow_cursor": s.follow_cursor,
             "directory_shortcuts": s.directory_shortcuts,
             "file_shortcuts": s.file_shortcuts,
             "data_dir": "C:\\test",

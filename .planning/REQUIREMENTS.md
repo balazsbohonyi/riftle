@@ -89,6 +89,14 @@
 
 - [x] **PHASE-09.1**: App provides a native system tray icon with default app icon, native OS context menu (Settings, Quit Launcher), single-click toggle behavior, and double-click show/focus behavior
 
+### Multi-Monitor
+
+- [x] **MON-01**: Launcher appears on the primary (default) monitor by default, not wherever the hidden window last was
+- [x] **MON-02**: Settings window always centers on the primary monitor each time it is opened
+- [x] **MON-03**: "Show where cursor is" toggle in Settings → Appearance, defaults to OFF
+- [x] **MON-04**: When toggle is ON, launcher appears on the monitor containing the mouse cursor at summon time
+- [x] **MON-05**: CHANGELOG entry documents the feature under Unreleased section
+
 ### Packaging
 
 - [ ] **PACK-01**: pnpm tauri build produces NSIS (.exe) and MSI (.msi) installers
@@ -182,6 +190,11 @@
 | HKEY-02 | Phase 9 | Complete |
 | HKEY-03 | Phase 9 | Complete |
 | PHASE-09.1 | Phase 9.1 | Complete |
+| MON-01 | Phase 09.9 | Complete |
+| MON-02 | Phase 09.9 | Complete |
+| MON-03 | Phase 09.9 | Complete |
+| MON-04 | Phase 09.9 | Complete |
+| MON-05 | Phase 09.9 | Complete |
 | PACK-01 | Phase 10 | Pending |
 | PACK-02 | Phase 10 | Pending |
 | PACK-03 | Phase 10 | Pending |
@@ -189,10 +202,10 @@
 | PACK-05 | Phase 10 | Pending |
 
 **Coverage:**
-- v1 requirements: 53 total
-- Mapped to phases: 53
+- v1 requirements: 64 total
+- Mapped to phases: 64
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-10 after adding Phase 9.1 system tray requirement traceability*
+*Last updated: 2026-06-14 after adding Phase 09.9 multi-monitor requirement traceability*

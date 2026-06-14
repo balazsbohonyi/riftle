@@ -5,6 +5,40 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Phase 09.9 complete - all 3 plans executed, documentation gaps closed
+last_updated: "2026-06-14T20:03:38.191Z"
+last_activity: 2026-06-14
+progress:
+  total_phases: 19
+  completed_phases: 15
+  total_plans: 56
+  completed_plans: 54
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: show-launcher-on-default-monitor
+current_plan: Completed
+status: complete
+stopped_at: Completed 09.9-03-PLAN.md
+last_updated: "2026-06-14T19:28:25.000Z"
+last_activity: 2026-06-14
+progress:
+  total_phases: 19
+  completed_phases: 16
+  total_plans: 56
+  completed_plans: 56
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Completed 09.8-02-PLAN.md
 last_updated: "2026-05-21T15:37:20.118Z"
 last_activity: 2026-05-21
@@ -83,6 +117,7 @@ progress:
 - Phase 09.6 inserted after Phase 9: UX Safety Gates — confirmation gate before shutdown/restart in system_commands.rs; two-phase hotkey swap in hotkey.rs so a failed registration rolls back rather than leaving no active hotkey. (URGENT)
 - Phase 09.7 inserted after Phase 9: Add support for shortcuts: - ability to specify directories and files, with a specific alias (not mandatory) and with arguments/parameters (not mandatory, and only for executable files, not for directories) (URGENT)
 - Phase 09.8 inserted after Phase 9: improve indexing performance (URGENT)
+- Phase 09.9 inserted after Phase 9: show launcher on default monitor (URGENT)
 
 ## Project Reference
 
@@ -93,13 +128,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-**Phase:** 09.7-shortcuts-support
+**Phase:** 09.9-show-launcher-on-default-monitor
 **Current Phase Name:** packaging & distribution
 **Current Plan:** Not started
-**Total Plans in Phase:** 4
+**Total Plans in Phase:** 3
 **Status:** Ready to plan
-**Last Activity:** 2026-05-15
-**Last Activity Description:** Phase 9.8 complete, transitioned to Phase 10
+**Last Activity:** 2026-06-14
+**Last Activity Description:** Phase 09.9 complete, transitioned to Phase 10
 
 ## Progress
 
@@ -241,6 +276,10 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 - [Phase 09.8-improve-indexing-performance]: try_start_index takes app: &tauri::AppHandle as first parameter and calls rebuild_index before clearing AtomicBool flag
 - [Phase 09.8-improve-indexing-performance]: Blocking run_full_index removed from lib.rs startup; deferred startup thread fires immediately (empty DB) or after 30s (populated DB)
 - [Phase 09.8-improve-indexing-performance]: test_timer_fires and test_atomic_guard_prevents_double_index rewritten to test AtomicBool CAS semantics directly — avoids AppHandle in unit tests
+- [Phase 09.9-show-launcher-on-default-monitor]: Removed SettingsCentered(AtomicBool) one-time-center guard in favor of always-center-on-primary — With primary-monitor-aware positioning, always-centering is cleaner and more correct for multi-monitor setups
+- [Phase 09.9-show-launcher-on-default-monitor]: Monitor fallback chain: cursor (if follow_cursor=true) -> primary -> current -> center() — Ensures launcher always lands on a known monitor regardless of hidden window state
+- [Phase 09.9-show-launcher-on-default-monitor]: follow_cursor defaults to false (opt-in toggle), follows same pattern as existing boolean settings
+- [Phase 09.9-show-launcher-on-default-monitor]: MON-01 through MON-05 added to REQUIREMENTS.md (definitions + traceability); coverage corrected from 53 to 64 total; VALIDATION.md signed off with nyquist_compliant: true
 
 ## Performance Metrics
 
@@ -292,11 +331,13 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | Phase 09.7-shortcuts-support P03 | 8min | 2 tasks | 2 files |
 | Phase 09.8-improve-indexing-performance P01 | 2min | 1 tasks | 1 files |
 | Phase 09.8-improve-indexing-performance P02 | 4min | 2 tasks | 2 files |
+| Phase 09.9-show-launcher-on-default-monitor P01 | 2 min | 2 tasks | 2 files |
+| Phase 09.9-show-launcher-on-default-monitor P02 | 1 min | 3 tasks | 3 files |
 
 ## Session
 
-**Last Date:** 2026-05-15T21:50:13.253Z
-**Stopped At:** Completed 09.8-02-PLAN.md
+**Last Date:** 2026-06-14T19:29:20.429Z
+**Stopped At:** Phase 09.9 complete - all 3 plans executed, documentation gaps closed
 **Resume File:** None
 
 ## Session Log
@@ -337,8 +378,10 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 | 8 | create Button component in src/components/ui with variant prop covering Add Folder and Re-index button styles, add accent variant for Re-index button, replace all Settings window buttons with this component | 2026-03-08 | bc0f535 | [8-create-button-component-in-src-component](./quick/8-create-button-component-in-src-component/) |
 | 10 | conflicting hotkey error - show Settings with error when hotkey registration fails | 2026-05-15 | 38797a4 | [10-conflicting-hotkey-error-show-settings-w](./quick/10-conflicting-hotkey-error-show-settings-w/) |
 | 11 | Change shortcut ordering setting | 2026-05-21 | pending | [11-change-shortcut-ordering-setting](./quick/11-change-shortcut-ordering-setting/) |
+| 12 | Fix multi-monitor DPI sizing on connect/disconnect — reorder show() before set_size() | 2026-06-14 | 2b7498a | [12-fix-multi-monitor-dpi-sizing-on-connect-](./quick/12-fix-multi-monitor-dpi-sizing-on-connect-/) |
+| 13 | Eliminate stale-size flash on DPI change — resolve monitor before show(), use PhysicalSize | 2026-06-14 | 0188694 | [13-eliminate-flash-when-showing-launcher-on](./quick/13-eliminate-flash-when-showing-launcher-on/) |
 
-Last activity: 2026-05-21 - Completed quick task 11: Change shortcut ordering setting
+Last activity: 2026-06-14 - Completed quick task 13: Eliminate stale-size flash on DPI change
 
 ### 2026-03-08
 - Human verification approved for 07-02: all MENU-01, MENU-02, MENU-03 requirements confirmed working
