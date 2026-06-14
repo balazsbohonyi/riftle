@@ -205,6 +205,17 @@ Plans:
 
 ---
 
+### Phase 09.9: show launcher on default monitor (INSERTED)
+
+**Goal:** Launcher and Settings windows appear on the primary monitor by default, with an optional "Show where cursor is" toggle to override launcher positioning to the cursor's monitor.
+**Requirements**: MON-01, MON-02, MON-03, MON-04, MON-05
+**Depends on:** Phase 9
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09.9-01-PLAN.md — Add follow_cursor to Settings struct + tests; primary-monitor-first positioning in show_positioned_launcher and show_settings_window; remove SettingsCentered
+- [ ] 09.9-02-PLAN.md — Wire App.vue followCursor tracking; Settings.vue "Show where cursor is" toggle; CHANGELOG entry
+
 ### Phase 09.8: improve indexing performance (INSERTED)
 
 **Goal:** Remove blocking startup run_full_index() call so app launches instantly; fix sync bug where background re-indexing never refreshes the in-memory search cache.
