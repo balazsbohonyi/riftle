@@ -11,9 +11,6 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 #[cfg(not(target_os = "windows"))]
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-/// Tracks whether the settings window has been centered this session.
-/// First open: center then show. Subsequent opens: show at current position.
-struct SettingsCentered(AtomicBool);
 struct SettingsCloseBehavior(AtomicBool);
 pub(crate) struct HotkeyCaptureActive(pub AtomicBool);
 pub(crate) struct HotkeyConflictState(pub Mutex<Option<String>>);
@@ -102,6 +99,7 @@ fn show_positioned_launcher(
     window_width: f64,
     window_height: f64,
     anchor_height: f64,
+    follow_cursor: bool,
 ) -> Result<(), String> {
     let win = app
         .get_webview_window("launcher")
@@ -110,10 +108,17 @@ fn show_positioned_launcher(
     win.set_size(tauri::LogicalSize::new(window_width, window_height))
         .map_err(|e| e.to_string())?;
 
-    let monitor = win
-        .current_monitor()
-        .map_err(|e| e.to_string())?
-        .or_else(|| win.primary_monitor().ok().flatten());
+    // Resolve target monitor: cursor (if follow_cursor) → primary → current → center()
+    let monitor = if follow_cursor {
+        win.cursor_position()
+            .ok()
+            .and_then(|pos| win.monitor_from_point(pos.x, pos.y).ok().flatten())
+    } else {
+        None
+    };
+    let monitor = monitor
+        .or_else(|| win.primary_monitor().ok().flatten())
+        .or_else(|| win.current_monitor().ok().flatten());
 
     if let Some(monitor) = monitor {
         let work_area = monitor.work_area();
@@ -150,13 +155,25 @@ fn toggle_launcher_window(app: &tauri::AppHandle) {
 }
 
 fn show_settings_window(app: &tauri::AppHandle) -> Result<(), String> {
-    let centered = app.state::<SettingsCentered>();
     let win = app
         .get_webview_window("settings")
         .ok_or_else(|| "settings window not found".to_string())?;
-    if !centered.0.swap(true, Ordering::Relaxed) {
+
+    // Always center on primary monitor — no more one-time-only SettingsCentered guard.
+    if let Some(monitor) = win.primary_monitor().ok().flatten() {
+        let work_area = monitor.work_area();
+        let scale_factor = monitor.scale_factor();
+        let size = win.inner_size().unwrap_or(tauri::PhysicalSize::new(450, 600));
+        let center_x = work_area.position.x
+            + ((work_area.size.width as f64 - size.width as f64 * scale_factor) / 2.0).round() as i32;
+        let center_y = work_area.position.y
+            + ((work_area.size.height as f64 - size.height as f64 * scale_factor) / 2.0).round() as i32;
+        win.set_position(tauri::PhysicalPosition::new(center_x, center_y))
+            .map_err(|e| e.to_string())?;
+    } else {
         win.center().map_err(|e| e.to_string())?;
     }
+
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
     Ok(())
@@ -353,8 +370,7 @@ pub fn run() {
                 app.manage(Arc::new(Mutex::new(timer_tx)));
             }
 
-            // Settings window: centered on first open, position remembered within session
-            app.manage(SettingsCentered(AtomicBool::new(false)));
+            // Settings window: always centered on primary monitor (Phase 09.9)
             app.manage(SettingsCloseBehavior(AtomicBool::new(true)));
 
             // Phase 09.1: Native system tray icon + native context menu.
