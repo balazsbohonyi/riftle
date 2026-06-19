@@ -57,10 +57,10 @@ function compactMiddle(value: string, maxLength = 76): string {
 .shortcut-entry {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  background: var(--color-bg-darker);
+  gap: 6px;
+  border-bottom: 1px solid var(--color-divider);
   border-radius: var(--radius-sm);
-  padding: var(--spacing-sm);
+  padding: var(--spacing-md) 0;
   width: 100%;
   box-sizing: border-box;
 }
@@ -74,6 +74,7 @@ function compactMiddle(value: string, maxLength = 76): string {
 .shortcut-entry-name {
   min-width: 0;
   max-width: 100%;
+  background: var(--color-bg-darker);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text);

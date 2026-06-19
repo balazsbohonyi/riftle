@@ -1184,8 +1184,8 @@ html, body {
 }
 
 .search-input::selection {
-  background: var(--color-accent);
-  color: #ffffff;
+  background: var(--color-selection-bg);
+  color: var(--color-selection-text);
 }
 
 .magnifier-icon {
@@ -1247,7 +1247,7 @@ html, body {
   left: 8px;
   right: 8px;
   height: 48px;
-  background: var(--color-accent);
+  background: var(--color-selection-bg);
   border-radius: var(--radius-sm);
   transition: transform var(--duration-fast) cubic-bezier(0.2, 0, 0, 1), opacity var(--duration-fast) ease;
   z-index: 0;
@@ -1270,11 +1270,11 @@ html, body {
 }
 
 .result-row.selected .app-name {
-  color: #ffffff;
+  color: var(--color-selection-text);
 }
 
 .result-row.selected .path-line {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--color-selection-text);
 }
 
 .result-row.selected .system-command-icon {
