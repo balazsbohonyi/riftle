@@ -1065,15 +1065,11 @@ html, body {
   width: 100%;
   height: auto;
 
-  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
+  background: var(--surface-launcher-bg);
 
   border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  box-shadow:
-    0 2px 4px  hsl(var(--shadow-color) / 0.32),
-    0 4px 10px hsl(var(--shadow-color) / 0.26),
-    0 8px 24px hsl(var(--shadow-color) / 0.18),
-    0 16px 40px hsl(var(--shadow-color) / 0.12);
+  border: 1px solid var(--surface-launcher-border);
+  box-shadow: var(--shadow-launcher);
 }
 
 /* ---- Search area ---- */
@@ -1374,9 +1370,10 @@ html, body {
 
 .context-menu {
   position: fixed;
-  background: linear-gradient(180deg, var(--color-bg-lighter) 0%, var(--color-bg) 40%, var(--color-bg-darker) 100%);
-  border: 1px solid var(--color-border);
+  background: var(--surface-launcher-bg);
+  border: 1px solid var(--surface-launcher-border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-launcher-menu);
   width: max-content;
   z-index: 100;
   overflow: hidden;
