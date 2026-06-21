@@ -1,7 +1,7 @@
 ## Unreleased — In development
 
 - **Multi-monitor support.** Launcher and Settings now appear on the primary monitor by default. Optionally show the launcher on the monitor where the mouse cursor is. Per-monitor DPI handling was tightened so the launcher sizes and positions correctly after display changes.
-- **Settings sidebar.** The Settings window is now organized with a left sidebar for General, Appearance, Search, and Shortcuts. General opens by default, the global shortcut controls now live at the top of General, and each section stays focused instead of scrolling through one long settings page.
+- **Settings sidebar.** The Settings window was reorganized with a more user-friendly sidebar.
 - **Smoother launcher reveal.** Reduced the visible flash when showing the launcher, especially around monitor positioning and sizing updates.
 - **Improved selection contrast.** Highlighted results and selected search text are now easier to read in both light and dark themes.
 - **Refined visual polish.** The launcher, context menu, and settings window now have a calmer, more cohesive look with better contrast and depth.
