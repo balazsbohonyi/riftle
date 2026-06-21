@@ -1,18 +1,23 @@
 :root {
-  --color-bg: #1c1c1e;
-  --color-bg-lighter: #242427;
-  --color-bg-darker: #181818;
+  --color-bg: #0d131b;
+  --color-bg-lighter: #18222e;
+  --color-bg-darker: #090d13;
+  --surface-settings-bg: linear-gradient(180deg, #101721 0%, #0d131b 54%, #090d13 100%);
+  --surface-launcher-bg:
+    radial-gradient(ellipse at 50% 0%, rgba(68, 92, 122, 0.28) 0%, rgba(25, 39, 57, 0.16) 38%, transparent 72%),
+    linear-gradient(180deg, #18222e 0%, #0e141d 46%, #070a0f 100%);
+  --surface-launcher-border: rgba(139, 168, 200, 0.24);
 
-  --color-text: #f0f0f0;
-  --color-text-soft: #e2e2e5;
-  --color-text-muted: #888;
-  --color-text-dim: #555558;
+  --color-text: #f0f4f8;
+  --color-text-soft: #d8e0ea;
+  --color-text-muted: #8b96a8;
+  --color-text-dim: #596373;
   --color-accent: #0A84FF; 
   --color-danger: #ff6b5f;
   --color-selection-bg:rgba(10, 132, 255, 0.5);
   --color-selection-text: var(--color-text);
-  --color-border: rgba(255, 255, 255, 0.15);
-  --color-divider: rgba(255, 255, 255, 0.1);
+  --color-border: rgba(139, 168, 200, 0.18);
+  --color-divider: rgba(139, 168, 200, 0.12);
 
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -29,43 +34,86 @@
   --radius-sm: 4px;
   --duration-fast: 120ms;
   --duration-normal: 180ms;
-  --shadow-color: 220deg 30% 5%;
+  --shadow-launcher:
+    0 6px 12px -7px rgba(0, 0, 0, 0.70),
+    0 16px 28px -22px rgba(0, 0, 0, 0.58),
+    0 26px 34px -32px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(222, 236, 255, 0.12),
+    inset 0 0 0 1px rgba(222, 236, 255, 0.035),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.48);
+  --shadow-launcher-menu:
+    0 8px 16px -10px rgba(0, 0, 0, 0.62),
+    0 18px 28px -24px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(222, 236, 255, 0.11),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.42);
 }
 
 [data-theme="light"] {
-  --color-bg: #f0f0f0;
-  --color-bg-lighter: #ffffff;
-  --color-bg-darker: #e0e0e0;
+  --color-bg: #edf3fa;
+  --color-bg-lighter: #fbfdff;
+  --color-bg-darker: #e3ebf4;
+  --surface-settings-bg: linear-gradient(180deg, #f6faff 0%, #edf3fa 58%, #e8eef6 100%);
+  --surface-launcher-bg:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(229, 238, 249, 0.52) 42%, transparent 74%),
+    linear-gradient(180deg, #fbfdff 0%, #edf3fa 48%, #e3ebf4 100%);
+  --surface-launcher-border: rgba(91, 111, 134, 0.30);
 
-  --color-text: #1c1c1e;
-  --color-text-soft: #45454d;
-  --color-text-muted: #666;
-  --color-text-dim: #aaaaaa;
+  --color-text: #141a22;
+  --color-text-soft: #3d4b5c;
+  --color-text-muted: #657184;
+  --color-text-dim: #a7b1bf;
   --color-accent: #345c85;
   --color-danger: #b42318;
   --color-selection-bg: #345c85;
   --color-selection-text: #ffffff;
-  --color-border: rgba(0, 0, 0, 0.12);
-  --color-divider: rgba(0, 0, 0, 0.15);
-  --shadow-color: 220deg 40% 10%;
+  --color-border: rgba(91, 111, 134, 0.22);
+  --color-divider: rgba(91, 111, 134, 0.18);
+  --shadow-launcher:
+    0 6px 12px -7px rgba(22, 38, 58, 0.24),
+    0 16px 26px -22px rgba(22, 38, 58, 0.20),
+    0 24px 32px -30px rgba(22, 38, 58, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 rgba(62, 82, 104, 0.12);
+  --shadow-launcher-menu:
+    0 8px 16px -10px rgba(22, 38, 58, 0.20),
+    0 18px 28px -24px rgba(22, 38, 58, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    inset 0 -1px 0 rgba(62, 82, 104, 0.10);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-  --color-bg: #f0f0f0;
-  --color-bg-lighter: #ffffff;
-  --color-bg-darker: #e0e0e0;
+  --color-bg: #edf3fa;
+  --color-bg-lighter: #fbfdff;
+  --color-bg-darker: #e3ebf4;
+  --surface-settings-bg: linear-gradient(180deg, #f6faff 0%, #edf3fa 58%, #e8eef6 100%);
+  --surface-launcher-bg:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(229, 238, 249, 0.52) 42%, transparent 74%),
+    linear-gradient(180deg, #fbfdff 0%, #edf3fa 48%, #e3ebf4 100%);
+  --surface-launcher-border: rgba(91, 111, 134, 0.30);
 
-  --color-text: #1c1c1e;
-  --color-text-soft: #45454d;
-  --color-text-muted: #666;
-  --color-text-dim: #aaaaaa;
+  --color-text: #141a22;
+  --color-text-soft: #3d4b5c;
+  --color-text-muted: #657184;
+  --color-text-dim: #a7b1bf;
   --color-accent: #345c85;
   --color-danger: #b42318;
   --color-selection-bg: #345c85;
   --color-selection-text: #ffffff;
-  --color-border: rgba(0, 0, 0, 0.12);
-  --color-divider: rgba(0, 0, 0, 0.08);
-  --shadow-color: 220deg 40% 10%;
+  --color-border: rgba(91, 111, 134, 0.22);
+  --color-divider: rgba(91, 111, 134, 0.14);
+  --shadow-launcher:
+    0 6px 12px -7px rgba(22, 38, 58, 0.24),
+    0 16px 26px -22px rgba(22, 38, 58, 0.20),
+    0 24px 32px -30px rgba(22, 38, 58, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 rgba(62, 82, 104, 0.12);
+  --shadow-launcher-menu:
+    0 8px 16px -10px rgba(22, 38, 58, 0.20),
+    0 18px 28px -24px rgba(22, 38, 58, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    inset 0 -1px 0 rgba(62, 82, 104, 0.10);
   }
 }

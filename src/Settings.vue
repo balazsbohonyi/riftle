@@ -46,6 +46,15 @@ const shortcutsError = ref<string | null>(null)
 const defaultHotkey = 'Ctrl+Space'
 const lastRegisteredHotkey = ref(defaultHotkey)
 const activeShortcutTab = ref<'directory' | 'file'>('directory')
+type SettingsSectionId = 'general' | 'appearance' | 'search' | 'shortcuts'
+
+const activeSection = ref<SettingsSectionId>('general')
+const settingsSections: Array<{ id: SettingsSectionId; label: string }> = [
+  { id: 'general', label: 'General' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'search', label: 'Search' },
+  { id: 'shortcuts', label: 'Shortcuts' },
+]
 const directoryShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const fileShortcutList = ref<InstanceType<typeof ShortcutList> | null>(null)
 const settingsContentRef = ref<HTMLElement | null>(null)
@@ -347,6 +356,7 @@ async function closeWindow() {
   if (shouldRestoreLauncher) {
     await emitTo('launcher', 'launcher-show', { source: 'settings' }).catch(console.error)
   }
+  activeSection.value = 'general'
   await getCurrentWindow().hide()
 }
 
@@ -368,29 +378,25 @@ onUnmounted(() => {
       <span class="settings-title" data-tauri-drag-region>Riftle Settings</span>
       <button class="settings-close" type="button" @mousedown.stop @click="closeWindow">&times;</button>
     </div>
-    <div
-      ref="settingsContentRef"
-      :class="['settings-content', { 'settings-content--scrolling': isSettingsScrolling }]"
-      @scroll="onSettingsScroll"
-    >
-
-      <Section title="General">
-        <Row
-          label="Launch at startup"
-          :hint="autostartHint"
+    <div class="settings-body">
+      <aside class="settings-sidebar" aria-label="Settings sections">
+        <button
+          v-for="section in settingsSections"
+          :key="section.id"
+          type="button"
+          :class="['settings-sidebar-item', { 'settings-sidebar-item--active': activeSection === section.id }]"
+          @click="activeSection = section.id"
         >
-          <Toggle
-            v-model="settings.autostart"
-            :disabled="!canAutostart"
-            @update:modelValue="onAutostartChange"
-          />
-        </Row>
-        <Row label="Play sound on open">
-          <Toggle v-model="settings.play_sound" @update:modelValue="onPlaySoundChange" />
-        </Row>
-      </Section>
+          {{ section.label }}
+        </button>
+      </aside>
+      <div
+        ref="settingsContentRef"
+        :class="['settings-content', { 'settings-content--scrolling': isSettingsScrolling }]"
+        @scroll="onSettingsScroll"
+      >
 
-      <Section title="Hotkey">
+      <Section v-show="activeSection === 'general'" title="General">
         <Row label="Global shortcut" ref="hotkeyRowRef">
           <div class="hotkey-row">
             <button
@@ -408,9 +414,22 @@ onUnmounted(() => {
           </div>
         </Row>
         <p v-if="hotkeyError" class="hotkey-error">{{ hotkeyError }}</p>
+        <Row
+          label="Launch at startup"
+          :hint="autostartHint"
+        >
+          <Toggle
+            v-model="settings.autostart"
+            :disabled="!canAutostart"
+            @update:modelValue="onAutostartChange"
+          />
+        </Row>
+        <Row label="Play sound on open">
+          <Toggle v-model="settings.play_sound" @update:modelValue="onPlaySoundChange" />
+        </Row>
       </Section>
 
-      <Section title="Appearance">
+      <Section v-show="activeSection === 'appearance'" title="Appearance">
         <Row label="Theme">
           <Dropdown
             :options="[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]"
@@ -439,6 +458,7 @@ onUnmounted(() => {
       </Section>
 
       <Section
+        v-show="activeSection === 'search'"
         title="Search"
         description="Riftle already scans the standard Windows app locations by default. Add extra folders here when you want the searchable index to include apps or shortcuts stored somewhere else, and exclude paths that should never be scanned."
       >
@@ -465,6 +485,7 @@ onUnmounted(() => {
       </Section>
 
       <Section
+        v-show="activeSection === 'shortcuts'"
         title="Shortcuts"
         description="Create named shortcuts that appear directly in search results. Use these for folders, files, or file launches that need a specific app or extra parameters."
       >
@@ -512,6 +533,7 @@ onUnmounted(() => {
         <p v-if="shortcutsError" class="shortcuts-error">{{ shortcutsError }}</p>
       </Section>
 
+      </div>
     </div>
     <div
       v-if="isSettingsScrolling && settingsScrollThumbHeight > 0"
@@ -527,7 +549,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg);
+  background: var(--surface-settings-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
@@ -566,8 +588,64 @@ onUnmounted(() => {
   color: var(--color-text);
 }
 
-.settings-content {
+.settings-body {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
   flex: 1;
+  min-height: 0;
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  min-height: 0;
+  padding: var(--spacing-md) var(--spacing-sm);
+  background: var(--color-bg-darker);
+  border-right: 1px solid var(--color-divider);
+}
+
+.settings-sidebar-item {
+  min-height: 34px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  white-space: nowrap;
+  padding: 0 var(--spacing-sm);
+  transition:
+    background var(--duration-fast),
+    border-color var(--duration-fast),
+    color var(--duration-fast);
+}
+
+.settings-sidebar-item:hover {
+  background: var(--color-bg-lighter);
+  color: var(--color-text);
+}
+
+.settings-sidebar-item:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.settings-sidebar-item--active {
+  background: var(--color-selection-bg);
+  color: var(--color-selection-text);
+}
+
+.settings-sidebar-item--active:hover {
+  background: var(--color-selection-bg);
+  color: var(--color-selection-text);
+}
+
+.settings-content {
+  min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-lg);
   scrollbar-width: none;
@@ -716,19 +794,7 @@ input[type='range'] {
 }
 
 .shortcut-tab-panel {
-  height: 340px;
-  overflow: hidden;
-}
-
-.shortcut-tab-panel :deep(.shortcut-list) {
-  height: 340px;
-  max-height: 340px;
-  padding-bottom: 0;
-  box-sizing: border-box;
-}
-
-.shortcut-tab-panel :deep(.shortcut-list-shell) {
-  height: 340px;
+  min-height: 0;
 }
 
 </style>
