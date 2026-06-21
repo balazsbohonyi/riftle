@@ -210,10 +210,10 @@ Plans:
 **Goal:** Reorganize the existing Settings window into a sidebar layout that shows one section at a time, moves Global shortcut into General, removes the standalone Hotkey section, and preserves all existing settings behavior.
 **Requirements**: PHASE-09.10-A, PHASE-09.10-B, PHASE-09.10-C, PHASE-09.10-D, PHASE-09.10-E
 **Depends on:** Phase 9
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 09.10-01-PLAN.md - Refactor Settings.vue into sidebar layout, preserve behavior, remove fixed Shortcuts scroll wrapper, widen settings window
+- [x] 09.10-01-PLAN.md - Refactor Settings.vue into sidebar layout, preserve behavior, remove fixed Shortcuts scroll wrapper, widen settings window (completed 2026-06-21)
 
 ### Phase 09.9: show launcher on default monitor (INSERTED)
 
