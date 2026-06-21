@@ -5,6 +5,23 @@ milestone_name: milestone
 current_phase_name: packaging & distribution
 current_plan: Not started
 status: planning
+stopped_at: Phase 09.10 context gathered
+last_updated: "2026-06-21T17:21:27.618Z"
+last_activity: 2026-06-14
+progress:
+  total_phases: 20
+  completed_phases: 15
+  total_plans: 56
+  completed_plans: 54
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase_name: packaging & distribution
+current_plan: Not started
+status: planning
 stopped_at: Phase 09.9 complete - all 3 plans executed, documentation gaps closed
 last_updated: "2026-06-14T20:03:38.191Z"
 last_activity: 2026-06-14
@@ -118,6 +135,7 @@ progress:
 - Phase 09.7 inserted after Phase 9: Add support for shortcuts: - ability to specify directories and files, with a specific alias (not mandatory) and with arguments/parameters (not mandatory, and only for executable files, not for directories) (URGENT)
 - Phase 09.8 inserted after Phase 9: improve indexing performance (URGENT)
 - Phase 09.9 inserted after Phase 9: show launcher on default monitor (URGENT)
+- Phase 09.10 inserted after Phase 9: Settings with sidebar (URGENT)
 
 ## Project Reference
 
@@ -336,9 +354,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Session
 
-**Last Date:** 2026-06-14T19:29:20.429Z
-**Stopped At:** Phase 09.9 complete - all 3 plans executed, documentation gaps closed
-**Resume File:** None
+**Last Date:** 2026-06-21T17:21:27.613Z
+**Stopped At:** Phase 09.10 context gathered
+**Resume File:** .planning/phases/09.10-settings-with-sidebar/09.10-CONTEXT.md
 
 ## Session Log
 
