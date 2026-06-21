@@ -205,6 +205,16 @@ Plans:
 
 ---
 
+### Phase 09.10: Settings with sidebar (INSERTED)
+
+**Goal:** Reorganize the existing Settings window into a sidebar layout that shows one section at a time, moves Global shortcut into General, removes the standalone Hotkey section, and preserves all existing settings behavior.
+**Requirements**: PHASE-09.10-A, PHASE-09.10-B, PHASE-09.10-C, PHASE-09.10-D, PHASE-09.10-E
+**Depends on:** Phase 9
+**Plans:** 1 plan
+
+Plans:
+- [ ] 09.10-01-PLAN.md - Refactor Settings.vue into sidebar layout, preserve behavior, remove fixed Shortcuts scroll wrapper, widen settings window
+
 ### Phase 09.9: show launcher on default monitor (INSERTED)
 
 **Goal:** Launcher and Settings windows appear on the primary monitor by default, with an optional "Show where cursor is" toggle to override launcher positioning to the cursor's monitor.
