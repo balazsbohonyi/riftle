@@ -1,6 +1,9 @@
 ## Unreleased — In development
 
-- **Multi-monitor support.** Launcher and Settings now appear on the primary monitor by default. Optionally show the launcher on the monitor where the mouse cursor is.
+- **Multi-monitor support.** Launcher and Settings now appear on the primary monitor by default. Optionally show the launcher on the monitor where the mouse cursor is. Per-monitor DPI handling was tightened so the launcher sizes and positions correctly after display changes.
+- **Smoother launcher reveal.** Reduced the visible flash when showing the launcher, especially around monitor positioning and sizing updates.
+- **Improved selection contrast.** Highlighted results and selected search text are now easier to read in both light and dark themes.
+- **Refined visual polish.** The launcher, context menu, and settings window now have a calmer, more cohesive look with better contrast and depth.
 
 
 ## 1.0.0-beta.1 - 2025-05-26
